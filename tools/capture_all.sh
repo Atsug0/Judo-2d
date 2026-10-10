@@ -8,7 +8,7 @@ OUT="$PWD/screenshots"
 TMP="$PWD/captures"
 mkdir -p "$OUT"
 GODOT=${GODOT:-godot}
-run() { DISPLAY=${DISPLAY:-:99} LIBGL_ALWAYS_SOFTWARE=1 timeout 900 "$GODOT" --path . --rendering-driver opengl3 -- "$@" 2>&1 | grep -E "SCRIPT ERROR|capture :" || true; }
+run() { DISPLAY=${DISPLAY:-:99} LIBGL_ALWAYS_SOFTWARE=1 timeout 240 "$GODOT" --path . --rendering-driver opengl3 -- "$@" 2>&1 | grep -E "SCRIPT ERROR|capture :" || true; }
 want() { [ $# -eq 0 ] || [[ " ${TARGETS} " == *" $1 "* ]]; }
 TARGETS="${*:-}"
 

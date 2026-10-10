@@ -63,7 +63,13 @@ func goto(screen_name: String, params: Dictionary = {}) -> void:
 	if current != null:
 		current.queue_free()
 	current = Node2D.new()
-	current.set_script(load(SCREENS[screen_name]))
+	var scr = load(SCREENS[screen_name])
+	current.set_script(scr)
+	if not current.has_method("on_enter"):
+		push_error("Écran invalide (erreur de script) : " + screen_name)
+		if capture_mode:
+			get_tree().quit(2)
+		return
 	current.set("app", self)
 	current_name = screen_name
 	add_child(current)
