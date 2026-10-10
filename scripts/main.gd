@@ -20,6 +20,7 @@ const SCREENS := {
 	"online": "res://scripts/screens/online_screen.gd",
 	"art": "res://scripts/screens/art_screen.gd",
 	"bake": "res://scripts/screens/bake_screen.gd",
+	"vs": "res://scripts/screens/vs_screen.gd",
 }
 
 const NAV_BUTTONS := {
@@ -38,9 +39,40 @@ var last_match_params := {}
 ## État de la session de jeu (tournoi en cours, etc.).
 var session := {}
 var _held := {}  # "device:action" -> frames tenus
+## Transition entre écrans : bandes inclinées qui se retirent.
+var _trans_layer: CanvasLayer
+var _trans_draw: Node2D
+var _trans_t := 99
+const TRANS_FRAMES := 20
+
+
+func _setup_transition() -> void:
+	_trans_layer = CanvasLayer.new()
+	_trans_layer.layer = 10
+	add_child(_trans_layer)
+	_trans_draw = Node2D.new()
+	_trans_draw.set_script(load("res://scripts/ui/draw_proxy.gd"))
+	_trans_draw.fn = Callable(self, "_draw_transition")
+	_trans_layer.add_child(_trans_draw)
+
+
+func _draw_transition(ci: CanvasItem) -> void:
+	if _trans_t >= TRANS_FRAMES:
+		return
+	var Style = load("res://scripts/ui/style.gd")
+	var cols := [Style.HOT, Style.P1, Style.P2, Style.INK]
+	var p := float(_trans_t) / float(TRANS_FRAMES)
+	for k in cols.size():
+		# chaque bande part un peu après la précédente, vers la droite
+		var q := clampf(p * 1.6 - k * 0.15, 0.0, 1.0)
+		q = q * q * (3.0 - 2.0 * q)
+		var x0 := -200.0 + q * 2000.0
+		var pts := PackedVector2Array([Vector2(x0, 0), Vector2(x0 + 2100, 0), Vector2(x0 + 2100 - 360, 720), Vector2(x0 - 360, 720)])
+		ci.draw_colored_polygon(pts, cols[cols.size() - 1 - k])
 
 
 func _ready() -> void:
+	_setup_transition()
 	for a in OS.get_cmdline_user_args():
 		var kv := a.trim_prefix("--").split("=", true, 1)
 		args[kv[0]] = kv[1] if kv.size() > 1 else "1"
@@ -88,13 +120,20 @@ func goto(screen_name: String, params: Dictionary = {}) -> void:
 	add_child(current)
 	if screen_name == "match":
 		last_match_params = params
+	elif screen_name == "vs" and params.is_empty():
+		params = default_match_params()
 	current.on_enter(params)
 	current.queue_redraw()
+	if not capture_mode:
+		_trans_t = 0
 
 
 func _physics_process(_delta: float) -> void:
 	if capture_mode or current == null:
 		return
+	if _trans_t < TRANS_FRAMES:
+		_trans_t += 1
+		_trans_draw.queue_redraw()
 	_poll_nav()
 	if current.has_method("tick"):
 		current.tick()
@@ -150,11 +189,18 @@ func _run_capture() -> void:
 			for t in String(args.ticks).split(","):
 				wanted[int(t)] = true
 		var shots := 0
+		var last_t := -1
+		var settle := int(args.get("settle", "0"))  # images d'effets à laisser passer avant la capture
 		while current.sim.state.tick < until and shots < max_shots:
 			current.tick()
 			var t: int = current.sim.state.tick
+			if t == last_t:
+				continue  # arrêt sur image / ralenti : même instant de simulation
 			if wanted.has(t) or (args.has("events") and current.capture_flag) or (args.has("attack") and current.attack_flag and t > int(args.get("after", "0"))):
+				for k in settle:
+					current.tick()
 				await _shot("%s/match_%05d.png" % [dir, t])
+				last_t = current.sim.state.tick
 				shots += 1
 			if current.sim.state.phase == "ended" and current.end_timer > 30:
 				break

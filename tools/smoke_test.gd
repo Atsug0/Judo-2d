@@ -17,8 +17,8 @@ func _run() -> void:
 	root.add_child(app)
 	await process_frame
 	await _flow("titre → menu", "title", ["accept"], "menu")
-	await _flow("menu → tournoi → combat", "menu", ["accept", "accept"], "match")
-	await _flow("menu → versus → combat", "menu", ["down", "accept", "accept"], "match")
+	await _flow("menu → tournoi → présentation → combat", "menu", ["accept", "accept", "accept"], "match")
+	await _flow("menu → versus → présentation", "menu", ["down", "accept", "accept"], "vs")
 	await _flow("menu → en ligne → retour", "menu", ["down", "down", "accept", "back"], "menu")
 	await _flow("menu → personnalisation → retour", "menu", ["down", "down", "down", "accept", "next", "right", "next", "right", "x", "accept", "back"], "menu")
 	await _flow("menu → options → retour", "menu", ["down", "down", "down", "down", "accept", "right", "right", "left", "down", "right", "back", "back"], "menu")
@@ -43,8 +43,9 @@ func _flow(label: String, start: String, actions: Array, expect: String) -> void
 	for a in actions:
 		app.current.nav(a, 0)
 		await process_frame
-		if app.current.has_method("tick"):
-			app.current.tick()
+		for f in 25:
+			if app.current.has_method("tick"):
+				app.current.tick()
 	_check(label, app.current_name == expect, "attendu %s, obtenu %s" % [expect, app.current_name])
 
 
@@ -54,6 +55,10 @@ func _tournament_flow() -> void:
 	app.goto("tournament", {"new": true})
 	var Sim = load("res://scripts/sim/match_sim.gd")
 	for round_i in 3:
+		app.current.nav("accept", 0)  # présentation
+		await process_frame
+		for f in 25:
+			app.current.tick()
 		app.current.nav("accept", 0)  # lance le combat
 		await process_frame
 		_check("tournoi tour %d : combat" % (round_i + 1), app.current_name == "match", app.current_name)
@@ -74,6 +79,10 @@ func _tournament_flow() -> void:
 	_check("tournoi terminé → menu", app.current_name == "menu", app.current_name)
 	# défaite au premier tour → éliminé
 	app.goto("tournament", {"new": true})
+	app.current.nav("accept", 0)
+	await process_frame
+	for f in 25:
+		app.current.tick()
 	app.current.nav("accept", 0)
 	await process_frame
 	var m2 = app.current

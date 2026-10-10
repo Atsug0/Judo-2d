@@ -41,6 +41,14 @@ if [ -z "$TARGETS" ] || [[ " $TARGETS " == *" match "* ]]; then
   cp "${files[-1]}" "$OUT/05_combat_fin.png"
   rm -rf "$TMP"
 fi
+if [ -z "$TARGETS" ] || [[ " $TARGETS " == *" feel "* ]]; then
+  rm -rf "$TMP"
+  run --screen=match --capture="$TMP" --ticks=150,262,279 --max=3 --until=400 --seed=5
+  cp "$TMP"/match_00150.png "$OUT/17_camera_garde.png"
+  cp "$TMP"/match_00262.png "$OUT/18_camera_impact.png"
+  cp "$TMP"/match_00279.png "$OUT/19_camera_waza_ari.png"
+  rm -rf "$TMP"
+fi
 if [ -z "$TARGETS" ] || [[ " $TARGETS " == *" ground "* ]]; then
   rm -rf "$TMP"
   run --screen=match --capture="$TMP" --ticks=340,470 --max=2 --until=600 --seed=1 --p1build=2 --p2build=1
@@ -48,7 +56,7 @@ if [ -z "$TARGETS" ] || [[ " $TARGETS " == *" ground "* ]]; then
   cp "$TMP"/match_00470.png "$OUT/15_sol_juji_gatame.png"
   rm -rf "$TMP"
 fi
-for s in title menu customize select tournament results options online pause art; do
+for s in title menu customize select tournament results options online pause art vs; do
   if [ -z "$TARGETS" ] || [[ " $TARGETS " == *" $s "* ]]; then
     case $s in
       title) run --screen=title --capture="$OUT" --name=00_titre --frames=40 ;;
@@ -68,6 +76,7 @@ for s in title menu customize select tournament results options online pause art
         run --screen=art --capture="$OUT" --name=13_planche_perso --frames=2
         run --screen=art --capture="$OUT" --name=13b_planche_gros_plan --frames=2 --zoom
         run --screen=art --capture="$OUT" --name=13c_planche_sol --frames=2 --ground ;;
+      vs) run --screen=vs --capture="$OUT" --name=16_presentation_vs --frames=60 ;;
       pause) run --screen=match --capture="$OUT" --name=12_pause --frames=900 --seed=5 --nav=start ;;
     esac
   fi
