@@ -8,7 +8,24 @@ OUT="$PWD/screenshots"
 TMP="$PWD/captures"
 mkdir -p "$OUT"
 GODOT=${GODOT:-godot}
-run() { DISPLAY=${DISPLAY:-:99} LIBGL_ALWAYS_SOFTWARE=1 timeout 240 "$GODOT" --path . --rendering-driver opengl3 -- "$@" 2>&1 | grep -E "SCRIPT ERROR|capture :" || true; }
+export DISPLAY=${DISPLAY:-:99}
+# Sous Linux sans écran : démarre Xvfb s'il n'est pas déjà là.
+if ! pgrep -x Xvfb >/dev/null 2>&1 && [ "$(uname)" = "Linux" ]; then
+  if command -v Xvfb >/dev/null; then
+    (Xvfb "$DISPLAY" -screen 0 1280x720x24 >/dev/null 2>&1 &)
+    sleep 2
+  fi
+fi
+run() {
+  local log
+  log=$(LIBGL_ALWAYS_SOFTWARE=1 timeout 240 "$GODOT" --path . --rendering-driver opengl3 -- "$@" 2>&1) || true
+  echo "$log" | grep -E "SCRIPT ERROR|capture :" || true
+  if ! echo "$log" | grep -q "capture :"; then
+    echo "ÉCHEC de capture ($*) :" >&2
+    echo "$log" | grep -E "ERROR|error" | grep -v -i alsa | head -5 >&2
+    return 1
+  fi
+}
 want() { [ $# -eq 0 ] || [[ " ${TARGETS} " == *" $1 "* ]]; }
 TARGETS="${*:-}"
 

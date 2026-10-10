@@ -210,7 +210,7 @@ func _consume_events() -> void:
 		capture_flag = true
 	if sim.state.phase in ["score", "ended"] and sim.state.phase_t == 14:
 		capture_flag = true
-	if sim.state.phase == "newaza" and sim.state.newaza.t in [90, 400]:
+	if sim.state.phase == "newaza" and sim.state.newaza.t in [12, 400]:
 		capture_flag = true
 
 

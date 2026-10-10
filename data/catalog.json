@@ -10,40 +10,40 @@
   ],
   "technique": {
     "seoi_nage": {"name": "Seoi-nage", "family": "Te-waza", "dir": "avant", "garde": "Classique, double manche", "cost": 3, "speed": 4, "risk": 3, "stamina": 3, "power": 4, "jouable": true},
-    "ippon_seoi_nage": {"name": "Ippon-seoi-nage", "family": "Te-waza", "dir": "avant", "garde": "Manche seule suffit", "cost": 3, "speed": 4, "risk": 4, "stamina": 2, "power": 4, "jouable": false},
-    "tai_otoshi": {"name": "Tai-otoshi", "family": "Te-waza", "dir": "avant_cote", "garde": "Classique", "cost": 2, "speed": 4, "risk": 2, "stamina": 2, "power": 3, "jouable": false},
-    "uchi_mata": {"name": "Uchi-mata", "family": "Ashi-waza", "dir": "avant", "garde": "Revers haut", "cost": 4, "speed": 3, "risk": 4, "stamina": 4, "power": 5, "jouable": false},
-    "harai_goshi": {"name": "Harai-goshi", "family": "Koshi-waza", "dir": "avant_cote", "garde": "Garde haute / dans le dos", "cost": 4, "speed": 2, "risk": 3, "stamina": 4, "power": 5, "jouable": false},
-    "o_goshi": {"name": "O-goshi", "family": "Koshi-waza", "dir": "avant", "garde": "Ceinture", "cost": 2, "speed": 2, "risk": 3, "stamina": 3, "power": 3, "jouable": false},
+    "ippon_seoi_nage": {"name": "Ippon-seoi-nage", "family": "Te-waza", "dir": "avant", "garde": "Manche seule suffit", "cost": 3, "speed": 4, "risk": 4, "stamina": 2, "power": 4, "jouable": true},
+    "tai_otoshi": {"name": "Tai-otoshi", "family": "Te-waza", "dir": "avant_cote", "garde": "Classique", "cost": 2, "speed": 4, "risk": 2, "stamina": 2, "power": 3, "jouable": true},
+    "uchi_mata": {"name": "Uchi-mata", "family": "Ashi-waza", "dir": "avant", "garde": "Revers haut", "cost": 4, "speed": 3, "risk": 4, "stamina": 4, "power": 5, "jouable": true},
+    "harai_goshi": {"name": "Harai-goshi", "family": "Koshi-waza", "dir": "avant_cote", "garde": "Garde haute / dans le dos", "cost": 4, "speed": 2, "risk": 3, "stamina": 4, "power": 5, "jouable": true},
+    "o_goshi": {"name": "O-goshi", "family": "Koshi-waza", "dir": "avant", "garde": "Ceinture", "cost": 2, "speed": 2, "risk": 3, "stamina": 3, "power": 3, "jouable": true},
     "o_soto_gari": {"name": "O-soto-gari", "family": "Ashi-waza", "dir": "arriere", "garde": "Revers", "cost": 3, "speed": 3, "risk": 3, "stamina": 3, "power": 5, "jouable": true},
     "o_uchi_gari": {"name": "O-uchi-gari", "family": "Ashi-waza", "dir": "arriere", "garde": "Classique", "cost": 2, "speed": 4, "risk": 2, "stamina": 2, "power": 3, "jouable": true},
     "ko_uchi_gari": {"name": "Ko-uchi-gari", "family": "Ashi-waza", "dir": "arriere_cote", "garde": "Toutes", "cost": 1, "speed": 5, "risk": 1, "stamina": 1, "power": 2, "jouable": true},
     "de_ashi_barai": {"name": "De-ashi-barai", "family": "Ashi-waza", "dir": "cote", "garde": "Toutes (timing strict)", "cost": 2, "speed": 5, "risk": 2, "stamina": 1, "power": 3, "jouable": true},
-    "sasae_tsurikomi_ashi": {"name": "Sasae-tsurikomi-ashi", "family": "Ashi-waza", "dir": "avant_cote", "garde": "Classique", "cost": 2, "speed": 4, "risk": 2, "stamina": 2, "power": 3, "jouable": false},
-    "tomoe_nage": {"name": "Tomoe-nage", "family": "Sutemi-waza", "dir": "avant", "garde": "Double revers / col", "cost": 3, "speed": 3, "risk": 4, "stamina": 3, "power": 4, "jouable": false},
-    "sumi_gaeshi": {"name": "Sumi-gaeshi", "family": "Sutemi-waza", "dir": "avant", "garde": "Ceinture / dans le dos", "cost": 3, "speed": 3, "risk": 3, "stamina": 3, "power": 4, "jouable": false}
+    "sasae_tsurikomi_ashi": {"name": "Sasae-tsurikomi-ashi", "family": "Ashi-waza", "dir": "avant_cote", "garde": "Classique", "cost": 2, "speed": 4, "risk": 2, "stamina": 2, "power": 3, "jouable": true},
+    "tomoe_nage": {"name": "Tomoe-nage", "family": "Sutemi-waza", "dir": "avant", "garde": "Double revers / col", "cost": 3, "speed": 3, "risk": 4, "stamina": 3, "power": 4, "jouable": true},
+    "sumi_gaeshi": {"name": "Sumi-gaeshi", "family": "Sutemi-waza", "dir": "avant", "garde": "Ceinture / dans le dos", "cost": 3, "speed": 3, "risk": 3, "stamina": 3, "power": 4, "jouable": true}
   },
   "contre": {
     "ura_nage": {"name": "Ura-nage", "family": "Contre", "dir": "arriere", "garde": "Contre seoi-nage et techniques d'épaule", "cost": 2, "speed": 3, "risk": 3, "stamina": 3, "power": 4, "jouable": true},
-    "utsuri_goshi": {"name": "Utsuri-goshi", "family": "Contre", "dir": "avant", "garde": "Contre les techniques de hanche", "cost": 2, "speed": 2, "risk": 3, "stamina": 3, "power": 4, "jouable": false},
-    "uchi_mata_sukashi": {"name": "Uchi-mata-sukashi", "family": "Contre", "dir": "avant", "garde": "Contre uchi-mata (esquive)", "cost": 2, "speed": 4, "risk": 4, "stamina": 2, "power": 4, "jouable": false},
-    "o_soto_gaeshi": {"name": "O-soto-gaeshi", "family": "Contre", "dir": "arriere", "garde": "Contre o-soto-gari", "cost": 2, "speed": 3, "risk": 3, "stamina": 3, "power": 4, "jouable": false},
-    "tsubame_gaeshi": {"name": "Tsubame-gaeshi", "family": "Contre", "dir": "cote", "garde": "Contre les balayages", "cost": 1, "speed": 5, "risk": 3, "stamina": 1, "power": 3, "jouable": false}
+    "utsuri_goshi": {"name": "Utsuri-goshi", "family": "Contre", "dir": "avant", "garde": "Contre les techniques de hanche", "cost": 2, "speed": 2, "risk": 3, "stamina": 3, "power": 4, "jouable": true},
+    "uchi_mata_sukashi": {"name": "Uchi-mata-sukashi", "family": "Contre", "dir": "avant", "garde": "Contre uchi-mata (esquive)", "cost": 2, "speed": 4, "risk": 4, "stamina": 2, "power": 4, "jouable": true},
+    "o_soto_gaeshi": {"name": "O-soto-gaeshi", "family": "Contre", "dir": "arriere", "garde": "Contre o-soto-gari", "cost": 2, "speed": 3, "risk": 3, "stamina": 3, "power": 4, "jouable": true},
+    "tsubame_gaeshi": {"name": "Tsubame-gaeshi", "family": "Contre", "dir": "cote", "garde": "Contre les balayages", "cost": 1, "speed": 5, "risk": 3, "stamina": 1, "power": 3, "jouable": true}
   },
   "enchainement": {
-    "ko_uchi_seoi": {"name": "Ko-uchi → Seoi", "family": "Enchaînement", "dir": "arriere_avant", "garde": "Arrière puis avant", "cost": 1, "speed": 4, "risk": 2, "stamina": 3, "power": 4, "jouable": false},
-    "o_uchi_seoi": {"name": "O-uchi → Seoi", "family": "Enchaînement", "dir": "arriere_avant", "garde": "Arrière puis avant", "cost": 1, "speed": 4, "risk": 2, "stamina": 3, "power": 4, "jouable": false},
-    "ko_uchi_uchi_mata": {"name": "Ko-uchi → Uchi-mata", "family": "Enchaînement", "dir": "arriere_avant", "garde": "Arrière puis avant", "cost": 2, "speed": 3, "risk": 3, "stamina": 4, "power": 5, "jouable": false},
-    "o_uchi_o_soto": {"name": "O-uchi → O-soto", "family": "Enchaînement", "dir": "arriere", "garde": "Arrière puis arrière", "cost": 1, "speed": 3, "risk": 2, "stamina": 3, "power": 5, "jouable": false},
-    "de_ashi_harai": {"name": "De-ashi → Harai-goshi", "family": "Enchaînement", "dir": "cote_avant", "garde": "Côté puis avant", "cost": 2, "speed": 3, "risk": 3, "stamina": 4, "power": 5, "jouable": false}
+    "ko_uchi_seoi": {"name": "Ko-uchi → Seoi", "family": "Enchaînement", "dir": "arriere_avant", "garde": "Arrière puis avant", "cost": 1, "speed": 4, "risk": 2, "stamina": 3, "power": 4, "jouable": true},
+    "o_uchi_seoi": {"name": "O-uchi → Seoi", "family": "Enchaînement", "dir": "arriere_avant", "garde": "Arrière puis avant", "cost": 1, "speed": 4, "risk": 2, "stamina": 3, "power": 4, "jouable": true},
+    "ko_uchi_uchi_mata": {"name": "Ko-uchi → Uchi-mata", "family": "Enchaînement", "dir": "arriere_avant", "garde": "Arrière puis avant", "cost": 2, "speed": 3, "risk": 3, "stamina": 4, "power": 5, "jouable": true},
+    "o_uchi_o_soto": {"name": "O-uchi → O-soto", "family": "Enchaînement", "dir": "arriere", "garde": "Arrière puis arrière", "cost": 1, "speed": 3, "risk": 2, "stamina": 3, "power": 5, "jouable": true},
+    "de_ashi_harai": {"name": "De-ashi → Harai-goshi", "family": "Enchaînement", "dir": "cote_avant", "garde": "Côté puis avant", "cost": 2, "speed": 3, "risk": 3, "stamina": 4, "power": 5, "jouable": true}
   },
   "newaza": {
-    "kesa_gatame": {"name": "Kesa-gatame", "family": "Osaekomi", "dir": "sol", "garde": "Immobilisation", "cost": 1, "speed": 3, "risk": 1, "stamina": 2, "power": 3, "jouable": false},
-    "yoko_shiho_gatame": {"name": "Yoko-shiho-gatame", "family": "Osaekomi", "dir": "sol", "garde": "Immobilisation", "cost": 1, "speed": 3, "risk": 1, "stamina": 2, "power": 3, "jouable": false},
-    "kami_shiho_gatame": {"name": "Kami-shiho-gatame", "family": "Osaekomi", "dir": "sol", "garde": "Immobilisation", "cost": 1, "speed": 2, "risk": 1, "stamina": 3, "power": 3, "jouable": false},
-    "juji_gatame": {"name": "Juji-gatame", "family": "Kansetsu-waza", "dir": "sol", "garde": "Clé de bras", "cost": 2, "speed": 3, "risk": 3, "stamina": 3, "power": 5, "jouable": false},
-    "okuri_eri_jime": {"name": "Okuri-eri-jime", "family": "Shime-waza", "dir": "sol", "garde": "Étranglement", "cost": 2, "speed": 3, "risk": 2, "stamina": 3, "power": 5, "jouable": false},
-    "sankaku_jime": {"name": "Sankaku-jime", "family": "Shime-waza", "dir": "sol", "garde": "Étranglement", "cost": 2, "speed": 2, "risk": 3, "stamina": 4, "power": 5, "jouable": false}
+    "kesa_gatame": {"name": "Kesa-gatame", "family": "Osaekomi", "dir": "sol", "garde": "Immobilisation", "cost": 1, "speed": 3, "risk": 1, "stamina": 2, "power": 3, "jouable": true},
+    "yoko_shiho_gatame": {"name": "Yoko-shiho-gatame", "family": "Osaekomi", "dir": "sol", "garde": "Immobilisation", "cost": 1, "speed": 3, "risk": 1, "stamina": 2, "power": 3, "jouable": true},
+    "kami_shiho_gatame": {"name": "Kami-shiho-gatame", "family": "Osaekomi", "dir": "sol", "garde": "Immobilisation", "cost": 1, "speed": 2, "risk": 1, "stamina": 3, "power": 3, "jouable": true},
+    "juji_gatame": {"name": "Juji-gatame", "family": "Kansetsu-waza", "dir": "sol", "garde": "Clé de bras", "cost": 2, "speed": 3, "risk": 3, "stamina": 3, "power": 5, "jouable": true},
+    "okuri_eri_jime": {"name": "Okuri-eri-jime", "family": "Shime-waza", "dir": "sol", "garde": "Étranglement", "cost": 2, "speed": 3, "risk": 2, "stamina": 3, "power": 5, "jouable": true},
+    "sankaku_jime": {"name": "Sankaku-jime", "family": "Shime-waza", "dir": "sol", "garde": "Étranglement", "cost": 2, "speed": 2, "risk": 3, "stamina": 4, "power": 5, "jouable": true}
   },
   "gardes": {"droitier": "Droitier", "gaucher": "Gaucher"},
   "styles": {

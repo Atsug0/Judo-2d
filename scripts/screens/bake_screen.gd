@@ -22,6 +22,11 @@ func on_enter(_params: Dictionary) -> void:
 	pass
 
 
+func nav(action: String, _player: int = 0) -> void:
+	if action == "back":
+		app.goto("menu", {})
+
+
 func run_bake() -> void:
 	for p in 2:
 		var char_id := "placeholder_blanc" if p == 0 else "placeholder_bleu"
