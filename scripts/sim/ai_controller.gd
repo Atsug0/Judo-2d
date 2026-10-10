@@ -21,6 +21,13 @@ var btn_urgent := false
 var last_opportunity := ""
 var react_at := 0
 var react_roll := 0
+var react_mode := ""     # réaction au kuzushi adverse : "suit", "resiste", "subit"
+var react_left := 0
+var react_cd := 0
+var dash_step := 0
+var dash_dir_ai := 0
+var grip_delay := 10
+var parry_cd := 0
 
 
 func _init(index: int, seed_value: int, lvl: int = 2) -> void:
@@ -50,27 +57,82 @@ func think(sim) -> Array:
 	var facing: int = f.facing
 	var dist: int = absi(o.x - f.x)
 
-	# --- Déplacement : venir à distance de garde, ne pas sortir du tapis.
+	var me_dom: int = sim.dom_of(me)
+	var gripped: bool = sim.has_grip(f)
+	var linked: bool = gripped or sim.has_grip(o)
+
+	# --- Déplacement : venir à portée de mains, ne pas sortir du tapis.
+	# (jamais plus de 80 hors dash : une pichenette à fond depuis le neutre = dash)
 	var back_room: int = (f.x - cfg.mat_left) if facing == 1 else (cfg.mat_right - f.x)
-	if dist > cfg.grip_range - 900:
-		inp[Sim.MX] = 100 * facing
+	if dist > cfg.free_gap + 400 and not linked:
+		inp[Sim.MX] = 80 * facing
 	elif back_room < 6000:
 		inp[Sim.MX] = 70 * facing
 	elif plan_dir.begins_with("avant") and _rand(100) < 30 + 10 * level:
 		inp[Sim.MX] = -60 * facing  # tsukuri : recule en tirant
 	elif plan_dir.begins_with("arriere") and _rand(100) < 25 + 10 * level:
 		inp[Sim.MX] = 50 * facing  # tsukuri : avance en poussant
-	# Suivre la traction adverse pour amortir le kuzushi (niveaux 2 et 3).
-	if level >= 2 and dist <= cfg.grip_range and f.bal_x > 3500 and _rand(100) < 8 * level:
-		inp[Sim.MX] = 80 * facing
 
-	# --- Kumikata (la garde haute monte au col)
+	# --- Réaction au kuzushi adverse : suivre, résister, ou subir (un choix par épisode)
+	var pulled: int = f.bal_x  # > 0 : tiré vers l'avant ; < 0 : poussé en arrière
+	if absi(pulled) > 2200 and linked:
+		if react_mode == "" and react_cd <= 0:
+			var roll := _rand(100)
+			if roll < 15 + 12 * level:
+				react_mode = "resiste"
+			elif roll < 30 + 20 * level:
+				react_mode = "suit"
+			else:
+				react_mode = "subit"
+			react_left = 25 + _rand(30)
+	if react_mode != "":
+		react_left -= 1
+		var toward: int = facing if pulled > 0 else -facing  # sens de la traction
+		if react_mode == "resiste":
+			inp[Sim.MX] = -80 * toward
+		elif react_mode == "suit":
+			inp[Sim.MX] = 80 * toward
+		if react_left <= 0:
+			react_mode = ""
+			react_cd = 40
+	elif react_cd > 0:
+		react_cd -= 1
+
+	# --- Dash : entrée rapide pour saisir, sortie quand on se fait déborder
+	if dash_step > 0:
+		dash_step -= 1
+		inp[Sim.MX] = 0 if dash_step == 1 else 100 * dash_dir_ai  # neutre, puis à fond
+	elif f.dash_cd == 0 and f.stamina > 3000 and f.attack.is_empty():
+		var o_reaching: bool = o.hands[0].state == Sim.HAND_REACH or o.hands[1].state == Sim.HAND_REACH
+		if not linked and dist <= cfg.grip_range and _rand(1000) < 4 + 3 * level:
+			_start_dash(facing)  # entrée rapide
+		elif o_reaching and me_dom < -1500 and _rand(100) < 6 * level:
+			_start_dash(-facing)  # sortie : la main adverse part dans le vide
+		elif gripped and level >= 2 and _rand(1000) < 2 * level:
+			# changement de rythme en saisie : coup sec dans le sens du plan
+			_start_dash(-facing if plan_dir.begins_with("avant") else facing)
+
+	# --- Kumikata : une main après l'autre ; la garde haute monte au col
 	if dist <= cfg.grip_range + 600:
 		var grip := 80 if f.stamina > f.stamina_max * 3 / 10 else 45
-		inp[Sim.LT] = grip
-		inp[Sim.RT] = grip
+		if f.hands[0].state != Sim.HAND_FREE or grip_delay <= 0:
+			inp[Sim.LT] = grip
+		if f.hands[1].state != Sim.HAND_FREE or grip_delay <= -10 - _rand(12):
+			inp[Sim.RT] = grip
+		grip_delay -= 1
 		if f.style == "haute" and f.hands[1].target == 1 and f.prev[Sim.RB] == 0 and _rand(100) < 10:
 			inp[Sim.RB] = 1  # main droite : du revers au col
+	else:
+		grip_delay = 6 + _rand(20)
+
+	# --- Bataille de mains : chasser la main qui arrive
+	if parry_cd > 0:
+		parry_cd -= 1
+	for h in 2:
+		if o.hands[h].state == Sim.HAND_REACH and o.hands[h].t == 5 + _rand(4) and parry_cd == 0:
+			if _rand(100) < 12 + 13 * level:
+				inp[Sim.BB] = 1
+				parry_cd = 20
 
 	# --- Plan de kuzushi : une direction utile pour les techniques équipées
 	var attacking: bool = hold_btn >= 0 or not f.attack.is_empty()
@@ -80,6 +142,10 @@ func think(sim) -> Array:
 		plan_dir = _pick_dir(sim, f)
 		plan_t = 40 + _rand(80)
 		plan_side = 100 if _rand(2) == 0 else -100
+	# action-réaction : il résiste en s'appuyant d'un côté → on l'emmène de ce côté
+	if absi(o.react) > 1800 and level >= 2 and not attacking:
+		plan_dir = "arriere" if o.react < 0 else "avant"
+		plan_t = maxi(plan_t, 20)
 	_pull_toward(inp, plan_dir, facing)
 
 	# --- Défense : contrer ou bloquer une attaque adverse (une décision par occasion)
@@ -197,6 +263,11 @@ func _safe_button(sim, f: Dictionary, o: Dictionary) -> int:
 			best_v = v
 			best = b
 	return best
+
+
+func _start_dash(dir: int) -> void:
+	dash_step = 2  # neutre, puis pichenette à fond
+	dash_dir_ai = dir
 
 
 func _press(inp: Array, btn: int) -> void:

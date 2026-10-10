@@ -283,6 +283,26 @@ def sfx_body():
         am = np.abs(lowpass(rng.standard_normal(n), 9)) * 6
         x = bandpass(pink(d), 400, 3500) * np.clip(am, 0, 1) * env(n, 0.05, d, 0, 0, 2)
         save_sfx("rustle_%d" % v, x, -12)
+    # main chassée (bataille de mains) : claque sèche
+    for v in range(3):
+        d = 0.18
+        n = int(d * SR)
+        crack = bandpass(noise(d), 1800 + 300 * v, 7000) * exp_decay(n, 0.008)
+        thump = pitch_sine(260 - 30 * v, 140, d, 0.01) * exp_decay(n, 0.02) * 0.6
+        save_sfx("slap_%d" % v, crack + thump, -4, (0.5, 0.12, 6000))
+    # dash : appui explosif, glissé de pieds sur le tatami
+    for v in range(2):
+        d = 0.22
+        n = int(d * SR)
+        skid = bandpass(pink(d), 400, 3000) * env(n, 0.004, d * 0.6, 0, 0, 5)
+        air = sweep_bandpass(noise(d), 900, 2600 + 600 * v, 2.0) * np.sin(np.pi * np.linspace(0, 1, n)) * 0.6
+        save_sfx("dash_%d" % v, skid + air, -7)
+    # action-réaction : accent percussif court (le moment à saisir)
+    d = 0.5
+    n = int(d * SR)
+    hit = pitch_sine(320, 160, d, 0.02) * exp_decay(n, 0.06) + bandpass(noise(d), 3000, 9000) * exp_decay(n, 0.015) * 0.5
+    ring = np.sin(2 * np.pi * 1320 * t_axis(d)) * exp_decay(n, 0.12) * 0.25
+    save_sfx("reaction", hit + ring, -5, (0.8, 0.2, 6000))
     # tape (abandon) : trois tapes sur le tatami
     tap = bandpass(noise(0.08), 600, 4000) * exp_decay(int(0.08 * SR), 0.01) + pitch_sine(200, 120, 0.08, 0.01) * exp_decay(int(0.08 * SR), 0.015)
     gap = np.zeros(int(0.17 * SR))

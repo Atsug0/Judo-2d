@@ -56,6 +56,7 @@ func _init(config: Dictionary, techniques: Dictionary, names: Array = ["Tori", "
 		"win_reason": "",
 		"throw": {},
 		"newaza": {},
+		"dom": 0,  # domination au kumikata : > 0 pour le joueur 1, < 0 pour le joueur 2
 		"announce": "HAJIME",
 		"announce_t": 90,
 		"fighters": fs,
@@ -101,7 +102,9 @@ func _new_fighter(id: int, fname: String, loadout) -> Dictionary:
 		"defend_t": 0, "break_cd": 0,
 		"combo_t": 0, "combo_next": "",
 		"waza": 0, "ippon": 0, "shidos": 0, "passive_t": 0, "feints": [],
-		"last_move": 0, "last_score": 0,
+		"last_move": 0, "last_score": 0, "nogrip_t": 0,
+		"react": 0, "resist_t": 0, "follow_t": 0,
+		"stick_t": 0, "dash_t": 0, "dash_dir": 0, "dash_cd": 0, "fast_reach_t": 0,
 		"mods": {},
 	}
 	if typeof(loadout) == TYPE_DICTIONARY:
@@ -168,9 +171,11 @@ func _make_mods(f: Dictionary) -> Dictionary:
 		"sol": int(ph.sol),
 		"settle_extra": 0, "grip_cost_pct": 100, "koshi_bonus": 0,
 		"ippon_extra": 0, "window_extra": 0, "reach_extra": 0, "te_bonus": 0,
-		"style_bonus": 0,
+		"style_bonus": 0, "dom_pct": 100, "parry_pct": 100, "dash_cut": 0,
 	}
 	match f.style:
+		"classique":
+			m.dom_pct = cfg.classique_dom_pct  # maîtrise de la garde manche-revers
 		"haute":
 			m.settle_extra = cfg.haute_settle
 			m.grip_cost_pct = cfg.haute_cost
@@ -179,6 +184,8 @@ func _make_mods(f: Dictionary) -> Dictionary:
 			m.entry_delta -= cfg.courte_entry
 			m.ippon_extra = cfg.courte_ippon_extra
 			m.window_extra = cfg.courte_window
+			m.parry_pct = cfg.courte_parry_pct  # vif à la bataille de mains
+			m.dash_cut = cfg.courte_dash_cut
 	return m
 
 
@@ -254,8 +261,8 @@ func _fight_tick(inputs: Array) -> void:
 		fs[i].facing = 1 if fs[1 - i].x > fs[i].x else -1
 	for i in 2:
 		_update_grips(i, inputs[i])
-	for i in 2:
-		_update_movement(i, inputs[i])
+	_update_dominance()
+	_update_movement(inputs)
 	for i in 2:
 		_apply_pull(i, inputs[i])
 	for i in 2:
@@ -283,6 +290,8 @@ func _update_grips(i: int, inp: Array) -> void:
 	# Poigne plafonnée par l'endurance : à bout de souffle, la main lâche.
 	var trig_cap: int = 40 + 60 * f.stamina / f.stamina_max
 	var reach: int = cfg.grip_reach_ticks + f.mods.reach_extra
+	if f.fast_reach_t > 0:
+		reach -= cfg.fast_reach_cut
 	var settle_max: int = cfg.grip_settle_ticks + f.mods.settle_extra
 	for h in 2:
 		var hand: Dictionary = f.hands[h]
@@ -324,27 +333,134 @@ func _update_grips(i: int, inp: Array) -> void:
 # Déplacements
 # ---------------------------------------------------------------------------
 
-func _update_movement(i: int, inp: Array) -> void:
+## Déplacements. Sans saisie : chacun marche librement, sans jamais entrer dans
+## la distance de garde (free_gap). Dès qu'une saisie est prise : les deux judokas
+## se déplacent ensemble, à longueur de bras (distance fixée par les saisies) ;
+## avancer pousse le couple, reculer le tire, et l'autre peut suivre ou résister.
+func _update_movement(inputs: Array) -> void:
+	var fs: Array = state.fighters
+	var dxs := [0, 0]
+	for i in 2:
+		var f: Dictionary = fs[i]
+		var mx: int = clampi(inputs[i][MX], -100, 100)
+		_check_dash(i, mx)
+		var speed: int = cfg.move_speed
+		if has_grip(fs[1 - i]) or has_grip(f):
+			speed = speed * cfg.move_slow_when_gripped / 100
+		if not f.attack.is_empty():
+			speed = 0
+		dxs[i] = mx * speed / 100
+		if f.dash_t > 0:
+			f.dash_t -= 1
+			dxs[i] = f.dash_dir * cfg.dash_speed
+		f.last_move = dxs[i]
+	var linked: bool = has_grip(fs[0]) or has_grip(fs[1])
+	if linked:
+		# le couple se déplace d'un bloc
+		var pair: int = (dxs[0] + dxs[1]) * cfg.pair_move_pct / 100
+		fs[0].x += pair
+		fs[1].x += pair
+		# la distance se règle sur la saisie la plus proche (bras tendus)
+		var target: int = garde_distance()
+		var d: int = absi(fs[1].x - fs[0].x)
+		var delta: int = clampi(target - d, -cfg.gap_relax, cfg.gap_relax)
+		var sgn: int = 1 if fs[1].x >= fs[0].x else -1
+		fs[0].x -= sgn * delta / 2
+		fs[1].x += sgn * (delta - delta / 2)
+		return
+	for i in 2:
+		var f: Dictionary = fs[i]
+		var o: Dictionary = fs[1 - i]
+		var nx: int = f.x + dxs[i]
+		var gap: int = cfg.free_gap
+		# on peut toujours reculer ; on n'avance pas plus près que la distance libre
+		if f.facing == 1 and dxs[i] > 0:
+			nx = mini(nx, maxi(f.x, o.x - gap))
+		elif f.facing == -1 and dxs[i] < 0:
+			nx = maxi(nx, mini(f.x, o.x + gap))
+		f.x = nx
+
+
+## Dash (pichenette franche du stick gauche depuis le neutre) : changement de rythme.
+## En avant : entrée rapide, les mains saisissent plus vite. En arrière : on sort de
+## portée et la main adverse qui arrivait part dans le vide. En saisie : coup sec
+## qui tire (dash arrière) ou pousse (dash avant) l'adversaire.
+func _check_dash(i: int, mx: int) -> void:
 	var f: Dictionary = state.fighters[i]
 	var o: Dictionary = state.fighters[1 - i]
-	var speed: int = cfg.move_speed
-	if has_grip(o):
-		speed = speed * cfg.move_slow_when_gripped / 100
-	if not f.attack.is_empty():
-		speed = 0
-	var dx: int = clampi(inp[MX], -100, 100) * speed / 100
-	f.last_move = dx
-	var nx: int = f.x + dx
-	var gap: int = cfg.min_gap
-	if f.facing == 1 and nx > o.x - gap:
-		if has_grip(f) and dx > 0:
-			o.x += mini(dx, cfg.push_speed)
-		nx = o.x - gap
-	elif f.facing == -1 and nx < o.x + gap:
-		if has_grip(f) and dx < 0:
-			o.x -= mini(-dx, cfg.push_speed)
-		nx = o.x + gap
-	f.x = nx
+	if absi(mx) < 25:
+		f.stick_t = 0
+		return
+	f.stick_t += 1
+	if absi(mx) < 85 or absi(int(f.prev[MX])) >= 85 or f.stick_t > cfg.dash_flick_ticks:
+		return
+	if f.dash_cd > 0 or not f.attack.is_empty() or f.exposed_t > 0 or f.stamina < cfg.dash_cost:
+		return
+	var dir: int = 1 if mx > 0 else -1
+	f.dash_t = cfg.dash_ticks
+	f.dash_dir = dir
+	f.dash_cd = cfg.dash_cooldown - f.mods.dash_cut
+	f.stamina -= cfg.dash_cost
+	var forward: bool = dir == f.facing
+	events.append({"type": "dash", "who": i, "dir": "in" if forward else "out"})
+	if forward:
+		f.fast_reach_t = cfg.fast_reach_ticks
+	else:
+		for h in 2:
+			var oh: Dictionary = o.hands[h]
+			if oh.state == HAND_REACH:
+				oh.state = HAND_FREE
+				oh.t = 0
+				oh.lock = cfg.whiff_lock
+				events.append({"type": "whiff", "who": i, "hand": h})
+	# coup sec en saisie : proportionnel aux mains installées
+	var held := 0
+	for hand in f.hands:
+		if hand.state == HAND_GRIP:
+			held += 1
+	if held > 0:
+		var tug: int = cfg.dash_tug * held / 2 * (100 + dom_of(i) * cfg.dom_kuzushi_pct / 10000) / 100
+		var kx: int = tug if not forward else -tug
+		_kuzushi_on(i, kx, 0)
+
+
+## Distance de garde : celle de la saisie la plus « proche » tenue par l'un ou l'autre.
+func garde_distance() -> int:
+	var best: int = cfg.grip_range
+	for f in state.fighters:
+		for hand in f.hands:
+			if hand.state == HAND_GRIP:
+				best = mini(best, int(cfg.garde_dist[cfg.grip_targets[hand.target]]))
+	return best
+
+
+## Domination au kumikata : chaque saisie installée fait pencher la jauge, selon
+## sa valeur (col haut > ceinture > revers > manche) et la force de la main.
+func _update_dominance() -> void:
+	var fs: Array = state.fighters
+	var r := [0, 0]
+	for i in 2:
+		var f: Dictionary = fs[i]
+		var settle_max: int = cfg.grip_settle_ticks + f.mods.settle_extra
+		for hand in f.hands:
+			if hand.state == HAND_GRIP:
+				var tname: String = cfg.grip_targets[hand.target]
+				var settle: int = 30 + 70 * mini(hand.t, settle_max) / settle_max
+				r[i] += int(cfg.dom_gain[tname]) * settle / 100 * (40 + hand.trig * 60 / 100) / 100
+		r[i] = r[i] * f.mods.dom_pct / 100
+	var d: int = state.dom
+	d += (r[0] - r[1]) * 3
+	d -= d * cfg.dom_decay_permille / 1000
+	state.dom = clampi(d, -10000, 10000)
+
+
+## Domination vue du combattant i (-10000..10000, positif = il domine).
+func dom_of(i: int) -> int:
+	return state.dom if i == 0 else -state.dom
+
+
+func _push_dom(i: int, amount: int) -> void:
+	state.dom = clampi(state.dom + (amount if i == 0 else -amount), -10000, 10000)
 
 
 # ---------------------------------------------------------------------------
@@ -369,6 +485,7 @@ func _apply_pull(i: int, inp: Array) -> void:
 		return
 	force = force * (5000 + f.stamina * 5000 / f.stamina_max) / 10000
 	force = force * f.mods.pull_pct / 100
+	force = force * (100 + dom_of(i) * cfg.dom_kuzushi_pct / 10000) / 100
 	# Repère de l'adversaire : « avant » = vers l'attaquant.
 	var kx: int = -px * f.facing * force / 100
 	var ky: int = py * force / 100
@@ -376,19 +493,45 @@ func _apply_pull(i: int, inp: Array) -> void:
 	# avancer en poussant amplifie le déséquilibre arrière.
 	if (kx > 0 and f.last_move * f.facing < 0) or (kx < 0 and f.last_move * f.facing > 0):
 		kx = kx * cfg.tsukuri_bonus / 100
-	# Suivre le mouvement (marcher dans le sens de la traction) l'atténue.
-	var follow := 0
-	if kx > 0 and o.last_move * o.facing > 0:
-		follow = absi(o.last_move)
-	elif kx < 0 and o.last_move * o.facing < 0:
-		follow = absi(o.last_move)
-	if follow > 0:
-		var red: int = cfg.follow_reduction * mini(follow, cfg.move_speed) / cfg.move_speed
+	_kuzushi_on(i, kx, ky)
+	f.stamina = maxi(0, f.stamina - cfg.stamina_pull_cost * (absi(px) + absi(py)) / 200)
+
+
+## Applique un déséquilibre (repère de l'adversaire : kx > 0 = vers l'attaquant i)
+## en tenant compte de sa réaction :
+## - il SUIT (marche dans le sens de la traction) : il amortit, mais il est en
+##   mouvement, pieds légers → fenêtre pour les balayages ;
+## - il RÉSISTE (marche en sens inverse) : il bloque, mais se met en appui dans
+##   l'autre sens (react) → fenêtre pour une technique dans la direction opposée ;
+## - il ne fait rien : il prend tout.
+func _kuzushi_on(i: int, kx: int, ky: int) -> void:
+	var o: Dictionary = state.fighters[1 - i]
+	var om: int = o.last_move * o.facing  # > 0 : il avance vers i
+	var resisting := false
+	if kx != 0 and absi(o.react) > 1000 and (kx > 0) == (o.react > 0):
+		# action-réaction : on l'emmène dans le sens où il s'appuyait déjà
+		kx = kx * (100 + absi(o.react) * cfg.react_amp / 10000) / 100
+		if o.resist_t > 0 and absi(o.react) >= 2000:
+			events.append({"type": "reaction", "who": i})
+			o.resist_t = 0
+			o.react /= 2  # son appui est « consommé »
+	elif kx > 0 and om > 0 or kx < 0 and om < 0:
+		var red: int = cfg.follow_reduction * mini(absi(om), cfg.move_speed) / cfg.move_speed
 		kx = kx * (100 - red) / 100
+		if absi(om) * 2 >= cfg.move_speed:
+			if o.follow_t == 0:
+				events.append({"type": "follow", "who": 1 - i})
+			o.follow_t = cfg.follow_window
+	elif kx > 0 and om < 0 or kx < 0 and om > 0:
+		resisting = true
+		o.react = clampi(o.react - kx * cfg.resist_react / 100, -cfg.react_max, cfg.react_max)
+		kx = kx * (100 - cfg.resist_reduction) / 100
+		if o.resist_t == 0:
+			events.append({"type": "resist", "who": 1 - i})
+		o.resist_t = 12
 	var bmax: int = cfg.balance_max
 	o.bal_x = clampi(o.bal_x + kx, -bmax, bmax)
 	o.bal_y = clampi(o.bal_y + ky, -bmax, bmax)
-	f.stamina = maxi(0, f.stamina - cfg.stamina_pull_cost * (absi(px) + absi(py)) / 200)
 
 
 func _recover(i: int) -> void:
@@ -401,6 +544,15 @@ func _recover(i: int) -> void:
 		f.stamina = mini(f.stamina_max, f.stamina + maxi(1, rec))
 	if f.break_cd > 0:
 		f.break_cd -= 1
+	if f.dash_cd > 0:
+		f.dash_cd -= 1
+	if f.fast_reach_t > 0:
+		f.fast_reach_t -= 1
+	if f.follow_t > 0:
+		f.follow_t -= 1
+	if f.resist_t > 0:
+		f.resist_t -= 1
+	f.react -= f.react * cfg.react_decay_permille / 1000
 	if f.defend_t > 0:
 		f.defend_t -= 1
 	if f.combo_t > 0:
@@ -421,6 +573,17 @@ func _update_defense(i: int, inp: Array) -> void:
 	if not o.attack.is_empty() or o.exposed_t > 0:
 		f.defend_t = 8
 		return
+	# bataille de mains : chasser une main qui arrive (prioritaire)
+	for h in 2:
+		var ph: Dictionary = o.hands[h]
+		if ph.state == HAND_REACH and f.stamina >= cfg.parry_cost:
+			ph.state = HAND_FREE
+			ph.t = 0
+			ph.lock = cfg.parry_lock
+			f.stamina -= cfg.parry_cost
+			_push_dom(i, cfg.dom_parry * f.mods.parry_pct / 100)
+			events.append({"type": "parry", "who": i, "hand": h})
+			return
 	if f.break_cd > 0 or f.stamina < cfg.break_cost:
 		return
 	var best := -1
@@ -437,7 +600,8 @@ func _update_defense(i: int, inp: Array) -> void:
 		o.hands[best].state = HAND_FREE
 		o.hands[best].t = 0
 		o.hands[best].lock = 30
-		events.append({"type": "break", "who": i})
+		_push_dom(i, cfg.dom_break)
+		events.append({"type": "break", "who": i, "hand": best})
 	else:
 		o.stamina = maxi(0, o.stamina - cfg.break_fail_drain)
 		events.append({"type": "break_fail", "who": i})
@@ -543,20 +707,28 @@ func choose_tech(i: int, btn: int) -> String:
 
 
 ## Valeur du déséquilibre du combattant `i` dans une direction (0..10000).
+## L'appui de résistance (react) compte comme un déséquilibre dans son sens.
 func dir_value(i: int, dir: String) -> int:
 	var f: Dictionary = state.fighters[i]
+	var bx: int = clampi(f.bal_x + f.react, -cfg.balance_max, cfg.balance_max)
 	match dir:
 		"avant":
-			return maxi(0, f.bal_x)
+			return maxi(0, bx)
 		"arriere":
-			return maxi(0, -f.bal_x)
+			return maxi(0, -bx)
 		"cote":
 			return absi(f.bal_y)
 		"arriere_cote":
-			return (maxi(0, -f.bal_x) + absi(f.bal_y)) * 7 / 10
+			return (maxi(0, -bx) + absi(f.bal_y)) * 7 / 10
 		"avant_cote":
-			return (maxi(0, f.bal_x) + absi(f.bal_y)) * 7 / 10
+			return (maxi(0, bx) + absi(f.bal_y)) * 7 / 10
 	return 0
+
+
+## Balayage : technique de pied latérale qui cueille un pied en mouvement.
+func is_sweep(tech_id: String) -> bool:
+	var t: Dictionary = techs[tech_id]
+	return t.family == "ashi" and String(t.dir) in ["cote", "avant_cote", "arriere_cote"]
 
 
 func grip_mult(i: int, tech: Dictionary) -> int:
@@ -598,6 +770,11 @@ func attack_score(i: int, tech_id: String, blocked: bool = false, combo: bool = 
 	if tech.family == "te":
 		score += f.mods.te_bonus
 	score += f.mods.style_bonus
+	score += dom_of(i) * cfg.dom_score / 10000
+	var o: Dictionary = state.fighters[1 - i]
+	if is_sweep(tech_id) and (o.follow_t > 0 or o.dash_t > 0):
+		# sur le pas : d'autant plus efficace que son pied est en mouvement
+		score += cfg.sweep_timing_bonus * mini(absi(o.last_move), cfg.move_speed) / cfg.move_speed
 	if combo:
 		score += cfg.combo_bonus
 	if blocked:
@@ -795,9 +972,9 @@ func _newaza_tick(inputs: Array) -> void:
 		sub.t += 1
 		var hold_btn: int = BX if sub.kind == "kansetsu" else BY
 		if it[hold_btn] != 0:
-			sub.tp += 6 + sol_t
+			sub.tp += 3 + sol_t
 		if _pressed(fb, ib, BB):
-			sub.bp += 40 + sol_b * 6
+			sub.bp += 58 + sol_b * 6
 		if ib[MX] != 0:
 			sub.bp += 3
 		if sub.t >= cfg.sub_ticks:
@@ -891,6 +1068,17 @@ func _matte_after(ticks: int) -> void:
 
 func _update_rules(i: int) -> void:
 	var f: Dictionary = state.fighters[i]
+	var o: Dictionary = state.fighters[1 - i]
+	# refus de kumikata : à distance de garde, il casse et chasse sans jamais saisir
+	if has_grip(f) or absi(o.x - f.x) > cfg.grip_range or state.phase != "fight":
+		f.nogrip_t = 0
+	else:
+		f.nogrip_t += 1
+		if f.nogrip_t >= cfg.kumikata_refuse_ticks:
+			f.nogrip_t = 0
+			_shido(i, "Refus de kumikata")
+			if state.phase != "fight":
+				return
 	f.passive_t += 1
 	if f.passive_t >= cfg.passivity_ticks:
 		f.passive_t = 0
@@ -972,6 +1160,13 @@ func _reset_positions() -> void:
 			hand.lock = 0
 	state.throw = {}
 	state.newaza = {}
+	state.dom = 0
+	for f in fs:
+		f.nogrip_t = 0
+		f.react = 0
+		f.resist_t = 0
+		f.follow_t = 0
+		f.dash_t = 0
 
 
 func _new_hand(target: int) -> Dictionary:

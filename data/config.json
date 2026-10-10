@@ -6,50 +6,62 @@
   "matte_ticks": 75,
   "throw_ticks": 42,
   "score_pause_ticks": 70,
-
   "mat_left": 6000,
   "mat_right": 58000,
   "start_gap": 15000,
   "min_gap": 3600,
-  "grip_range": 7200,
-
+  "grip_range": 7600,
   "move_speed": 90,
   "move_slow_when_gripped": 60,
   "push_speed": 45,
-
-  "grip_reach_ticks": 12,
+  "grip_reach_ticks": 16,
   "grip_settle_ticks": 90,
   "grip_settle_min": 35,
   "grip_min_trigger": 25,
-  "grip_targets": ["sleeve", "lapel", "collar", "belt"],
-  "grip_target_names": {"sleeve": "Manche", "lapel": "Revers", "collar": "Col haut", "belt": "Ceinture"},
-  "grip_pull_mult": {"sleeve": 100, "lapel": 100, "collar": 130, "belt": 115},
-  "grip_cost_mult": {"sleeve": 100, "lapel": 100, "collar": 160, "belt": 120},
-
+  "grip_targets": [
+    "sleeve",
+    "lapel",
+    "collar",
+    "belt"
+  ],
+  "grip_target_names": {
+    "sleeve": "Manche",
+    "lapel": "Revers",
+    "collar": "Col haut",
+    "belt": "Ceinture"
+  },
+  "grip_pull_mult": {
+    "sleeve": 100,
+    "lapel": 100,
+    "collar": 130,
+    "belt": 115
+  },
+  "grip_cost_mult": {
+    "sleeve": 100,
+    "lapel": 100,
+    "collar": 160,
+    "belt": 120
+  },
   "stamina_max": 10000,
   "stamina_grip_cost": 2,
   "stamina_pull_cost": 2,
   "stamina_recover": 7,
   "stamina_recover_gripping": 2,
-
   "break_threshold": 70,
   "break_cost": 350,
   "break_cooldown": 30,
   "break_fail_drain": 200,
-
   "pull_force_per_hand": 200,
   "balance_max": 10000,
   "balance_recover_permille": 42,
   "tsukuri_bonus": 150,
   "follow_reduction": 60,
-
   "feint_max_ticks": 5,
   "feint_push": 1500,
   "feint_window": 600,
   "feint_limit": 3,
-
-  "score_ippon": 8300,
-  "score_waza": 6800,
+  "score_ippon": 8150,
+  "score_waza": 6550,
   "score_stuffed": 1500,
   "partial_grip_mult": 60,
   "power_bonus": 400,
@@ -60,10 +72,8 @@
   "counter_ippon_below": -2500,
   "exposed_ticks": 22,
   "stuffed_cost": 500,
-
   "passivity_ticks": 2700,
   "shido_limit": 3,
-
   "_doc_builds": "Effets des builds (pourcentages, ticks, points de score)",
   "combo_window": 20,
   "combo_push": 3200,
@@ -78,7 +88,6 @@
   "courte_entry": 2,
   "courte_ippon_extra": 800,
   "courte_window": 8,
-
   "_doc_newaza": "Sol : jauge de contrôle 0..10000 pour le judoka du dessus",
   "newaza_start_control": 6000,
   "newaza_hold_gain": 45,
@@ -92,5 +101,47 @@
   "newaza_stall": 600,
   "newaza_escape": 2500,
   "sub_ticks": 150,
-  "sub_control": 7500
+  "sub_control": 7500,
+  "free_gap": 5400,
+  "garde_dist": {
+    "sleeve": 6800,
+    "lapel": 6200,
+    "collar": 5400,
+    "belt": 4600
+  },
+  "pair_move_pct": 55,
+  "gap_relax": 60,
+  "dom_gain": {
+    "sleeve": 10,
+    "lapel": 13,
+    "collar": 16,
+    "belt": 14
+  },
+  "dom_decay_permille": 8,
+  "dom_parry": 1200,
+  "dom_break": 1800,
+  "dom_kuzushi_pct": 30,
+  "dom_score": 900,
+  "parry_lock": 40,
+  "parry_cost": 120,
+  "kumikata_refuse_ticks": 900,
+  "dash_ticks": 8,
+  "dash_speed": 260,
+  "dash_cooldown": 36,
+  "dash_cost": 250,
+  "dash_flick_ticks": 3,
+  "dash_tug": 3000,
+  "fast_reach_ticks": 24,
+  "fast_reach_cut": 8,
+  "whiff_lock": 18,
+  "resist_reduction": 60,
+  "resist_react": 35,
+  "react_max": 4000,
+  "react_decay_permille": 20,
+  "follow_window": 24,
+  "sweep_timing_bonus": 1200,
+  "react_amp": 120,
+  "classique_dom_pct": 125,
+  "courte_parry_pct": 115,
+  "courte_dash_cut": 12
 }

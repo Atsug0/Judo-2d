@@ -57,6 +57,7 @@ var ref_face = -1
 var ref_walk = 0.0
 var ref_side = 1.0
 var ref_walking = false
+var knock = [[0, 0], [0, 0]]  # main chassée : images restantes de l'animation, par joueur et par main
 const PAUSE_ITEMS := ["REPRENDRE", "RECOMMENCER", "PERSONNALISATION", "MENU PRINCIPAL"]
 
 
@@ -233,6 +234,20 @@ func _consume_events() -> void:
 				shake = maxf(shake, 3.0)
 			"break":
 				_popup("CASSE LA GARDE", who, Style.GOOD)
+				knock[1 - who][e.get("hand", 0)] = 14
+			"parry":
+				_popup("MAIN CHASSÉE", who, Style.P1 if who == 0 else Style.P2)
+				knock[1 - who][e.hand] = 14
+				hitstop = maxi(hitstop, 2)
+			"whiff":
+				_popup("ESQUIVE", who, Style.PAPER)
+			"dash":
+				_dust(Vector2(_draw_x(who), FEET_Y), 6, 0.45)
+				if sim.has_grip(sim.state.fighters[who]):
+					shake = maxf(shake, 2.5)
+			"reaction":
+				_popup("ACTION-RÉACTION !", who, Style.GOLD)
+				excite = maxf(excite, 0.5)
 			"feint":
 				_popup("FEINTE", who, Style.MUTED)
 			"shido":
@@ -304,6 +319,14 @@ func _sound_event(e: Dictionary) -> void:
 			Sound.play("grip", -6.0, 1.0, 0.08)
 		"break":
 			Sound.play("grip_break", -3.0)
+		"parry":
+			Sound.play("slap", -2.0, 1.0, 0.08)
+		"whiff":
+			Sound.play("whoosh_0", -8.0, 1.2)
+		"dash":
+			Sound.play("dash", -5.0, 1.0, 0.06)
+		"reaction":
+			Sound.play("reaction", -4.0, 1.0, 0.0)
 		"break_fail":
 			Sound.play("grip", -10.0, 0.8)
 		"attack":
@@ -414,6 +437,9 @@ func _feed(text: String, color: Color) -> void:
 
 
 func _popup(text: String, who: int, color: Color) -> void:
+	for p in popups:
+		if p.text == text and p.who == who and p.t < 45:
+			return  # pas de doublon empilé
 	popups.append({"text": text, "who": who, "color": color, "t": 0})
 
 
@@ -517,6 +543,10 @@ func _update_camera() -> void:
 
 
 func _update_fx() -> void:
+	for i in 2:
+		for h in 2:
+			if knock[i][h] > 0:
+				knock[i][h] -= 1
 	shake = maxf(0.0, shake * 0.86 - 0.15)
 	flash = maxf(0.0, flash - 0.07)
 	excite = maxf(0.0, excite - 0.006)
@@ -658,7 +688,7 @@ func _fighter_xform(i: int) -> Transform2D:
 
 
 ## Position d'affichage : écart visuel minimum entre les deux judokas (lisibilité du kumikata).
-const VIS_GAP := 108.0
+const VIS_GAP := 92.0
 func _draw_x(i: int) -> float:
 	var fs: Array = sim.state.fighters
 	var x = wx(fs[i].x)
@@ -714,7 +744,7 @@ func _standing_pose(i: int) -> Dictionary:
 		pose.hip += Vector2(0, -absf(sin(ph)) * 1.2)
 		free_legs = true
 	# déséquilibre subi : bal_x > 0 = tiré vers l'avant (vers l'adversaire)
-	var bx = clampf(float(f.bal_x) / 10000.0, -1.0, 1.0)
+	var bx = clampf(float(f.bal_x + f.react) / 10000.0, -1.0, 1.0)
 	var by = clampf(float(f.bal_y) / 10000.0, -1.0, 1.0)
 	pose.bow = bx * 0.5
 	pose.tilt = -bx * 0.25
@@ -725,10 +755,28 @@ func _standing_pose(i: int) -> Dictionary:
 		pose.ff.y -= (-bx - 0.45) * 8.0
 	if absf(bx) > 0.05 or absf(by) > 0.05:
 		free_legs = true
-	# kumikata : on se penche l'un vers l'autre quand on tient l'adversaire
+	# kumikata : légère inclinaison vers l'adversaire quand on le tient
 	if sim.has_grip(f):
-		pose.bow += 0.16
-		pose.hip += Vector2(3, 1)
+		pose.bow += 0.08
+		pose.hip += Vector2(2, 1)
+		free_legs = true
+	# domination : le dominé se fait courber, le dominant se tient droit
+	var dm = float(sim.dom_of(i)) / 10000.0
+	if dm < -0.2:
+		var k = (-dm - 0.2) / 0.8
+		pose.bow += 0.42 * k
+		pose.hip += Vector2(-3.0 * k, 5.0 * k)
+		free_legs = true
+	elif dm > 0.3:
+		pose.bow -= 0.05
+	# dash : grand pas explosif, buste dans le sens du mouvement
+	if f.dash_t > 0:
+		var fwd = 1.0 if f.dash_dir == f.facing else -1.0
+		var e2 = float(f.dash_t) / float(cfg.dash_ticks)
+		pose.bow += 0.18 * fwd * e2
+		pose.ff += Vector2(9.0 * fwd * e2, -2.0 * e2)
+		pose.fb += Vector2(-7.0 * fwd * e2, -3.0 * e2)
+		pose.hip += Vector2(4.0 * fwd * e2, 3.0 * e2)
 		free_legs = true
 	# fatigue : épaules qui tombent, garde plus basse
 	var tired = 1.0 - float(f.stamina) / float(f.stamina_max)
@@ -843,7 +891,14 @@ func _hands_world(i: int, rigs: Array, th: Dictionary, throwing: bool) -> Array:
 			hands[h] = target
 			strength[h] = float(hand.trig) / 100.0
 		elif hand.state == Sim.HAND_REACH:
-			hands[h] = rest.lerp(target, clampf(float(hand.t) / float(cfg.grip_reach_ticks), 0.0, 1.0))
+			var reach = float(cfg.grip_reach_ticks - (cfg.fast_reach_cut if f.fast_reach_t > 0 else 0))
+			var q = clampf(float(hand.t) / reach, 0.0, 1.0)
+			hands[h] = rest.lerp(target, q * q * (3.0 - 2.0 * q))
+		if knock[i][h] > 0:
+			# main chassée : projetée vers le bas et en arrière, puis revient en garde
+			var kq = float(knock[i][h]) / 14.0
+			var base = rest.lerp(target, 0.55 * kq)
+			hands[h] = base + Vector2(-f.facing * 10.0, 26.0) * kq * sin(kq * PI)
 	return [hands, strength]
 
 
@@ -976,6 +1031,8 @@ func _draw_hud() -> void:
 	for i in 2:
 		_draw_player_hud(i)
 	_draw_timer()
+	if sim.state.phase in ["fight", "intro", "matte"]:
+		_draw_dominance()
 	_draw_newaza_hud()
 
 
@@ -1081,6 +1138,34 @@ func _draw_timer() -> void:
 		Style.label(_ci, Vector2(gr.position.x, gr.position.y + 19), "GOLDEN SCORE", 16, Style.INK, "black", HORIZONTAL_ALIGNMENT_CENTER, gr.size.x)
 
 
+## Jauge de domination au kumikata : bras de fer entre les deux joueurs.
+var dom_shown = 0.0
+func _draw_dominance() -> void:
+	dom_shown = lerpf(dom_shown, float(sim.state.dom) / 10000.0, 0.15)
+	var y = 132.0 if sim.state.golden else 102.0
+	var r = Rect2(500, y, 280, 22)
+	Style.panel(_ci, r, Style.NIGHT, Style.INK, 3.0, 3.0)
+	var c = r.position.x + r.size.x * 0.5
+	var inner = r.grow(-4)
+	var half = inner.size.x * 0.5
+	var v = clampf(dom_shown, -1.0, 1.0)
+	if absf(v) > 0.01:
+		var col = Style.P1 if v > 0.0 else Style.P2
+		var w = half * absf(v)
+		var fr = Rect2(c - w, inner.position.y, w, inner.size.y) if v > 0.0 else Rect2(c, inner.position.y, w, inner.size.y)
+		_ci.draw_colored_polygon(Style.slant_points(fr, Style.SLANT, v < 0.0), col)
+		if absf(v) > 0.6:
+			var pulse = 0.5 + 0.5 * sin(frame * 0.3)
+			_ci.draw_colored_polygon(Style.slant_points(fr, Style.SLANT, v < 0.0), Color(1, 1, 1, 0.25 * pulse))
+	_ci.draw_line(Vector2(c, r.position.y - 3), Vector2(c, r.end.y + 3), Style.PAPER, 3.0)
+	var txt = "KUMIKATA"
+	if v > 0.3:
+		txt = "%s DOMINE" % names[0]
+	elif v < -0.3:
+		txt = "%s DOMINE" % names[1]
+	Style.label(_ci, Vector2(r.position.x, r.end.y + 17), txt, 13, Style.MUTED if absf(v) <= 0.3 else (Style.P1 if v > 0 else Style.P2), "black", HORIZONTAL_ALIGNMENT_CENTER, r.size.x)
+
+
 func _draw_popups() -> void:
 	var stack = [0, 0]
 	for p in popups:
@@ -1168,8 +1253,8 @@ func _draw_hints() -> void:
 			Style.label(_ci, Vector2(x, y + 6), it[1], 15, Style.MUTED, "bold")
 			x += Style.text_width(it[1], 15, "bold") + 26
 		return
-	var items = [["LT", "RT", "Saisir"], ["LB", "RB", "Cible"], ["R", "", "Stick droit : kuzushi"], ["A", "", "Technique"],
-		["X", "", "Jambe"], ["Y", "", "Tokui"], ["B", "", "Casser / contrer"]]
+	var items = [["LT", "RT", "Saisir"], ["LB", "RB", "Cible"], ["R", "", "Stick D : kuzushi"], ["R", "", "Pichenette stick G : dash"], ["A", "", "Technique"],
+		["X", "", "Jambe"], ["Y", "", "Tokui"], ["B", "", "Chasser / casser / contrer"]]
 	for it in items:
 		if it[0] == "R":
 			Style.label(_ci, Vector2(x, y + 6), it[2], 15, Style.MUTED, "bold")

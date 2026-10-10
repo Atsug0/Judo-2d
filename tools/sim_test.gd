@@ -32,7 +32,7 @@ func _init() -> void:
 
 	var stats := {"wins": [0, 0], "reasons": {}, "throws": {}, "attacks": {}, "exposed": 0,
 		"counters": 0, "feints": 0, "breaks": 0, "shidos": {}, "ticks": 0, "golden": 0,
-		"combo_open": 0, "combo_attacks": 0, "newaza": 0, "osaekomi": 0, "submissions": 0, "toketa": 0, "escape": 0}
+		"combo_open": 0, "combo_attacks": 0, "newaza": 0, "osaekomi": 0, "submissions": 0, "toketa": 0, "escape": 0, "kumi": {}}
 	var t0 := Time.get_ticks_msec()
 	for m in matches:
 		var res := _run_match(cfg, techs, 1000 + m, level, stats)
@@ -47,6 +47,7 @@ func _init() -> void:
 	print("Projections (tech:résultat) : ", JSON.stringify(stats.throws))
 	print("Attaques exposées : ", stats.exposed, " | contres : ", stats.counters, " | feintes : ", stats.feints, " | prises cassées : ", stats.breaks)
 	print("Shidos : ", JSON.stringify(stats.shidos))
+	print("Kumikata : ", JSON.stringify(stats.kumi))
 	print("Attaques bloquées : ", stats.get("blocks", 0), " | stoppées : ", stats.get("stuffed", 0))
 	print("Enchaînements : %d fenêtres, %d enchaînés" % [stats.combo_open, stats.combo_attacks])
 	print("Ne-waza : %d phases, %d osaekomi, %d toketa, %d dégagements, %d soumissions" % [stats.newaza, stats.osaekomi, stats.toketa, stats.escape, stats.submissions])
@@ -63,6 +64,9 @@ func _run_match(cfg: Dictionary, techs: Dictionary, seed_value: int, level: int,
 			golden_seen = true
 			stats.golden += 1
 		for e in sim.events:
+			if e.type in ["dash", "whiff", "parry", "resist", "follow", "grip"]:
+				var key: String = e.type + ("_" + e.dir if e.type == "dash" else "")
+				stats.kumi[key] = stats.kumi.get(key, 0) + 1
 			match e.type:
 				"attack":
 					stats.attacks[e.tech] = stats.attacks.get(e.tech, 0) + 1
