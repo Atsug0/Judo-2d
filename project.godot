@@ -15,6 +15,10 @@ config/description="Prototype de jeu de combat de judo en 2D — phase 1 (placeh
 run/main_scene="res://scenes/main.tscn"
 config/features=PackedStringArray("4.4", "GL Compatibility")
 
+[autoload]
+
+Sound="*res://scripts/audio/sound.gd"
+
 [debug]
 
 gdscript/warnings/integer_division=0

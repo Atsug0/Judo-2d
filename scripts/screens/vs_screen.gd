@@ -28,6 +28,10 @@ func on_enter(p: Dictionary) -> void:
 
 func tick() -> void:
 	frame += 1
+	if frame == 2:
+		Sound.play("whoosh_2", -6.0)
+	if frame == 26:
+		Sound.play("vs_slam", -1.0, 1.0, 0.0)
 	if frame >= DURATION and app != null and not app.capture_mode:
 		app.goto("match", params)
 	queue_redraw()

@@ -124,8 +124,23 @@ func goto(screen_name: String, params: Dictionary = {}) -> void:
 		params = default_match_params()
 	current.on_enter(params)
 	current.queue_redraw()
+	_screen_audio(screen_name)
 	if not capture_mode:
 		_trans_t = 0
+
+
+## Musique et ambiance associées à chaque écran.
+const SCREEN_MUSIC := {"title": "menu", "menu": "menu", "customize": "menu", "select": "menu",
+	"tournament": "menu", "options": "menu", "online": "menu", "art": "menu",
+	"match": "match", "dojo": "dojo", "results": "victory", "vs": ""}
+
+
+func _screen_audio(screen_name: String) -> void:
+	if capture_mode:
+		return
+	if SCREEN_MUSIC.has(screen_name):
+		Sound.music(SCREEN_MUSIC[screen_name], 0.4 if screen_name == "vs" else 0.8)
+	Sound.crowd(screen_name in ["match", "vs"])
 
 
 func _physics_process(_delta: float) -> void:
@@ -168,6 +183,10 @@ func _edge(key: String, down: bool, action: String, device: int) -> void:
 	_held[key] = n + 1
 	var directional := action in ["up", "down", "left", "right"]
 	if n == 0 or (directional and n >= REPEAT_DELAY and (n - REPEAT_DELAY) % REPEAT_EVERY == 0):
+		# en plein combat, les boutons pilotent le judoka : pas de bruit de menu
+		var in_fight: bool = current_name == "match" and not current.get("paused") and action != "start"
+		if not in_fight:
+			Sound.ui(action)
 		current.nav(action, device)
 
 

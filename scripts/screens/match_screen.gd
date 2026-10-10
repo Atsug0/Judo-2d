@@ -139,6 +139,7 @@ func _step_sim() -> void:
 				inputs.append(ais[i].think(sim))
 	sim.step(inputs)
 	_consume_events()
+	_sound_frame()
 	for p in popups:
 		p.t += 1
 	popups = popups.filter(func(p): return p.t < 70)
@@ -187,6 +188,7 @@ func _consume_events() -> void:
 		var mag = maxi(absi(o.bal_x), absi(o.bal_y))
 		stats[i].kuzushi_max = maxi(stats[i].kuzushi_max, mag)
 	for e in sim.events:
+		_sound_event(e)
 		var who: int = e.get("who", -1)
 		if who >= 0:
 			var st: Dictionary = stats[who]
@@ -281,6 +283,128 @@ func _consume_events() -> void:
 		capture_flag = true
 	if sim.state.phase == "newaza" and sim.state.newaza.t in [12, 400]:
 		capture_flag = true
+
+
+# --- Son ------------------------------------------------------------------------
+
+var _snd_announce = ""
+var _snd_announce_t = 0
+var _snd_clock_s = -1
+var _snd_osae_s = -1
+var _snd_prev_x = [0.0, 0.0]
+var _snd_step_cd = [0, 0]
+var _snd_rustle_cd = 0
+
+
+## Bruitage associé à un événement de la simulation.
+func _sound_event(e: Dictionary) -> void:
+	var who: int = e.get("who", -1)
+	match e.type:
+		"grip":
+			Sound.play("grip", -6.0, 1.0, 0.08)
+		"break":
+			Sound.play("grip_break", -3.0)
+		"break_fail":
+			Sound.play("grip", -10.0, 0.8)
+		"attack":
+			Sound.play("whoosh_1", -5.0)
+			Sound.play("kiai_%d" % maxi(who, 0), -4.0, 1.0, 0.05)
+		"feint":
+			Sound.play("whoosh_0", -9.0)
+		"block":
+			Sound.play("block", -2.0)
+		"stuffed":
+			Sound.play("block", -4.0, 0.85)
+		"counter":
+			Sound.play("counter", -2.0)
+			Sound.play("crowd_ooh", -8.0)
+		"throw":
+			Sound.play("whoosh_2", -3.0)
+		"combo_open":
+			Sound.play("taiko_small", -8.0, 1.2, 0.0)
+		"newaza":
+			Sound.play("rustle", -6.0)
+		"escape", "sub_escape":
+			Sound.play("grip_break", -4.0, 0.9)
+		"sub_start":
+			Sound.play("grunt_%d" % maxi(who, 0), -4.0)
+			Sound.play("crowd_ooh", -9.0)
+		"submission":
+			Sound.play("tap_out", -2.0, 1.0, 0.0)
+			Sound.play("crowd_cheer", -4.0)
+
+
+## Sons liés à l'état courant : annonces de l'arbitre, chrono, pas, sol.
+func _sound_frame() -> void:
+	var st: Dictionary = sim.state
+	# annonces (une seule fois par annonce)
+	if st.announce_t > 0 and (st.announce != _snd_announce or st.announce_t > _snd_announce_t):
+		_sound_announce(st.announce)
+	_snd_announce = st.announce
+	_snd_announce_t = st.announce_t
+	# chrono : tic à chacune des dix dernières secondes
+	var s = int(ceil(float(st.clock) / 60.0))
+	if st.phase == "fight" and s != _snd_clock_s and s <= 10 and s > 0 and not st.golden:
+		Sound.play("tick", -2.0, 1.0, 0.0)
+	_snd_clock_s = s
+	# osaekomi : tic-tac à chaque seconde d'immobilisation
+	var nw: Dictionary = st.newaza
+	if not nw.is_empty() and nw.get("osae", false):
+		var os_s = int(nw.get("osae_t", 0)) / 60
+		if os_s != _snd_osae_s:
+			Sound.play("tock", -4.0, 1.0 + minf(os_s, 20) * 0.01, 0.0)
+		_snd_osae_s = os_s
+	else:
+		_snd_osae_s = -1
+	# froissements au sol
+	if st.phase == "newaza":
+		_snd_rustle_cd -= 1
+		if _snd_rustle_cd <= 0:
+			Sound.play("rustle", -12.0, 1.0, 0.1)
+			_snd_rustle_cd = 26 + (st.get("tick", frame) * 7) % 20
+	# pas glissés quand un judoka se déplace
+	for i in 2:
+		var x = wx(st.fighters[i].x)
+		var moving = absf(x - _snd_prev_x[i]) > 0.6
+		_snd_prev_x[i] = x
+		_snd_step_cd[i] -= 1
+		if moving and st.phase == "fight" and _snd_step_cd[i] <= 0:
+			Sound.play("step", -16.0, 1.0, 0.1)
+			_snd_step_cd[i] = 16
+	Sound.crowd_level(0.25 + excite * 0.75)
+
+
+func _sound_announce(text: String) -> void:
+	match text:
+		"HAJIME":
+			Sound.play("taiko", -3.0, 1.0, 0.0)
+			Sound.play("ref_hajime", -2.0, 1.0, 0.0)
+		"MATTE":
+			Sound.play("clack", -4.0, 1.0, 0.0)
+			Sound.play("ref_matte", -3.0, 1.0, 0.0)
+		"IPPON !":
+			Sound.play("stinger_ippon", -1.0, 1.0, 0.0)
+			Sound.play("ref_ippon", 0.0, 1.0, 0.0)
+		"WAZA-ARI":
+			Sound.play("stinger_wazaari", -3.0, 1.0, 0.0)
+			Sound.play("ref_wazaari", -1.0, 1.0, 0.0)
+		"OSAEKOMI":
+			Sound.play("stinger_osaekomi", -5.0, 1.0, 0.0)
+			Sound.play("ref_osaekomi", -1.0, 1.0, 0.0)
+		"TOKETA":
+			Sound.play("ref_toketa", -2.0, 1.0, 0.0)
+		"SHIDO":
+			Sound.play("buzzer", -6.0, 1.0, 0.0)
+			Sound.play("ref_shido", -2.0, 1.0, 0.0)
+		"SORE-MADE", "HANSOKU-MAKE":
+			Sound.play("gong", -2.0, 1.0, 0.0)
+			Sound.play("ref_soremade", -2.0, 1.0, 0.0)
+		"GOLDEN SCORE":
+			Sound.play("taiko", -3.0, 0.9, 0.0)
+			Sound.play("gong", -8.0, 1.2, 0.0)
+		_:
+			# nom d'une soumission annoncée (ex. JUJI-GATAME)
+			Sound.play("taiko_small", -5.0, 1.0, 0.0)
 
 
 func _feed(text: String, color: Color) -> void:

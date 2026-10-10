@@ -78,6 +78,8 @@ func _change(r: Array, delta: int) -> void:
 		Settings.set_value(r[0], not v)
 	else:
 		Settings.set_value(r[0], clampi(int(v) + delta, r[3], r[4]))
+		if String(r[0]).begins_with("volume"):
+			Sound.apply_volumes()
 
 
 func _draw() -> void:
