@@ -1,0 +1,7 @@
+# Normaliser les fins de ligne
+* text=auto eol=lf
+# Fichiers lourds (vidéos de tournage, sources Blender) : Git LFS
+*.mp4 filter=lfs diff=lfs merge=lfs -text
+*.mov filter=lfs diff=lfs merge=lfs -text
+*.blend filter=lfs diff=lfs merge=lfs -text
+*.aseprite filter=lfs diff=lfs merge=lfs -text

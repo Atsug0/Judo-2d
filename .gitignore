@@ -1,0 +1,8 @@
+# Godot
+.godot/
+*.import
+export_presets.cfg
+/build/
+# Captures et fichiers temporaires
+/captures/
+*.tmp

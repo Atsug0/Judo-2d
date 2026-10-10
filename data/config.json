@@ -1,0 +1,64 @@
+{
+  "_doc": "Toutes les valeurs de combat. Unités : positions en centièmes de pixel (cpx), équilibre et endurance de 0 à 10000, temps en ticks (60 ticks = 1 s).",
+  "tick_rate": 60,
+  "match_ticks": 14400,
+  "intro_ticks": 60,
+  "matte_ticks": 75,
+  "throw_ticks": 42,
+  "score_pause_ticks": 70,
+
+  "mat_left": 6000,
+  "mat_right": 58000,
+  "start_gap": 15000,
+  "min_gap": 3600,
+  "grip_range": 7200,
+
+  "move_speed": 90,
+  "move_slow_when_gripped": 60,
+  "push_speed": 45,
+
+  "grip_reach_ticks": 12,
+  "grip_min_trigger": 25,
+  "grip_targets": ["sleeve", "lapel", "collar", "belt"],
+  "grip_target_names": {"sleeve": "Manche", "lapel": "Revers", "collar": "Col haut", "belt": "Ceinture"},
+  "grip_pull_mult": {"sleeve": 100, "lapel": 100, "collar": 130, "belt": 115},
+  "grip_cost_mult": {"sleeve": 100, "lapel": 100, "collar": 160, "belt": 120},
+
+  "stamina_max": 10000,
+  "stamina_grip_cost": 2,
+  "stamina_pull_cost": 2,
+  "stamina_recover": 7,
+  "stamina_recover_gripping": 2,
+
+  "break_threshold": 70,
+  "break_cost": 350,
+  "break_cooldown": 30,
+  "break_fail_drain": 200,
+
+  "pull_force_per_hand": 200,
+  "balance_max": 10000,
+  "balance_recover_permille": 40,
+  "tsukuri_bonus": 150,
+  "follow_reduction": 60,
+
+  "feint_max_ticks": 5,
+  "feint_push": 1500,
+  "feint_window": 600,
+  "feint_limit": 3,
+
+  "score_ippon": 8300,
+  "score_waza": 6800,
+  "score_stuffed": 1500,
+  "partial_grip_mult": 60,
+  "power_bonus": 400,
+  "low_stamina_malus": 1500,
+  "block_malus": 2000,
+  "block_cost": 400,
+  "counter_threshold": 3000,
+  "counter_ippon_below": -500,
+  "exposed_ticks": 22,
+  "stuffed_cost": 500,
+
+  "passivity_ticks": 2700,
+  "shido_limit": 3
+}

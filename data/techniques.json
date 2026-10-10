@@ -1,0 +1,35 @@
+{
+  "_doc": "Techniques du prototype. dir = direction du kuzushi requise (avant, arriere, cote, arriere_cote). speed et power de 1 à 5 (fiche du GDD). grips = combinaisons de saisies qui donnent 100 % ; une seule main valable donne partial_grip_mult. counter = contre possible pendant l'entrée.",
+  "seoi_nage": {
+    "name": "Seoi-nage", "dir": "avant", "speed": 4, "power": 4, "stamina": 350,
+    "grips": [["sleeve", "lapel"], ["sleeve", "collar"], ["sleeve", "sleeve"]],
+    "counter": "ura_nage"
+  },
+  "o_soto_gari": {
+    "name": "O-soto-gari", "dir": "arriere", "speed": 3, "power": 5, "stamina": 350,
+    "grips": [["sleeve", "lapel"], ["sleeve", "collar"]],
+    "counter": ""
+  },
+  "o_uchi_gari": {
+    "name": "O-uchi-gari", "dir": "arriere", "speed": 4, "power": 3, "stamina": 200,
+    "grips": [["sleeve", "lapel"], ["lapel"], ["sleeve"]],
+    "counter": ""
+  },
+  "ko_uchi_gari": {
+    "name": "Ko-uchi-gari", "dir": "arriere_cote", "speed": 5, "power": 2, "stamina": 120,
+    "grips": [["sleeve"], ["lapel"]],
+    "counter": ""
+  },
+  "de_ashi_barai": {
+    "name": "De-ashi-barai", "dir": "cote", "speed": 5, "power": 3, "stamina": 120,
+    "grips": [["sleeve"]],
+    "counter": ""
+  },
+  "_buttons": {
+    "a": ["seoi_nage", "o_soto_gari", "de_ashi_barai"],
+    "x": ["o_uchi_gari", "ko_uchi_gari"]
+  },
+  "_counters": {
+    "ura_nage": {"name": "Ura-nage"}
+  }
+}
