@@ -32,6 +32,35 @@ static func stand_xform(feet: Vector2, facing: int, lean: float, scale: float, c
 	return Transform2D(facing * lean, Vector2(facing * scale, scale * (1.0 - crouch * 0.12)), 0.0, feet)
 
 
+## Poses d'une projection à l'avancement p (0..1), en coordonnées écran.
+## dir : direction de la technique ("avant", "contre", "arriere", ...), big : ippon.
+## tx, ux : x écran des pieds de tori et d'uke au départ ; k : échelle (px par unité).
+## Renvoie [transform de tori, transform d'uke].
+static func throw_xforms(dir: String, big: bool, fc: int, tx: float, ux: float, feet_y: float, k: float, p: float) -> Array:
+	var e := p * p * (3.0 - 2.0 * p)  # ease in-out
+	var uke_f := -fc
+	var tori_xf: Transform2D
+	var uke_xf: Transform2D
+	if dir in ["avant", "contre", "avant_cote"]:
+		# uke passe par-dessus tori et retombe de l'autre côté
+		var end_x := tx - fc * 32.0 * k
+		var mid := Vector2(lerpf(ux, end_x, e), lerpf(feet_y - 22.0 * k, feet_y - 10.9 * k, e) - sin(PI * p) * (95.5 if big else 81.8) * k)
+		var rot := -fc * PI * 1.5 * e
+		uke_xf = Transform2D(rot, Vector2(uke_f * k, k), 0.0, mid) * Transform2D(0.0, Vector2(0, 22.0))
+		var tori_lean := (0.55 * sin(PI * minf(p * 1.3, 1.0))) if dir != "contre" else (-0.45 * sin(PI * minf(p * 1.2, 1.0)))
+		var tori_face := -fc if dir != "contre" and p > 0.15 and p < 0.9 else fc
+		tori_xf = stand_xform(Vector2(tx, feet_y), tori_face, tori_lean * tori_face, k, 0.6 * sin(PI * p))
+	else:
+		# uke bascule en arrière, loin de tori
+		var end_x := ux + fc * 15.5 * k
+		var lift := (15.5 if big else 9.1) * k
+		var mid := Vector2(lerpf(ux, end_x, e), lerpf(feet_y - 22.0 * k, feet_y - 10.9 * k, e) - sin(PI * p) * lift)
+		var rot := fc * PI * 0.5 * e
+		uke_xf = Transform2D(rot, Vector2(uke_f * k, k), 0.0, mid) * Transform2D(0.0, Vector2(0, 22.0))
+		tori_xf = stand_xform(Vector2(tx + fc * 4.5 * k * e, feet_y), fc, 0.32 * sin(PI * minf(p * 1.2, 1.0)), k, 0.3 * sin(PI * p))
+	return [tori_xf, uke_xf]
+
+
 static func draw_body(ci: CanvasItem, xf: Transform2D, pal: Dictionary, stance: float = 0.0) -> void:
 	ci.draw_set_transform_matrix(xf)
 	var ink := Style.INK
@@ -76,13 +105,15 @@ static func draw_body(ci: CanvasItem, xf: Transform2D, pal: Dictionary, stance: 
 
 ## Bras en coordonnées écran : manche large du judogi avec plis et ourlet,
 ## avant-bras musclé, main en poing orientée selon l'avant-bras.
-static func draw_arm(ci: CanvasItem, shoulder: Vector2, hand: Vector2, pal: Dictionary, back: bool, scale: float, grip_strength: float = -1.0) -> void:
+static func draw_arm(ci: CanvasItem, shoulder: Vector2, hand: Vector2, pal: Dictionary, back: bool, scale: float, grip_strength: float = -1.0, elbow_at: Vector2 = Vector2.INF) -> void:
 	var d := hand - shoulder
 	var bendn := Vector2(-d.y, d.x).normalized()
 	if bendn.y < 0:
 		bendn = -bendn
 	var reach := 36.0 * scale
 	var elbow := (shoulder + hand) * 0.5 + bendn * clampf((reach - d.length()) * 0.45, 0.0, 15.0 * scale)
+	if elbow_at != Vector2.INF:
+		elbow = elbow_at
 	var u1 := (elbow - shoulder).normalized()
 	var u2 := (hand - elbow).normalized()
 	var n1 := Vector2(-u1.y, u1.x)
@@ -238,3 +269,120 @@ static func _outline(ci: CanvasItem, pts: Array, wdt: float) -> void:
 	var p := PackedVector2Array(pts)
 	p.append(pts[0])
 	ci.draw_polyline(p, Style.INK, wdt, true)
+
+
+# =============================================================================
+# Figures articulées (poses au sol)
+# =============================================================================
+# Une pose = positions locales des articulations (unités de jeu, sol en y = 0,
+# avant = +x) : hip, neck, head, knee_b, foot_b, knee_f, foot_f,
+# elbow_b, hand_b, elbow_f, hand_f. Le suffixe _b = membre arrière (dessiné derrière).
+
+const HEAD_CENTER := Vector2(1, -98)  # centre de la tête dans le repère « debout »
+
+
+static func draw_figure(ci: CanvasItem, xf: Transform2D, pal: Dictionary, j: Dictionary, grip: float = -1.0) -> void:
+	var sc := maxf(0.5, absf(xf.get_scale().y))
+	var ow := 4.2 / sc
+	var dw := 2.6 / sc
+	var k := absf(xf.get_scale().y)
+	# --- membres arrière
+	ci.draw_set_transform_matrix(xf)
+	_limb(ci, [j.hip + Vector2(-3, 0), j.knee_b, j.foot_b], 12.0, pal.gi_shade, ow)
+	_foot_at(ci, j.knee_b, j.foot_b, pal.skin_shade, dw * 1.3)
+	ci.draw_set_transform_matrix(Transform2D.IDENTITY)
+	var shoulder_b: Vector2 = j.neck + (j.hip - j.neck).normalized() * 6.0
+	draw_arm(ci, xf * shoulder_b, xf * j.hand_b, pal, true, k, -1.0, xf * j.elbow_b)
+	# --- jambe avant, buste, ceinture, tête
+	ci.draw_set_transform_matrix(xf)
+	_limb(ci, [j.hip + Vector2(3, 0), j.knee_f, j.foot_f], 12.5, pal.gi, ow)
+	_foot_at(ci, j.knee_f, j.foot_f, pal.skin, dw * 1.3)
+	var u: Vector2 = (j.neck - j.hip).normalized()
+	var n := Vector2(-u.y, u.x)
+	var skirt: Vector2 = j.hip - u * 8.0
+	var torso := [j.neck + n * 16.0, j.neck - n * 16.0, j.hip - n * 13.0, skirt - n * 16.0, skirt + n * 16.0, j.hip + n * 13.0]
+	_poly(ci, torso, pal.gi, 0.0)
+	# ombre propre : moitié du buste
+	_poly(ci, [j.neck + n * 16.0, j.neck + n * 3.0, j.hip + n * 2.0, skirt + n * 2.0, skirt + n * 16.0, j.hip + n * 13.0], pal.gi_shade, 0.0)
+	# revers
+	ci.draw_line(j.neck - n * 2.0, j.hip - n * 6.0 + u * 4.0, pal.gi_deep, 3.6)
+	_outline(ci, torso, ow)
+	# ceinture
+	var b0: Vector2 = j.hip + u * 2.0
+	var belt := [b0 + n * 14.0, b0 - n * 14.0, b0 - n * 14.0 - u * 6.0, b0 + n * 14.0 - u * 6.0]
+	_poly(ci, belt, Color("17141f"), 0.0)
+	# tête orientée selon l'axe cou → tête
+	var hd: Vector2 = j.head - j.neck
+	var ang := hd.angle() + PI * 0.5
+	ci.draw_set_transform_matrix(xf * Transform2D(ang, j.head) * Transform2D(0.0, -HEAD_CENTER))
+	_draw_head(ci, pal, ow, dw)
+	ci.draw_set_transform_matrix(Transform2D.IDENTITY)
+	# --- bras avant
+	var shoulder_f: Vector2 = j.neck + (j.hip - j.neck).normalized() * 5.0
+	draw_arm(ci, xf * shoulder_f, xf * j.hand_f, pal, false, k, grip, xf * j.elbow_f)
+
+
+static func _foot_at(ci: CanvasItem, knee: Vector2, foot: Vector2, col: Color, ow: float) -> void:
+	# pied orienté perpendiculairement au tibia, orteils vers l'avant du tibia
+	var shin: Vector2 = (foot - knee).normalized()
+	var dir := 1.0 if shin.x <= 0.35 else -1.0
+	if absf(shin.y) < 0.5:
+		dir = 1.0 if shin.x > 0 else -1.0
+	_foot(ci, foot, dir, col, ow)
+
+
+## Poses au sol, dans un repère où tori est à gauche (+x vers la tête d'uke).
+## kind : "transition", "osaekomi:<id>", "kansetsu:<id>", "shime:<id>".
+## t : temps (ticks) pour une légère respiration / lutte ; ctrl : contrôle 0..1.
+static func ground_poses(kind: String, t: int, ctrl: float) -> Array:
+	var w := sin(t * 0.18) * 1.5          # petite lutte
+	var push := (1.0 - ctrl) * 6.0         # uke repousse plus quand il a l'avantage
+	# uke allongé sur le dos, tête vers +x, genoux levés
+	var uke := {
+		"hip": Vector2(0, -9), "neck": Vector2(34, -10), "head": Vector2(46, -12),
+		"knee_b": Vector2(-12, -27), "foot_b": Vector2(-26, -3),
+		"knee_f": Vector2(-16, -29 + w), "foot_f": Vector2(-31, -4),
+		"elbow_b": Vector2(42, -3), "hand_b": Vector2(54, -6),
+		"elbow_f": Vector2(30, -26 - push), "hand_f": Vector2(22, -40 - push + w),
+	}
+	var tori := {}
+	var id := kind.split(":")[1] if kind.contains(":") else ""
+	match id:
+		"yoko_shiho_gatame":
+			# à genoux sur le côté, buste en travers du buste d'uke
+			tori = {"hip": Vector2(4, -27), "neck": Vector2(32, -30 + w), "head": Vector2(42, -28 + w),
+				"knee_b": Vector2(-6, -4), "foot_b": Vector2(-24, -2), "knee_f": Vector2(4, -4), "foot_f": Vector2(-14, -2),
+				"elbow_b": Vector2(46, -16), "hand_b": Vector2(50, -6), "elbow_f": Vector2(18, -18), "hand_f": Vector2(4, -12)}
+		"kami_shiho_gatame":
+			# au-dessus de la tête d'uke, buste sur son buste, mains à la ceinture
+			tori = {"hip": Vector2(74, -24), "neck": Vector2(46, -27 + w), "head": Vector2(36, -26 + w),
+				"knee_b": Vector2(72, -4), "foot_b": Vector2(90, -2), "knee_f": Vector2(64, -4), "foot_f": Vector2(82, -2),
+				"elbow_b": Vector2(26, -22), "hand_b": Vector2(8, -16), "elbow_f": Vector2(24, -18), "hand_f": Vector2(6, -12), "center": 30.0}
+		"juji_gatame":
+			# tori sur le dos au-delà de la tête d'uke, jambes repliées sur son buste,
+			# bras d'uke tendu à la verticale entre ses jambes
+			uke.elbow_f = Vector2(42, -30)
+			uke.hand_f = Vector2(50, -48 + w)
+			tori = {"hip": Vector2(60, -9), "neck": Vector2(90, -9), "head": Vector2(102, -11),
+				"knee_b": Vector2(46, -32), "foot_b": Vector2(28, -20), "knee_f": Vector2(48, -36 + w), "foot_f": Vector2(30, -26),
+				"elbow_b": Vector2(70, -28), "hand_b": Vector2(54, -44 + w), "elbow_f": Vector2(72, -24), "hand_f": Vector2(56, -40 + w),
+				"center": 36.0}
+		"okuri_eri_jime", "sankaku_jime":
+			# derrière la tête d'uke, buste relevé, mains au col
+			tori = {"hip": Vector2(70, -24), "neck": Vector2(60, -54 + w), "head": Vector2(58, -66 + w),
+				"knee_b": Vector2(72, -4), "foot_b": Vector2(88, -2), "knee_f": Vector2(62, -4), "foot_f": Vector2(80, -2),
+				"elbow_b": Vector2(50, -36), "hand_b": Vector2(42, -18), "elbow_f": Vector2(48, -30), "hand_f": Vector2(40, -14), "center": 30.0}
+		"kesa_gatame":
+			# assis à côté d'uke, jambes écartées, bras autour de la tête, tient le bras d'uke
+			uke.elbow_f = Vector2(24, -24)
+			uke.hand_f = Vector2(14, -34 - push + w)
+			tori = {"hip": Vector2(8, -17), "neck": Vector2(28, -44 + w), "head": Vector2(35, -55 + w),
+				"knee_b": Vector2(-8, -10), "foot_b": Vector2(-26, -2), "knee_f": Vector2(22, -8), "foot_f": Vector2(8, -1),
+				"elbow_b": Vector2(50, -30), "hand_b": Vector2(56, -12), "elbow_f": Vector2(20, -30), "hand_f": Vector2(14, -30 - push + w),
+				"center": 14.0}
+		_:
+			# transition : à genoux à côté d'uke, buste penché, mains au col et à la manche
+			tori = {"hip": Vector2(-8, -26), "neck": Vector2(16, -50 + w), "head": Vector2(24, -60 + w),
+				"knee_b": Vector2(-6, -4), "foot_b": Vector2(-24, -2), "knee_f": Vector2(4, -4), "foot_f": Vector2(-14, -2),
+				"elbow_b": Vector2(30, -30), "hand_b": Vector2(34, -14), "elbow_f": Vector2(20, -28), "hand_f": Vector2(24, -16)}
+	return [tori, uke]

@@ -407,34 +407,25 @@ func _draw_hand(i: int, h: int, xf: Transform2D, oxf: Transform2D, pal: Dictiona
 	Art.draw_arm(self, shoulder, pos, pal, h == 0, K, strength)
 
 
-## Ne-waza : uke allongé sur le dos, tori à genoux par-dessus.
+## Ne-waza : poses articulées selon la situation (transition, osaekomi, clé, étranglement).
 func _draw_newaza(nw: Dictionary) -> void:
-	var top: int = nw.top
-	var bot: int = nw.bottom
 	var fc: int = nw.facing
-	var x := wx(nw.x)
 	var ctrl := float(nw.control) / 10000.0
-	var mid := Vector2(x + fc * 30.0, FEET_Y - 24.0)
-	var xf_b := Transform2D(fc * PI * 0.5, Vector2(-fc * K, K), 0.0, mid) * Transform2D(0.0, Vector2(0, 22.0))
-	var lean := 0.45 + ctrl * 0.35
-	var xf_t := Art.stand_xform(Vector2(x - fc * 26.0, FEET_Y), fc, lean, K, 2.6)
-	Art.shadow(self, Vector2(mid.x, FEET_Y + 2), K * 1.3, 0.3)
-	var pb := Art.palette(bot)
-	var pt := Art.palette(top)
-	# uke : un bras repousse tori, l'autre au sol
-	Art.draw_arm(self, xf_b * Art.SHOULDER_BACK, xf_b * Vector2(-6, -48), pb, true, K)
-	Art.draw_body(self, xf_b, pb, 0.2)
-	Art.draw_arm(self, xf_b * Art.SHOULDER_FRONT, xf_t * Art.GRIP_POINTS["lapel"], pb, false, K, 0.5)
-	# tori : contrôle le buste (ou le col pendant un étranglement, le bras pour une clé)
-	var sub: Dictionary = nw.sub
-	var t_back := "sleeve"
-	var t_front := "lapel"
-	if not sub.is_empty():
-		t_back = "collar" if sub.kind == "shime" else "sleeve"
-		t_front = "collar" if sub.kind == "shime" else "sleeve"
-	Art.draw_arm(self, xf_t * Art.SHOULDER_BACK, xf_b * Art.GRIP_POINTS[t_back], pt, true, K)
-	Art.draw_body(self, xf_t, pt, 0.0)
-	Art.draw_arm(self, xf_t * Art.SHOULDER_FRONT, xf_b * Art.GRIP_POINTS[t_front], pt, false, K, ctrl)
+	var kind := "transition"
+	if not nw.sub.is_empty():
+		kind = "%s:%s" % [nw.sub.kind, nw.sub.tech]
+	elif nw.osae:
+		kind = "osaekomi:%s" % nw.hold
+	var poses: Array = Art.ground_poses(kind, frame, ctrl)
+	# zoom caméra au sol : la scène est agrandie et recentrée pour rester lisible
+	var kg := K * 1.55
+	var cx := clampf(wx(nw.x), 360.0, W - 360.0)
+	var center: float = poses[0].get("center", 12.0)
+	var origin := Vector2(cx - fc * center * kg, FEET_Y + 12.0)
+	var xf := Transform2D(0.0, Vector2(fc * kg, kg), 0.0, origin)
+	Art.shadow(self, origin + Vector2(fc * center * kg, 2), kg * 1.9, 0.32)
+	Art.draw_figure(self, xf, Art.palette(nw.bottom), poses[1])
+	Art.draw_figure(self, xf, Art.palette(nw.top), poses[0], ctrl)
 
 
 ## Jauge de contrôle au sol, chrono d'osaekomi, bras de fer des clés et étranglements.
@@ -473,32 +464,10 @@ func _draw_newaza_hud() -> void:
 
 ## Transforms des deux judokas pendant une projection (p de 0 à 1).
 func _throw_xforms(th: Dictionary, p: float) -> Array:
-	var tori: int = th.tori
-	var uke: int = th.uke
-	var fc: int = th.facing
-	var e = p * p * (3.0 - 2.0 * p)  # ease in-out
-	var tx = wx(th.tori_x)
-	var ux = wx(th.uke_x)
+	var pair: Array = Art.throw_xforms(th.dir, th.result == "ippon", th.facing, wx(th.tori_x), wx(th.uke_x), FEET_Y, K, p)
 	var res = [Transform2D(), Transform2D()]
-	var uke_f: int = -fc
-	var big: bool = th.result == "ippon"
-	if th.dir in ["avant", "contre"]:
-		# uke passe par-dessus tori et retombe de l'autre côté
-		var end_x = tx - fc * 64.0 * K / 2.0
-		var mid = Vector2(lerpf(ux, end_x, e), lerpf(FEET_Y - 44.0 * K / 2.0, FEET_Y - 24.0, e) - sin(PI * p) * (210.0 if big else 180.0))
-		var rot = -fc * PI * 1.5 * e
-		res[uke] = Transform2D(rot, Vector2(uke_f * K, K), 0.0, mid) * Transform2D(0.0, Vector2(0, 22.0))
-		var tori_lean = (0.55 * sin(PI * minf(p * 1.3, 1.0))) if th.dir == "avant" else (-0.45 * sin(PI * minf(p * 1.2, 1.0)))
-		var tori_face = -fc if th.dir == "avant" and p > 0.15 and p < 0.9 else fc
-		res[tori] = Art.stand_xform(Vector2(tx, FEET_Y), tori_face, tori_lean * tori_face, K, 0.6 * sin(PI * p))
-	else:
-		# uke bascule en arrière, loin de tori
-		var end_x = ux + fc * 34.0
-		var lift = 34.0 if big else 20.0
-		var mid = Vector2(lerpf(ux, end_x, e), lerpf(FEET_Y - 44.0 * K / 2.0, FEET_Y - 24.0, e) - sin(PI * p) * lift)
-		var rot = fc * PI * 0.5 * e
-		res[uke] = Transform2D(rot, Vector2(uke_f * K, K), 0.0, mid) * Transform2D(0.0, Vector2(0, 22.0))
-		res[tori] = Art.stand_xform(Vector2(tx + fc * 10.0 * e, FEET_Y), fc, 0.32 * sin(PI * minf(p * 1.2, 1.0)), K, 0.3 * sin(PI * p))
+	res[th.tori] = pair[0]
+	res[th.uke] = pair[1]
 	return res
 
 

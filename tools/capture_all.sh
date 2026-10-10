@@ -26,9 +26,9 @@ if [ -z "$TARGETS" ] || [[ " $TARGETS " == *" match "* ]]; then
 fi
 if [ -z "$TARGETS" ] || [[ " $TARGETS " == *" ground "* ]]; then
   rm -rf "$TMP"
-  run --screen=match --capture="$TMP" --ticks=340,460 --max=2 --until=600 --seed=1 --p1build=2 --p2build=1
+  run --screen=match --capture="$TMP" --ticks=340,470 --max=2 --until=600 --seed=1 --p1build=2 --p2build=1
   cp "$TMP"/match_00340.png "$OUT/14_sol_osaekomi.png"
-  cp "$TMP"/match_00460.png "$OUT/15_sol_juji_gatame.png"
+  cp "$TMP"/match_00470.png "$OUT/15_sol_juji_gatame.png"
   rm -rf "$TMP"
 fi
 for s in title menu customize select tournament results options online pause art; do
@@ -49,7 +49,8 @@ for s in title menu customize select tournament results options online pause art
       online) run --screen=online --capture="$OUT" --name=11_en_ligne --frames=30 ;;
       art)
         run --screen=art --capture="$OUT" --name=13_planche_perso --frames=2
-        run --screen=art --capture="$OUT" --name=13b_planche_gros_plan --frames=2 --zoom ;;
+        run --screen=art --capture="$OUT" --name=13b_planche_gros_plan --frames=2 --zoom
+        run --screen=art --capture="$OUT" --name=13c_planche_sol --frames=2 --ground ;;
       pause) run --screen=match --capture="$OUT" --name=12_pause --frames=900 --seed=5 --nav=start ;;
     esac
   fi
