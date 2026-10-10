@@ -40,7 +40,8 @@ func on_enter(params: Dictionary) -> void:
 func _demo() -> Dictionary:
 	var cfg = GameData.load_json("res://data/config.json")
 	var techs = GameData.load_json("res://data/techniques.json")
-	var sim = Sim.new(cfg, techs, ["HUGO", "KENJI"], ["seoi_nage", "o_soto_gari"])
+	var bs = preload("res://scripts/build.gd").defaults()
+	var sim = Sim.new(cfg, techs, ["HUGO", "KENJI"], [bs[0], bs[1]])
 	var ais = [Ai.new(0, 11, 2), Ai.new(1, 18, 2)]
 	var st = []
 	for i in 2:

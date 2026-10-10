@@ -65,7 +65,7 @@ func _start() -> void:
 	var b1: Dictionary = builds[choice[1]]
 	app.goto("match", {"controllers": [app.human_controller(), "ai" if p2_ai else "pad1"],
 		"names": [b0.name, b1.name if b1.name != b0.name else b1.name + " 2"],
-		"tokui": [b0.slots.tokui[0], b1.slots.tokui[0]], "seed": frame, "level": ai_level, "mode": "versus"})
+		"tokui": [b0.slots.tokui[0], b1.slots.tokui[0]], "builds": [b0, b1], "seed": frame, "level": ai_level, "mode": "versus"})
 
 
 func _draw() -> void:

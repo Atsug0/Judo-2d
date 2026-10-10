@@ -38,7 +38,7 @@ func nav(action: String, _player: int = 0) -> void:
 					me = p
 			var o = Tournament.opponent(t)
 			app.goto("match", {"controllers": [app.human_controller(), "ai"], "names": [me.name, o.name],
-				"tokui": [me.tokui, o.tokui], "seed": t.seed + t.round * 13, "level": Tournament.ai_level(t),
+				"tokui": [me.tokui, o.tokui], "builds": [me.build, o.build], "seed": t.seed + t.round * 13, "level": Tournament.ai_level(t),
 				"mode": "tournament"})
 		"back":
 			app.goto("menu", {})

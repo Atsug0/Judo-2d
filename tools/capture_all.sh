@@ -24,6 +24,13 @@ if [ -z "$TARGETS" ] || [[ " $TARGETS " == *" match "* ]]; then
   cp "${files[-1]}" "$OUT/05_combat_fin.png"
   rm -rf "$TMP"
 fi
+if [ -z "$TARGETS" ] || [[ " $TARGETS " == *" ground "* ]]; then
+  rm -rf "$TMP"
+  run --screen=match --capture="$TMP" --ticks=340,460 --max=2 --until=600 --seed=1 --p1build=2 --p2build=1
+  cp "$TMP"/match_00340.png "$OUT/14_sol_osaekomi.png"
+  cp "$TMP"/match_00460.png "$OUT/15_sol_juji_gatame.png"
+  rm -rf "$TMP"
+fi
 for s in title menu customize select tournament results options online pause art; do
   if [ -z "$TARGETS" ] || [[ " $TARGETS " == *" $s "* ]]; then
     case $s in

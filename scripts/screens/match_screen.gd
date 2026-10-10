@@ -48,7 +48,7 @@ func on_enter(p: Dictionary) -> void:
 	var tokui: Array = p.get("tokui", ["seoi_nage", "o_soto_gari"])
 	var seed_value: int = p.get("seed", 1)
 	var level: int = p.get("level", 2)
-	sim = Sim.new(cfg, techs, names, tokui)
+	sim = Sim.new(cfg, techs, names, p.get("builds", tokui))
 	for i in 2:
 		if controllers[i] == "ai":
 			ais[i] = Ai.new(i, seed_value + i * 7, level)
@@ -166,6 +166,24 @@ func _consume_events() -> void:
 				capture_flag = true
 			"golden":
 				_feed("Golden score !", Style.GOLD)
+			"combo_open":
+				_popup("ENCHAÎNE !", who, Style.GOLD)
+			"newaza":
+				_feed("%s passe au sol" % nm, col)
+			"osaekomi":
+				_feed("%s : osaekomi (%s)" % [nm, sim.tech_name(e.tech)], Style.GOLD)
+				capture_flag = true
+			"toketa":
+				_popup("TOKETA", who, Style.PAPER)
+			"escape":
+				_popup("SORTIE !", who, Style.GOOD)
+			"sub_start":
+				_feed("%s tente %s" % [nm, sim.tech_name(e.tech)], Style.HOT)
+				capture_flag = true
+			"sub_escape":
+				_popup("RÉSISTE !", who, Style.GOOD)
+			"submission":
+				_feed("%s : %s, maitta !" % [nm, sim.tech_name(e.tech)], Style.GOLD)
 			"end":
 				_feed("Victoire de %s — %s" % [nm, e.reason], Style.GOLD)
 	attack_flag = false
@@ -181,6 +199,8 @@ func _consume_events() -> void:
 	if sim.state.phase == "throw" and th.t == cfg.throw_ticks / 2:
 		capture_flag = true
 	if sim.state.phase in ["score", "ended"] and sim.state.phase_t == 14:
+		capture_flag = true
+	if sim.state.phase == "newaza" and sim.state.newaza.t in [90, 400]:
 		capture_flag = true
 
 
@@ -337,6 +357,10 @@ func _draw_x(i: int) -> float:
 
 
 func _draw_fighters() -> void:
+	var nwz: Dictionary = sim.state.newaza
+	if not nwz.is_empty() and sim.state.phase in ["newaza", "score", "ended"]:
+		_draw_newaza(nwz)
+		return
 	var th: Dictionary = sim.state.throw
 	var throwing: bool = not th.is_empty() and sim.state.phase in ["throw", "score", "ended"]
 	var xfs = [_fighter_xform(0), _fighter_xform(1)]
@@ -381,6 +405,70 @@ func _draw_hand(i: int, h: int, xf: Transform2D, oxf: Transform2D, pal: Dictiona
 	elif hand.state == Sim.HAND_REACH:
 		pos = rest.lerp(target, clampf(float(hand.t) / float(cfg.grip_reach_ticks), 0.0, 1.0))
 	Art.draw_arm(self, shoulder, pos, pal, h == 0, K, strength)
+
+
+## Ne-waza : uke allongé sur le dos, tori à genoux par-dessus.
+func _draw_newaza(nw: Dictionary) -> void:
+	var top: int = nw.top
+	var bot: int = nw.bottom
+	var fc: int = nw.facing
+	var x := wx(nw.x)
+	var ctrl := float(nw.control) / 10000.0
+	var mid := Vector2(x + fc * 30.0, FEET_Y - 24.0)
+	var xf_b := Transform2D(fc * PI * 0.5, Vector2(-fc * K, K), 0.0, mid) * Transform2D(0.0, Vector2(0, 22.0))
+	var lean := 0.45 + ctrl * 0.35
+	var xf_t := Art.stand_xform(Vector2(x - fc * 26.0, FEET_Y), fc, lean, K, 2.6)
+	Art.shadow(self, Vector2(mid.x, FEET_Y + 2), K * 1.3, 0.3)
+	var pb := Art.palette(bot)
+	var pt := Art.palette(top)
+	# uke : un bras repousse tori, l'autre au sol
+	Art.draw_arm(self, xf_b * Art.SHOULDER_BACK, xf_b * Vector2(-6, -48), pb, true, K)
+	Art.draw_body(self, xf_b, pb, 0.2)
+	Art.draw_arm(self, xf_b * Art.SHOULDER_FRONT, xf_t * Art.GRIP_POINTS["lapel"], pb, false, K, 0.5)
+	# tori : contrôle le buste (ou le col pendant un étranglement, le bras pour une clé)
+	var sub: Dictionary = nw.sub
+	var t_back := "sleeve"
+	var t_front := "lapel"
+	if not sub.is_empty():
+		t_back = "collar" if sub.kind == "shime" else "sleeve"
+		t_front = "collar" if sub.kind == "shime" else "sleeve"
+	Art.draw_arm(self, xf_t * Art.SHOULDER_BACK, xf_b * Art.GRIP_POINTS[t_back], pt, true, K)
+	Art.draw_body(self, xf_t, pt, 0.0)
+	Art.draw_arm(self, xf_t * Art.SHOULDER_FRONT, xf_b * Art.GRIP_POINTS[t_front], pt, false, K, ctrl)
+
+
+## Jauge de contrôle au sol, chrono d'osaekomi, bras de fer des clés et étranglements.
+func _draw_newaza_hud() -> void:
+	var nw: Dictionary = sim.state.newaza
+	if nw.is_empty() or sim.state.phase != "newaza":
+		return
+	var top: int = nw.top
+	var col: Color = Style.P1 if top == 0 else Style.P2
+	var r := Rect2(440, 104, 400, 84)
+	Style.panel(self, r, Style.INK, col, 3.0, 6.0)
+	Style.label(self, Vector2(r.position.x + 28, r.position.y + 26), "NE-WAZA · %s CONTRÔLE" % names[top], 14, col, "black")
+	var gr := Rect2(r.position.x + 22, r.position.y + 38, r.size.x - 60, 24)
+	Style.gauge(self, gr, float(nw.control) / 10000.0, col)
+	for mark in [cfg.toketa_below, cfg.osaekomi_on]:
+		var mx := gr.position.x + 4 + (gr.size.x - 8) * float(mark) / 10000.0
+		draw_line(Vector2(mx, gr.position.y - 4), Vector2(mx, gr.end.y + 4), Style.PAPER, 2.0)
+	if nw.osae:
+		var secs: int = nw.osae_t / 60
+		var c := Vector2(r.position.x - 50, r.get_center().y)
+		draw_circle(c + Vector2(3, 3), 38, Style.INK)
+		draw_circle(c, 38, Style.INK)
+		draw_arc(c, 32, -PI / 2, -PI / 2 + TAU * clampf(float(nw.osae_t) / float(cfg.osaekomi_ippon), 0.0, 1.0), 48, Style.GOLD, 7.0, true)
+		Style.text(self, Vector2(c.x - 40, c.y + 14), str(secs), 38, Style.GOLD, "display", HORIZONTAL_ALIGNMENT_CENTER, 80, 3, 0.0)
+		Style.label(self, Vector2(r.position.x + 28, r.end.y - 6), "OSAEKOMI — %s" % sim.tech_name(nw.hold).to_upper(), 13, Style.GOLD, "black")
+	elif not nw.sub.is_empty():
+		var sub: Dictionary = nw.sub
+		var tot := maxf(1.0, float(sub.tp + sub.bp))
+		var tr := Rect2(r.position.x, r.end.y + 10, r.size.x, 34)
+		Style.panel(self, tr, Style.INK, Style.HOT, 3.0, 4.0)
+		var split := tr.position.x + tr.size.x * float(sub.tp) / tot
+		draw_rect(Rect2(tr.position.x + 6, tr.position.y + 6, split - tr.position.x - 6, tr.size.y - 12), col)
+		draw_rect(Rect2(split, tr.position.y + 6, tr.end.x - 6 - split, tr.size.y - 12), Style.P2 if top == 0 else Style.P1)
+		Style.label(self, Vector2(tr.position.x, tr.position.y + 24), sim.tech_name(sub.tech).to_upper(), 16, Style.INK, "black", HORIZONTAL_ALIGNMENT_CENTER, tr.size.x)
 
 
 ## Transforms des deux judokas pendant une projection (p de 0 à 1).
@@ -436,6 +524,7 @@ func _draw_hud() -> void:
 	for i in 2:
 		_draw_player_hud(i)
 	_draw_timer()
+	_draw_newaza_hud()
 
 
 func _mirror(r: Rect2, i: int) -> Rect2:
@@ -499,7 +588,7 @@ func _draw_player_hud(i: int) -> void:
 		Style.label(self, Vector2(cr.position.x, cr.position.y + 20), "%s · %s" % [side, GRIP_LABELS[hand.target]], 14, tcol, "black", HORIZONTAL_ALIGNMENT_CENTER, cr.size.x)
 	# radar de kuzushi
 	var rc = Vector2(430.0 if i == 0 else W - 430.0, 152.0)
-	if Settings.value("radar"):
+	if Settings.value("radar") and sim.state.phase != "newaza":
 		_draw_radar(rc, f, col)
 
 
@@ -566,6 +655,11 @@ func _draw_announce() -> void:
 	var col = Style.PAPER
 	var fsize = 96
 	match txt:
+		"OSAEKOMI":
+			col = Style.INK
+			var ob := Rect2(c.x - 300 * s, c.y - 66 * s, 600 * s, 110 * s)
+			Style.panel(self, ob, Color(Style.GOLD, alpha), Style.INK, 5.0, 8.0)
+			fsize = 84
 		"IPPON !":
 			col = Style.GOLD
 			fsize = 132
@@ -611,6 +705,17 @@ func _draw_feed() -> void:
 func _draw_hints() -> void:
 	var y = 694.0
 	var x = 28.0
+	if sim.state.phase == "newaza":
+		var nitems = [["A", "Contrôler"], ["X", "Clé de bras"], ["Y", "Étranglement"], ["B", "Se dégager"], ["R", "Stick gauche : gigoter (dessous)"]]
+		for it in nitems:
+			if it[0] == "R":
+				Style.label(self, Vector2(x, y + 6), it[1], 15, Style.MUTED, "bold")
+				continue
+			Style.pad_button(self, Vector2(x + 12, y), it[0], 12.0)
+			x += 34.0
+			Style.label(self, Vector2(x, y + 6), it[1], 15, Style.MUTED, "bold")
+			x += Style.text_width(it[1], 15, "bold") + 26
+		return
 	var items = [["LT", "RT", "Saisir"], ["LB", "RB", "Cible"], ["R", "", "Stick droit : kuzushi"], ["A", "", "Technique"],
 		["X", "", "Jambe"], ["Y", "", "Tokui"], ["B", "", "Casser / contrer"]]
 	for it in items:

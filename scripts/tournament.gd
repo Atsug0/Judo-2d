@@ -5,25 +5,47 @@ extends RefCounted
 const Build := preload("res://scripts/build.gd")
 
 const ROUND_NAMES := ["QUART DE FINALE", "DEMI-FINALE", "FINALE"]
+## Rivaux du tournoi : chacun a un build complet (set à ~15 points, style, garde, profil).
 const RIVALS := [
-	{"name": "KENJI", "tag": "Jambes & pression", "tokui": "o_soto_gari", "style": "haute", "garde": "gaucher"},
-	{"name": "AYA", "tag": "Sol & contres", "tokui": "ko_uchi_gari", "style": "courte", "garde": "droitier"},
-	{"name": "MARCO", "tag": "Puissance", "tokui": "o_soto_gari", "style": "classique", "garde": "droitier"},
-	{"name": "LÉA", "tag": "Contre-attaque", "tokui": "seoi_nage", "style": "classique", "garde": "gaucher"},
-	{"name": "YUKI", "tag": "Vitesse", "tokui": "de_ashi_barai", "style": "courte", "garde": "droitier"},
-	{"name": "SAMIR", "tag": "Garde haute", "tokui": "o_uchi_gari", "style": "haute", "garde": "droitier"},
-	{"name": "TOM", "tag": "Débutant motivé", "tokui": "o_uchi_gari", "style": "classique", "garde": "droitier"},
+	{"name": "KENJI", "tag": "Jambes & pression", "style": "haute", "garde": "gaucher",
+		"slots": {"tokui": ["o_soto_gari"], "main": ["o_uchi_gari", "de_ashi_barai", "uchi_mata", ""], "combo": ["o_uchi_o_soto", ""],
+			"counter": ["tsubame_gaeshi", ""], "ground": ["kesa_gatame", "yoko_shiho_gatame"]},
+		"physique": {"explosivite": 5, "endurance": 6, "poigne": 6, "sol": 3}},
+	{"name": "AYA", "tag": "Sol & contres", "style": "courte", "garde": "droitier",
+		"slots": {"tokui": ["ko_uchi_gari"], "main": ["o_uchi_gari", "tai_otoshi", "", ""], "combo": ["ko_uchi_seoi", ""],
+			"counter": ["ura_nage", "o_soto_gaeshi"], "ground": ["juji_gatame", "okuri_eri_jime"]},
+		"physique": {"explosivite": 4, "endurance": 5, "poigne": 4, "sol": 8}},
+	{"name": "MARCO", "tag": "Puissance", "style": "classique", "garde": "droitier",
+		"slots": {"tokui": ["o_soto_gari"], "main": ["uchi_mata", "o_uchi_gari", "ko_uchi_gari", ""], "combo": ["o_uchi_o_soto", ""],
+			"counter": ["tsubame_gaeshi", ""], "ground": ["kesa_gatame", ""]},
+		"physique": {"explosivite": 6, "endurance": 4, "poigne": 7, "sol": 3}},
+	{"name": "LÉA", "tag": "Contre-attaque", "style": "classique", "garde": "gaucher",
+		"slots": {"tokui": ["seoi_nage"], "main": ["ko_uchi_gari", "o_uchi_gari", "tai_otoshi", ""], "combo": ["ko_uchi_seoi", ""],
+			"counter": ["ura_nage", "o_soto_gaeshi"], "ground": ["kesa_gatame", "yoko_shiho_gatame"]},
+		"physique": {"explosivite": 6, "endurance": 5, "poigne": 5, "sol": 4}},
+	{"name": "YUKI", "tag": "Vitesse", "style": "courte", "garde": "droitier",
+		"slots": {"tokui": ["de_ashi_barai"], "main": ["ko_uchi_gari", "sasae_tsurikomi_ashi", "o_uchi_gari", "tai_otoshi"], "combo": ["de_ashi_harai", ""],
+			"counter": ["tsubame_gaeshi", ""], "ground": ["kesa_gatame", "juji_gatame"]},
+		"physique": {"explosivite": 8, "endurance": 5, "poigne": 4, "sol": 4}},
+	{"name": "SAMIR", "tag": "Garde haute", "style": "haute", "garde": "droitier",
+		"slots": {"tokui": ["harai_goshi"], "main": ["o_goshi", "o_soto_gari", "o_uchi_gari", ""], "combo": ["", ""],
+			"counter": ["utsuri_goshi", ""], "ground": ["kesa_gatame", "yoko_shiho_gatame"]},
+		"physique": {"explosivite": 4, "endurance": 6, "poigne": 7, "sol": 4}},
+	{"name": "TOM", "tag": "Débutant motivé", "style": "classique", "garde": "droitier",
+		"slots": {"tokui": ["o_uchi_gari"], "main": ["o_goshi", "ko_uchi_gari", "", ""], "combo": ["", ""],
+			"counter": ["", ""], "ground": ["kesa_gatame", ""]},
+		"physique": {"explosivite": 4, "endurance": 4, "poigne": 4, "sol": 4}},
 ]
 
 
 static func create(human_build: Dictionary, seed_value: int) -> Dictionary:
 	var players = [{"name": human_build.name, "tag": human_build.tag, "tokui": human_build.slots.tokui[0],
-		"style": human_build.style, "garde": human_build.garde, "human": true, "power": 0}]
+		"style": human_build.style, "garde": human_build.garde, "human": true, "power": 0, "build": human_build.duplicate(true)}]
 	var power = [3, 2, 2, 3, 1, 2, 1]  # force relative des rivaux
 	for k in RIVALS.size():
-		var r: Dictionary = RIVALS[k].duplicate()
-		r.human = false
-		r.power = power[k]
+		var rb: Dictionary = RIVALS[k].duplicate(true)
+		var r := {"name": rb.name, "tag": rb.tag, "tokui": rb.slots.tokui[0], "style": rb.style, "garde": rb.garde,
+			"human": false, "power": power[k], "build": rb}
 		players.append(r)
 	# placement : le joueur en haut, les rivaux répartis de façon déterministe
 	var order = [0, 7, 4, 3, 2, 5, 6, 1]

@@ -767,6 +767,7 @@ func _start_newaza(top: int) -> void:
 		f.attack = {}
 		for hand in f.hands:
 			hand.state = HAND_FREE
+	state.throw = {}
 	events.append({"type": "newaza", "who": top})
 	_set_phase("newaza")
 

@@ -59,7 +59,10 @@ func default_match_params() -> Dictionary:
 	var pads := Input.get_connected_joypads()
 	var c1 := "pad0" if pads.size() >= 1 and not capture_mode else "ai"
 	var c2 := "pad1" if pads.size() >= 2 and not capture_mode else "ai"
-	return {"controllers": [c1, c2], "names": ["HUGO", "KENJI"], "tokui": ["seoi_nage", "o_soto_gari"],
+	var bs: Array = preload("res://scripts/build.gd").defaults()
+	var b1: Dictionary = bs[int(args.get("p1build", "0"))]
+	var b2: Dictionary = bs[int(args.get("p2build", "1"))]
+	return {"controllers": [c1, c2], "names": [b1.name, b2.name], "tokui": [b1.slots.tokui[0], b2.slots.tokui[0]], "builds": [b1, b2],
 		"seed": int(args.get("seed", "3")), "level": int(args.get("level", str(preload("res://scripts/settings.gd").value("ai_level")))), "mode": "demo"}
 
 
