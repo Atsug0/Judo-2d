@@ -233,3 +233,32 @@ static func menu_background(ci: CanvasItem, size: Vector2, accent: Color = HOT, 
 		ci.draw_colored_polygon(pts, b[2])
 	halftone(ci, Rect2(size.x * 0.45, 0, size.x * 0.55, size.y), Color(1, 1, 1, 0.05), 16.0, 4.0, Vector2(-1, 0))
 	halftone(ci, Rect2(0, size.y * 0.55, size.x * 0.5, size.y * 0.45), Color(0, 0, 0, 0.35), 14.0, 4.5, Vector2(0, -1))
+
+
+## En-tête d'écran : grand titre incliné + sous-titre, bande d'accent.
+static func header(ci: CanvasItem, title: String, subtitle: String, accent: Color = HOT) -> void:
+	var r := Rect2(-30, 22, 40 + text_width(title, 64) + 90, 78)
+	panel(ci, r, accent, INK, 4.0, 8.0)
+	text(ci, Vector2(36, 86), title, 64, INK, "display", HORIZONTAL_ALIGNMENT_LEFT, -1, 2, -1.0)
+	if subtitle != "":
+		label(ci, Vector2(40, 128), subtitle.to_upper(), 16, MUTED, "black")
+
+
+## Barre d'aide manette en bas d'écran. items = [["A", "Valider"], ["LB", "RB", "Onglets"], ...]
+static func hints(ci: CanvasItem, items: Array, size: Vector2 = Vector2(1280, 720)) -> void:
+	ci.draw_rect(Rect2(0, size.y - 52, size.x, 52), Color(INK, 0.88))
+	ci.draw_line(Vector2(0, size.y - 52), Vector2(size.x, size.y - 52), NIGHT_3, 2.0)
+	var x := size.x - 28.0
+	for k in range(items.size() - 1, -1, -1):
+		var it: Array = items[k]
+		var txt: String = it[it.size() - 1]
+		var tw := text_width(txt, 17, "bold")
+		x -= tw
+		label(ci, Vector2(x, size.y - 20), txt, 17, PAPER, "bold")
+		x -= 12.0
+		for b in range(it.size() - 2, -1, -1):
+			var bn: String = it[b]
+			var bw := 30.0 if bn.length() == 1 else 38.0
+			pad_button(ci, Vector2(x - bw / 2.0, size.y - 26), bn, 13.0)
+			x -= bw + 4.0
+		x -= 26.0
