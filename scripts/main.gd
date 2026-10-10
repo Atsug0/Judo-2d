@@ -34,6 +34,8 @@ var current_name := ""
 var capture_mode := false
 var args := {}
 var last_match_params := {}
+## État de la session de jeu (tournoi en cours, etc.).
+var session := {}
 var _held := {}  # "device:action" -> frames tenus
 
 
@@ -57,6 +59,11 @@ func default_match_params() -> Dictionary:
 	var c2 := "pad1" if pads.size() >= 2 and not capture_mode else "ai"
 	return {"controllers": [c1, c2], "names": ["HUGO", "KENJI"], "tokui": ["seoi_nage", "o_soto_gari"],
 		"seed": int(args.get("seed", "3")), "level": int(args.get("level", "2"))}
+
+
+## Contrôleur du joueur humain : manette 0 si branchée, sinon l'IA (démo).
+func human_controller() -> String:
+	return "pad0" if Input.get_connected_joypads().size() >= 1 and not capture_mode else "ai"
 
 
 func goto(screen_name: String, params: Dictionary = {}) -> void:

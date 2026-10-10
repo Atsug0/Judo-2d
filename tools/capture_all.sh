@@ -34,7 +34,9 @@ for s in title menu customize select tournament results options online pause art
         run --screen=customize --capture="$OUT" --name=06b_personnalisation_style --frames=20 --nav=next,down
         run --screen=customize --capture="$OUT" --name=06c_personnalisation_physique --frames=20 --nav=next,next ;;
       select) run --screen=select --capture="$OUT" --name=07_selection --frames=20 ;;
-      tournament) run --screen=tournament --capture="$OUT" --name=08_tournoi --frames=20 ;;
+      tournament)
+        run --screen=tournament --capture="$OUT" --name=08_tournoi --frames=20
+        run --screen=tournament --capture="$OUT" --name=08b_tournoi_demi --frames=20 --demo_round ;;
       results) run --screen=results --capture="$OUT" --name=09_resultats --frames=40 ;;
       options) run --screen=options --capture="$OUT" --name=10_options --frames=20 ;;
       online) run --screen=online --capture="$OUT" --name=11_en_ligne --frames=30 ;;

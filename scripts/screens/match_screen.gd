@@ -32,17 +32,21 @@ var end_timer = 0
 var capture_flag = false   # demande de capture (mode capture d'écran)
 var attack_flag = false    # une attaque est à mi-entrée
 var frame = 0
+var params: Dictionary = {}
+var stats = []  # statistiques par joueur pour l'écran de résultats
 const PAUSE_ITEMS := ["REPRENDRE", "RECOMMENCER", "PERSONNALISATION", "MENU PRINCIPAL"]
 
 
-func on_enter(params: Dictionary) -> void:
+func on_enter(p: Dictionary) -> void:
+	params = p
+	stats = [_new_stats(), _new_stats()]
 	cfg = GameData.load_json("res://data/config.json")
 	techs = GameData.load_json("res://data/techniques.json")
-	controllers = params.get("controllers", ["ai", "ai"])
-	names = params.get("names", ["HUGO", "KENJI"])
-	var tokui: Array = params.get("tokui", ["seoi_nage", "o_soto_gari"])
-	var seed_value: int = params.get("seed", 1)
-	var level: int = params.get("level", 2)
+	controllers = p.get("controllers", ["ai", "ai"])
+	names = p.get("names", ["HUGO", "KENJI"])
+	var tokui: Array = p.get("tokui", ["seoi_nage", "o_soto_gari"])
+	var seed_value: int = p.get("seed", 1)
+	var level: int = p.get("level", 2)
 	sim = Sim.new(cfg, techs, names, tokui)
 	for i in 2:
 		if controllers[i] == "ai":
@@ -73,7 +77,7 @@ func tick() -> void:
 	if sim.state.phase == "ended":
 		end_timer += 1
 		if end_timer == 200 and app != null and not app.capture_mode:
-			app.goto("results", {"state": sim.get_state(), "names": names})
+			app.goto("results", {"state": sim.get_state(), "names": names, "stats": stats, "match_params": params})
 	queue_redraw()
 
 
@@ -102,10 +106,39 @@ func nav(action: String, _player: int = 0) -> void:
 	queue_redraw()
 
 
+func _new_stats() -> Dictionary:
+	return {"attacks": 0, "throws": 0, "counters": 0, "breaks": 0, "feints": 0, "exposed": 0,
+		"blocks": 0, "shidos": 0, "kuzushi_max": 0, "method": ""}
+
+
 func _consume_events() -> void:
 	capture_flag = false
+	for i in 2:
+		var o: Dictionary = sim.state.fighters[1 - i]
+		var mag := maxi(absi(o.bal_x), absi(o.bal_y))
+		stats[i].kuzushi_max = maxi(stats[i].kuzushi_max, mag)
 	for e in sim.events:
 		var who: int = e.get("who", -1)
+		if who >= 0:
+			var st: Dictionary = stats[who]
+			match e.type:
+				"attack":
+					st.attacks += 1
+				"throw":
+					st.throws += 1
+					st.method = sim.tech_name(e.tech)
+				"counter":
+					st.counters += 1
+				"break":
+					st.breaks += 1
+				"feint":
+					st.feints += 1
+				"exposed":
+					st.exposed += 1
+				"block":
+					st.blocks += 1
+				"shido":
+					st.shidos += 1
 		var nm: String = names[who] if who >= 0 else ""
 		var col: Color = Style.P1 if who == 0 else Style.P2
 		match e.type:
