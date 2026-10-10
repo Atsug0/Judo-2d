@@ -56,6 +56,7 @@ var ref_x = 790.0         # arbitre : position (monde, px) et sens du regard
 var ref_face = -1
 var ref_walk = 0.0
 var ref_side = 1.0
+var ref_walking = false
 const PAUSE_ITEMS := ["REPRENDRE", "RECOMMENCER", "PERSONNALISATION", "MENU PRINCIPAL"]
 
 
@@ -111,6 +112,7 @@ func tick() -> void:
 
 func _redraw_all() -> void:
 	_update_camera()
+	_update_referee()
 	queue_redraw()
 	for l in [layer_bg, layer_world, layer_hud]:
 		if l != null:
@@ -1146,24 +1148,38 @@ static func _make_ref_pal() -> Dictionary:
 	return pal
 
 
-func _draw_referee() -> void:
-	var g = _referee_gesture()
+## Déplacement de l'arbitre (appelé à chaque image, même quand rien n'est redessiné).
+func _update_referee() -> void:
+	if sim == null:
+		return
 	var center = _action_center()
-	# se place au fond, sur le côté de l'action qui reste dans le champ de la caméra
+	# au fond, dans le champ de la caméra
 	var hw = 640.0 / cam_z
 	var lo = cam_c.x - hw + 70.0
 	var hi = cam_c.x + hw - 70.0
-	var target_x = center + ref_side * REF_OFFSET
+	# entre les deux judokas quand ils sont écartés (comme au hajime), sinon sur le côté
+	var gap = 0.0
+	if sim.state.throw.is_empty() and sim.state.newaza.is_empty():
+		gap = absf(_draw_x(0) - _draw_x(1))
+	var off = 0.0 if gap > 190.0 else maxf(REF_OFFSET, gap * 0.5 + 105.0)
+	var target_x = center + ref_side * off
 	if target_x < lo or target_x > hi:
-		var other = center - ref_side * REF_OFFSET
+		var other = center - ref_side * off
 		if other >= lo and other <= hi:
 			ref_side = -ref_side
 			target_x = other
 	target_x = clampf(target_x, maxf(lo, 110.0), minf(hi, W - 110.0))
 	var dx = target_x - ref_x
 	ref_x += clampf(dx * 0.08, -4.0, 4.0)
-	var walking = absf(dx) > 6.0
-	ref_walk += 0.25 if walking else 0.0
+	ref_walking = absf(dx) > 6.0
+	if ref_walking:
+		ref_walk += 0.25
+
+
+func _draw_referee() -> void:
+	var g = _referee_gesture()
+	var center = _action_center()
+	var walking = ref_walking
 	# regarde l'action, ou le judoka désigné par son geste
 	var look_x = center
 	if g.target >= 0:
