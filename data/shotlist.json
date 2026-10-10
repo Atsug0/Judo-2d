@@ -1,0 +1,831 @@
+{
+  "_doc": "Liste de tournage générée à partir des techniques du jeu. Nom des fichiers : <id>_<cote>_prise<N>.mp4 (ex. tech_seoi_nage_droitier_prise3.mp4). 'anims' = animations du jeu produites par ce plan.",
+  "camera": {
+    "fps": 60,
+    "resolution": "1920x1080 minimum (4K si possible)",
+    "angle": "profil strict, objectif à hauteur de hanche, trépied fixe",
+    "cadrage": "les deux judokas entiers, y compris pendant la chute"
+  },
+  "shots": [
+    {
+      "id": "salut",
+      "label": "Salut debout face à face (rei), début et fin de combat",
+      "roles": [
+        "tori",
+        "uke"
+      ],
+      "takes": 2,
+      "sides": [
+        "face"
+      ],
+      "anims": [
+        "rei"
+      ],
+      "note": "Les deux judokas dans le cadre."
+    },
+    {
+      "id": "garde_neutre",
+      "label": "Garde neutre, sur place, 5 secondes",
+      "roles": [
+        "solo"
+      ],
+      "takes": 2,
+      "sides": [
+        "droitier",
+        "gaucher"
+      ],
+      "anims": [
+        "idle"
+      ],
+      "note": "Filmer chaque judoka seul."
+    },
+    {
+      "id": "marche_avant",
+      "label": "Déplacement avant en tsugi-ashi (3 pas)",
+      "roles": [
+        "solo"
+      ],
+      "takes": 2,
+      "sides": [
+        "droitier",
+        "gaucher"
+      ],
+      "anims": [
+        "walk_fwd"
+      ],
+      "note": ""
+    },
+    {
+      "id": "marche_arriere",
+      "label": "Déplacement arrière en tsugi-ashi (3 pas)",
+      "roles": [
+        "solo"
+      ],
+      "takes": 2,
+      "sides": [
+        "droitier",
+        "gaucher"
+      ],
+      "anims": [
+        "walk_back"
+      ],
+      "note": ""
+    },
+    {
+      "id": "saisie_manche_revers",
+      "label": "Prise de garde manche + revers, puis maintien 3 s",
+      "roles": [
+        "tori",
+        "uke"
+      ],
+      "takes": 3,
+      "sides": [
+        "droitier",
+        "gaucher"
+      ],
+      "anims": [
+        "grip_reach",
+        "grip_hold"
+      ],
+      "note": ""
+    },
+    {
+      "id": "saisie_col_haut",
+      "label": "Main au col haut (garde haute), puis maintien 3 s",
+      "roles": [
+        "tori",
+        "uke"
+      ],
+      "takes": 3,
+      "sides": [
+        "droitier"
+      ],
+      "anims": [
+        "grip_collar"
+      ],
+      "note": ""
+    },
+    {
+      "id": "saisie_ceinture",
+      "label": "Main à la ceinture, puis maintien 3 s",
+      "roles": [
+        "tori",
+        "uke"
+      ],
+      "takes": 2,
+      "sides": [
+        "droitier"
+      ],
+      "anims": [
+        "grip_belt"
+      ],
+      "note": ""
+    },
+    {
+      "id": "casser_prise",
+      "label": "Casser la prise de l'adversaire (coup de poignet / dégagement)",
+      "roles": [
+        "tori",
+        "uke"
+      ],
+      "takes": 3,
+      "sides": [
+        "droitier"
+      ],
+      "anims": [
+        "grip_break"
+      ],
+      "note": ""
+    },
+    {
+      "id": "kuzushi_avant",
+      "label": "Tirer uke vers l'avant (tsukuri, tori recule)",
+      "roles": [
+        "tori",
+        "uke"
+      ],
+      "takes": 3,
+      "sides": [
+        "droitier"
+      ],
+      "anims": [
+        "kuzushi_avant/tori",
+        "kuzushi_avant/uke"
+      ],
+      "note": ""
+    },
+    {
+      "id": "kuzushi_arriere",
+      "label": "Pousser uke vers l'arrière (tori avance)",
+      "roles": [
+        "tori",
+        "uke"
+      ],
+      "takes": 3,
+      "sides": [
+        "droitier"
+      ],
+      "anims": [
+        "kuzushi_arriere/tori",
+        "kuzushi_arriere/uke"
+      ],
+      "note": ""
+    },
+    {
+      "id": "kuzushi_cote",
+      "label": "Déséquilibre latéral",
+      "roles": [
+        "tori",
+        "uke"
+      ],
+      "takes": 3,
+      "sides": [
+        "droitier"
+      ],
+      "anims": [
+        "kuzushi_cote/tori",
+        "kuzushi_cote/uke"
+      ],
+      "note": ""
+    },
+    {
+      "id": "tech_seoi_nage",
+      "label": "Seoi-nage : entrée lente puis vitesse réelle, jusqu'à la chute d'uke",
+      "roles": [
+        "tori",
+        "uke"
+      ],
+      "takes": 5,
+      "sides": [
+        "droitier",
+        "gaucher"
+      ],
+      "anims": [
+        "entry/seoi_nage",
+        "throw/seoi_nage/tori",
+        "throw/seoi_nage/uke"
+      ],
+      "note": "Filmer aussi 1 prise ratée (uke résiste) et 1 waza-ari (chute sur le côté)."
+    },
+    {
+      "id": "tech_ippon_seoi_nage",
+      "label": "Ippon-seoi-nage : entrée lente puis vitesse réelle, jusqu'à la chute d'uke",
+      "roles": [
+        "tori",
+        "uke"
+      ],
+      "takes": 5,
+      "sides": [
+        "droitier",
+        "gaucher"
+      ],
+      "anims": [
+        "entry/ippon_seoi_nage",
+        "throw/ippon_seoi_nage/tori",
+        "throw/ippon_seoi_nage/uke"
+      ],
+      "note": "Filmer aussi 1 prise ratée (uke résiste) et 1 waza-ari (chute sur le côté)."
+    },
+    {
+      "id": "tech_tai_otoshi",
+      "label": "Tai-otoshi : entrée lente puis vitesse réelle, jusqu'à la chute d'uke",
+      "roles": [
+        "tori",
+        "uke"
+      ],
+      "takes": 5,
+      "sides": [
+        "droitier",
+        "gaucher"
+      ],
+      "anims": [
+        "entry/tai_otoshi",
+        "throw/tai_otoshi/tori",
+        "throw/tai_otoshi/uke"
+      ],
+      "note": "Filmer aussi 1 prise ratée (uke résiste) et 1 waza-ari (chute sur le côté)."
+    },
+    {
+      "id": "tech_uchi_mata",
+      "label": "Uchi-mata : entrée lente puis vitesse réelle, jusqu'à la chute d'uke",
+      "roles": [
+        "tori",
+        "uke"
+      ],
+      "takes": 5,
+      "sides": [
+        "droitier",
+        "gaucher"
+      ],
+      "anims": [
+        "entry/uchi_mata",
+        "throw/uchi_mata/tori",
+        "throw/uchi_mata/uke"
+      ],
+      "note": "Filmer aussi 1 prise ratée (uke résiste) et 1 waza-ari (chute sur le côté)."
+    },
+    {
+      "id": "tech_harai_goshi",
+      "label": "Harai-goshi : entrée lente puis vitesse réelle, jusqu'à la chute d'uke",
+      "roles": [
+        "tori",
+        "uke"
+      ],
+      "takes": 5,
+      "sides": [
+        "droitier",
+        "gaucher"
+      ],
+      "anims": [
+        "entry/harai_goshi",
+        "throw/harai_goshi/tori",
+        "throw/harai_goshi/uke"
+      ],
+      "note": "Filmer aussi 1 prise ratée (uke résiste) et 1 waza-ari (chute sur le côté)."
+    },
+    {
+      "id": "tech_o_goshi",
+      "label": "O-goshi : entrée lente puis vitesse réelle, jusqu'à la chute d'uke",
+      "roles": [
+        "tori",
+        "uke"
+      ],
+      "takes": 5,
+      "sides": [
+        "droitier",
+        "gaucher"
+      ],
+      "anims": [
+        "entry/o_goshi",
+        "throw/o_goshi/tori",
+        "throw/o_goshi/uke"
+      ],
+      "note": "Filmer aussi 1 prise ratée (uke résiste) et 1 waza-ari (chute sur le côté)."
+    },
+    {
+      "id": "tech_o_soto_gari",
+      "label": "O-soto-gari : entrée lente puis vitesse réelle, jusqu'à la chute d'uke",
+      "roles": [
+        "tori",
+        "uke"
+      ],
+      "takes": 5,
+      "sides": [
+        "droitier",
+        "gaucher"
+      ],
+      "anims": [
+        "entry/o_soto_gari",
+        "throw/o_soto_gari/tori",
+        "throw/o_soto_gari/uke"
+      ],
+      "note": "Filmer aussi 1 prise ratée (uke résiste) et 1 waza-ari (chute sur le côté)."
+    },
+    {
+      "id": "tech_o_uchi_gari",
+      "label": "O-uchi-gari : entrée lente puis vitesse réelle, jusqu'à la chute d'uke",
+      "roles": [
+        "tori",
+        "uke"
+      ],
+      "takes": 5,
+      "sides": [
+        "droitier",
+        "gaucher"
+      ],
+      "anims": [
+        "entry/o_uchi_gari",
+        "throw/o_uchi_gari/tori",
+        "throw/o_uchi_gari/uke"
+      ],
+      "note": "Filmer aussi 1 prise ratée (uke résiste) et 1 waza-ari (chute sur le côté)."
+    },
+    {
+      "id": "tech_ko_uchi_gari",
+      "label": "Ko-uchi-gari : entrée lente puis vitesse réelle, jusqu'à la chute d'uke",
+      "roles": [
+        "tori",
+        "uke"
+      ],
+      "takes": 5,
+      "sides": [
+        "droitier",
+        "gaucher"
+      ],
+      "anims": [
+        "entry/ko_uchi_gari",
+        "throw/ko_uchi_gari/tori",
+        "throw/ko_uchi_gari/uke"
+      ],
+      "note": "Filmer aussi 1 prise ratée (uke résiste) et 1 waza-ari (chute sur le côté)."
+    },
+    {
+      "id": "tech_de_ashi_barai",
+      "label": "De-ashi-barai : entrée lente puis vitesse réelle, jusqu'à la chute d'uke",
+      "roles": [
+        "tori",
+        "uke"
+      ],
+      "takes": 5,
+      "sides": [
+        "droitier",
+        "gaucher"
+      ],
+      "anims": [
+        "entry/de_ashi_barai",
+        "throw/de_ashi_barai/tori",
+        "throw/de_ashi_barai/uke"
+      ],
+      "note": "Filmer aussi 1 prise ratée (uke résiste) et 1 waza-ari (chute sur le côté)."
+    },
+    {
+      "id": "tech_sasae_tsurikomi_ashi",
+      "label": "Sasae-tsurikomi-ashi : entrée lente puis vitesse réelle, jusqu'à la chute d'uke",
+      "roles": [
+        "tori",
+        "uke"
+      ],
+      "takes": 5,
+      "sides": [
+        "droitier",
+        "gaucher"
+      ],
+      "anims": [
+        "entry/sasae_tsurikomi_ashi",
+        "throw/sasae_tsurikomi_ashi/tori",
+        "throw/sasae_tsurikomi_ashi/uke"
+      ],
+      "note": "Filmer aussi 1 prise ratée (uke résiste) et 1 waza-ari (chute sur le côté)."
+    },
+    {
+      "id": "tech_tomoe_nage",
+      "label": "Tomoe-nage : entrée lente puis vitesse réelle, jusqu'à la chute d'uke",
+      "roles": [
+        "tori",
+        "uke"
+      ],
+      "takes": 5,
+      "sides": [
+        "droitier",
+        "gaucher"
+      ],
+      "anims": [
+        "entry/tomoe_nage",
+        "throw/tomoe_nage/tori",
+        "throw/tomoe_nage/uke"
+      ],
+      "note": "Filmer aussi 1 prise ratée (uke résiste) et 1 waza-ari (chute sur le côté)."
+    },
+    {
+      "id": "tech_sumi_gaeshi",
+      "label": "Sumi-gaeshi : entrée lente puis vitesse réelle, jusqu'à la chute d'uke",
+      "roles": [
+        "tori",
+        "uke"
+      ],
+      "takes": 5,
+      "sides": [
+        "droitier",
+        "gaucher"
+      ],
+      "anims": [
+        "entry/sumi_gaeshi",
+        "throw/sumi_gaeshi/tori",
+        "throw/sumi_gaeshi/uke"
+      ],
+      "note": "Filmer aussi 1 prise ratée (uke résiste) et 1 waza-ari (chute sur le côté)."
+    },
+    {
+      "id": "contre_ura_nage",
+      "label": "Ura-nage : l'attaque adverse, puis le contre jusqu'à la chute",
+      "roles": [
+        "tori",
+        "uke"
+      ],
+      "takes": 4,
+      "sides": [
+        "droitier"
+      ],
+      "anims": [
+        "throw/ura_nage/tori",
+        "throw/ura_nage/uke"
+      ],
+      "note": ""
+    },
+    {
+      "id": "contre_utsuri_goshi",
+      "label": "Utsuri-goshi : l'attaque adverse, puis le contre jusqu'à la chute",
+      "roles": [
+        "tori",
+        "uke"
+      ],
+      "takes": 4,
+      "sides": [
+        "droitier"
+      ],
+      "anims": [
+        "throw/utsuri_goshi/tori",
+        "throw/utsuri_goshi/uke"
+      ],
+      "note": ""
+    },
+    {
+      "id": "contre_uchi_mata_sukashi",
+      "label": "Uchi-mata-sukashi : l'attaque adverse, puis le contre jusqu'à la chute",
+      "roles": [
+        "tori",
+        "uke"
+      ],
+      "takes": 4,
+      "sides": [
+        "droitier"
+      ],
+      "anims": [
+        "throw/uchi_mata_sukashi/tori",
+        "throw/uchi_mata_sukashi/uke"
+      ],
+      "note": ""
+    },
+    {
+      "id": "contre_o_soto_gaeshi",
+      "label": "O-soto-gaeshi : l'attaque adverse, puis le contre jusqu'à la chute",
+      "roles": [
+        "tori",
+        "uke"
+      ],
+      "takes": 4,
+      "sides": [
+        "droitier"
+      ],
+      "anims": [
+        "throw/o_soto_gaeshi/tori",
+        "throw/o_soto_gaeshi/uke"
+      ],
+      "note": ""
+    },
+    {
+      "id": "contre_tsubame_gaeshi",
+      "label": "Tsubame-gaeshi : l'attaque adverse, puis le contre jusqu'à la chute",
+      "roles": [
+        "tori",
+        "uke"
+      ],
+      "takes": 4,
+      "sides": [
+        "droitier"
+      ],
+      "anims": [
+        "throw/tsubame_gaeshi/tori",
+        "throw/tsubame_gaeshi/uke"
+      ],
+      "note": ""
+    },
+    {
+      "id": "ench_ko_uchi_seoi",
+      "label": "Enchaînement Ko-uchi-gari → Seoi-nage : uke réagit à la 1re attaque",
+      "roles": [
+        "tori",
+        "uke"
+      ],
+      "takes": 4,
+      "sides": [
+        "droitier"
+      ],
+      "anims": [
+        "combo/ko_uchi_seoi"
+      ],
+      "note": ""
+    },
+    {
+      "id": "ench_o_uchi_seoi",
+      "label": "Enchaînement O-uchi-gari → Seoi-nage : uke réagit à la 1re attaque",
+      "roles": [
+        "tori",
+        "uke"
+      ],
+      "takes": 4,
+      "sides": [
+        "droitier"
+      ],
+      "anims": [
+        "combo/o_uchi_seoi"
+      ],
+      "note": ""
+    },
+    {
+      "id": "ench_ko_uchi_uchi_mata",
+      "label": "Enchaînement Ko-uchi-gari → Uchi-mata : uke réagit à la 1re attaque",
+      "roles": [
+        "tori",
+        "uke"
+      ],
+      "takes": 4,
+      "sides": [
+        "droitier"
+      ],
+      "anims": [
+        "combo/ko_uchi_uchi_mata"
+      ],
+      "note": ""
+    },
+    {
+      "id": "ench_o_uchi_o_soto",
+      "label": "Enchaînement O-uchi-gari → O-soto-gari : uke réagit à la 1re attaque",
+      "roles": [
+        "tori",
+        "uke"
+      ],
+      "takes": 4,
+      "sides": [
+        "droitier"
+      ],
+      "anims": [
+        "combo/o_uchi_o_soto"
+      ],
+      "note": ""
+    },
+    {
+      "id": "ench_de_ashi_harai",
+      "label": "Enchaînement De-ashi-barai → Harai-goshi : uke réagit à la 1re attaque",
+      "roles": [
+        "tori",
+        "uke"
+      ],
+      "takes": 4,
+      "sides": [
+        "droitier"
+      ],
+      "anims": [
+        "combo/de_ashi_harai"
+      ],
+      "note": ""
+    },
+    {
+      "id": "chute_arriere",
+      "label": "Ushiro-ukemi (chute arrière) seul",
+      "roles": [
+        "solo"
+      ],
+      "takes": 2,
+      "sides": [
+        "face"
+      ],
+      "anims": [
+        "fall/back"
+      ],
+      "note": ""
+    },
+    {
+      "id": "chute_cote",
+      "label": "Yoko-ukemi (chute latérale) seul",
+      "roles": [
+        "solo"
+      ],
+      "takes": 2,
+      "sides": [
+        "droitier",
+        "gaucher"
+      ],
+      "anims": [
+        "fall/side"
+      ],
+      "note": ""
+    },
+    {
+      "id": "ratee_exposee",
+      "label": "Attaque ratée : tori reste emporté vers l'avant",
+      "roles": [
+        "tori",
+        "uke"
+      ],
+      "takes": 3,
+      "sides": [
+        "droitier"
+      ],
+      "anims": [
+        "exposed"
+      ],
+      "note": ""
+    },
+    {
+      "id": "blocage",
+      "label": "Uke bloque une attaque (hanches basses)",
+      "roles": [
+        "tori",
+        "uke"
+      ],
+      "takes": 3,
+      "sides": [
+        "droitier"
+      ],
+      "anims": [
+        "block"
+      ],
+      "note": ""
+    },
+    {
+      "id": "newaza_transition",
+      "label": "Passage au sol après la chute : tori suit et contrôle",
+      "roles": [
+        "tori",
+        "uke"
+      ],
+      "takes": 3,
+      "sides": [
+        "droitier"
+      ],
+      "anims": [
+        "newaza/transition"
+      ],
+      "note": ""
+    },
+    {
+      "id": "sol_kesa_gatame",
+      "label": "Kesa-gatame : mise en place puis 10 s de maintien, uke tente de sortir",
+      "roles": [
+        "tori",
+        "uke"
+      ],
+      "takes": 3,
+      "sides": [
+        "droitier"
+      ],
+      "anims": [
+        "newaza/kesa_gatame/top",
+        "newaza/kesa_gatame/bottom"
+      ],
+      "note": ""
+    },
+    {
+      "id": "sol_yoko_shiho_gatame",
+      "label": "Yoko-shiho-gatame : mise en place puis 10 s de maintien, uke tente de sortir",
+      "roles": [
+        "tori",
+        "uke"
+      ],
+      "takes": 3,
+      "sides": [
+        "droitier"
+      ],
+      "anims": [
+        "newaza/yoko_shiho_gatame/top",
+        "newaza/yoko_shiho_gatame/bottom"
+      ],
+      "note": ""
+    },
+    {
+      "id": "sol_kami_shiho_gatame",
+      "label": "Kami-shiho-gatame : mise en place puis 10 s de maintien, uke tente de sortir",
+      "roles": [
+        "tori",
+        "uke"
+      ],
+      "takes": 3,
+      "sides": [
+        "droitier"
+      ],
+      "anims": [
+        "newaza/kami_shiho_gatame/top",
+        "newaza/kami_shiho_gatame/bottom"
+      ],
+      "note": ""
+    },
+    {
+      "id": "sol_juji_gatame",
+      "label": "Juji-gatame : mise en place puis 10 s de maintien, uke tente de sortir",
+      "roles": [
+        "tori",
+        "uke"
+      ],
+      "takes": 3,
+      "sides": [
+        "droitier"
+      ],
+      "anims": [
+        "newaza/juji_gatame/top",
+        "newaza/juji_gatame/bottom"
+      ],
+      "note": ""
+    },
+    {
+      "id": "sol_okuri_eri_jime",
+      "label": "Okuri-eri-jime : mise en place puis 10 s de maintien, uke tente de sortir",
+      "roles": [
+        "tori",
+        "uke"
+      ],
+      "takes": 3,
+      "sides": [
+        "droitier"
+      ],
+      "anims": [
+        "newaza/okuri_eri_jime/top",
+        "newaza/okuri_eri_jime/bottom"
+      ],
+      "note": ""
+    },
+    {
+      "id": "sol_sankaku_jime",
+      "label": "Sankaku-jime : mise en place puis 10 s de maintien, uke tente de sortir",
+      "roles": [
+        "tori",
+        "uke"
+      ],
+      "takes": 3,
+      "sides": [
+        "droitier"
+      ],
+      "anims": [
+        "newaza/sankaku_jime/top",
+        "newaza/sankaku_jime/bottom"
+      ],
+      "note": ""
+    },
+    {
+      "id": "sol_sortie",
+      "label": "Uke se dégage d'une immobilisation (pont, crevette)",
+      "roles": [
+        "tori",
+        "uke"
+      ],
+      "takes": 3,
+      "sides": [
+        "droitier"
+      ],
+      "anims": [
+        "newaza/escape"
+      ],
+      "note": ""
+    },
+    {
+      "id": "victoire",
+      "label": "Réaction de victoire (poing levé) puis salut",
+      "roles": [
+        "solo"
+      ],
+      "takes": 2,
+      "sides": [
+        "face"
+      ],
+      "anims": [
+        "victory"
+      ],
+      "note": ""
+    },
+    {
+      "id": "defaite",
+      "label": "Réaction de défaite (tête basse) puis salut",
+      "roles": [
+        "solo"
+      ],
+      "takes": 2,
+      "sides": [
+        "face"
+      ],
+      "anims": [
+        "defeat"
+      ],
+      "note": ""
+    }
+  ]
+}
