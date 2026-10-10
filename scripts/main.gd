@@ -19,6 +19,7 @@ const SCREENS := {
 	"options": "res://scripts/screens/options_screen.gd",
 	"online": "res://scripts/screens/online_screen.gd",
 	"art": "res://scripts/screens/art_screen.gd",
+	"bake": "res://scripts/screens/bake_screen.gd",
 }
 
 const NAV_BUTTONS := {
@@ -63,7 +64,7 @@ func default_match_params() -> Dictionary:
 	var b1: Dictionary = bs[int(args.get("p1build", "0"))]
 	var b2: Dictionary = bs[int(args.get("p2build", "1"))]
 	return {"controllers": [c1, c2], "names": [b1.name, b2.name], "tokui": [b1.slots.tokui[0], b2.slots.tokui[0]], "builds": [b1, b2],
-		"seed": int(args.get("seed", "3")), "level": int(args.get("level", str(preload("res://scripts/settings.gd").value("ai_level")))), "mode": "demo"}
+		"sprites": String(args.get("sprites", "")), "seed": int(args.get("seed", "3")), "level": int(args.get("level", str(preload("res://scripts/settings.gd").value("ai_level")))), "mode": "demo"}
 
 
 ## Contrôleur du joueur humain : manette 0 si branchée, sinon l'IA (démo).
@@ -137,6 +138,10 @@ func _run_capture() -> void:
 	var dir: String = args.capture
 	DirAccess.make_dir_recursive_absolute(dir)
 	await get_tree().process_frame
+	if current.has_method("run_bake"):
+		await current.run_bake()
+		get_tree().quit()
+		return
 	if current_name == "match" and not args.has("frames"):
 		var until := int(args.get("until", "4000"))
 		var max_shots := int(args.get("max", "10"))

@@ -8,6 +8,7 @@ const Sim := preload("res://scripts/sim/match_sim.gd")
 const Ai := preload("res://scripts/sim/ai_controller.gd")
 const Pad := preload("res://scripts/pad_reader.gd")
 const Settings := preload("res://scripts/settings.gd")
+const SpriteLib := preload("res://scripts/view/sprite_library.gd")
 
 const W := 1280.0
 const H := 720.0
@@ -35,6 +36,7 @@ var attack_flag = false    # une attaque est à mi-entrée
 var frame = 0
 var params: Dictionary = {}
 var stats = []  # statistiques par joueur pour l'écran de résultats
+var libs = [null, null]  # sprites par joueur (null = dessin placeholder)
 const PAUSE_ITEMS := ["REPRENDRE", "RECOMMENCER", "PERSONNALISATION", "MENU PRINCIPAL"]
 
 
@@ -49,6 +51,14 @@ func on_enter(p: Dictionary) -> void:
 	var seed_value: int = p.get("seed", 1)
 	var level: int = p.get("level", 2)
 	sim = Sim.new(cfg, techs, names, p.get("builds", tokui))
+	# Sprites : "placeholder" (images cuites) ou un identifiant de personnage par joueur.
+	var sprite_set: String = p.get("sprites", "")
+	if sprite_set != "":
+		for i in 2:
+			var cid := sprite_set
+			if sprite_set == "placeholder":
+				cid = "placeholder_blanc" if i == 0 else "placeholder_bleu"
+			libs[i] = SpriteLib.load_character(cid)
 	for i in 2:
 		if controllers[i] == "ai":
 			ais[i] = Ai.new(i, seed_value + i * 7, level)
@@ -363,6 +373,8 @@ func _draw_fighters() -> void:
 		return
 	var th: Dictionary = sim.state.throw
 	var throwing: bool = not th.is_empty() and sim.state.phase in ["throw", "score", "ended"]
+	if _draw_sprites(th, throwing):
+		return
 	var xfs = [_fighter_xform(0), _fighter_xform(1)]
 	var p = 0.0
 	if throwing:
@@ -386,6 +398,46 @@ func _draw_fighters() -> void:
 		Art.draw_body(self, xf, pal, 1.0 if f.attack.is_empty() else 0.4)
 		_draw_hand(i, 1, xf, oxf, pal, throwing, p)
 		_draw_callout(i, xf)
+
+
+## Rendu par sprites quand les animations existent. Renvoie false pour retomber
+## sur le dessin placeholder (animation absente).
+func _draw_sprites(th: Dictionary, throwing: bool) -> bool:
+	if libs[0] == null or libs[1] == null:
+		return false
+	if throwing:
+		var a_t := "throw/%s/tori" % th.tech
+		var a_u := "throw/%s/uke" % th.tech
+		var lt = libs[th.tori]
+		var lu = libs[th.uke]
+		if not (lt.has(a_t) and lu.has(a_u)):
+			return false
+		var p := clampf(float(th.t) / float(cfg.throw_ticks), 0.0, 1.0)
+		var feet := Vector2(wx(th.tori_x), FEET_Y)
+		Art.shadow(self, feet + Vector2(0, 2), K * 1.4, 0.3)
+		var first_uke: bool = th.dir in ["avant", "contre"] and p < 0.5
+		if first_uke:
+			lu.draw(self, a_u, p, 0, feet, th.facing, K)
+		lt.draw(self, a_t, p, 0, feet, th.facing, K)
+		if not first_uke:
+			lu.draw(self, a_u, p, 0, feet, th.facing, K)
+		return true
+	for i in [1, 0]:
+		var f: Dictionary = sim.state.fighters[i]
+		var lib = libs[i]
+		var feet := Vector2(_draw_x(i), FEET_Y)
+		var lean := clampf(float(f.bal_x) / 10000.0, -1.0, 1.0) * 0.2
+		Art.shadow(self, feet + Vector2(0, 2), K, 0.3)
+		if not f.attack.is_empty() and lib.has("entry/" + f.attack.tech):
+			lib.draw(self, "entry/" + f.attack.tech, float(f.attack.t) / float(f.attack.entry), 0, feet, f.facing, K)
+		elif f.last_move * f.facing > 0 and lib.has("walk_fwd"):
+			lib.draw(self, "walk_fwd", -1.0, frame, feet, f.facing, K, lean)
+		elif lib.has("idle"):
+			lib.draw(self, "idle", -1.0, frame, feet, f.facing, K, lean)
+		else:
+			return false
+		_draw_callout(i, Art.stand_xform(feet, f.facing, lean, K))
+	return true
 
 
 func _draw_hand(i: int, h: int, xf: Transform2D, oxf: Transform2D, pal: Dictionary, throwing: bool, p: float) -> void:

@@ -9,3 +9,5 @@ export_presets.cfg
 # Rushes vidéo et images intermédiaires (lourds, régénérables)
 /rushes/
 /animations/_frames/
+# Sprites placeholder cuits (régénérables : godot --path . -- --screen=bake --capture=/tmp/x)
+/animations/placeholder_*/
