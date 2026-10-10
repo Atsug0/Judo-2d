@@ -28,6 +28,8 @@ var dash_step := 0
 var dash_dir_ai := 0
 var grip_delay := 10
 var parry_cd := 0
+var move_intent := 0
+var move_left := 0
 
 
 func _init(index: int, seed_value: int, lvl: int = 2) -> void:
@@ -63,15 +65,27 @@ func think(sim) -> Array:
 
 	# --- Déplacement : venir à portée de mains, ne pas sortir du tapis.
 	# (jamais plus de 80 hors dash : une pichenette à fond depuis le neutre = dash)
+	# Intention de déplacement tenue quelques dixièmes de seconde (pas de tremblement).
 	var back_room: int = (f.x - cfg.mat_left) if facing == 1 else (cfg.mat_right - f.x)
+	move_left -= 1
 	if dist > cfg.free_gap + 400 and not linked:
-		inp[Sim.MX] = 80 * facing
+		move_intent = 80  # venir à portée
+		move_left = 0
 	elif back_room < 6000:
-		inp[Sim.MX] = 70 * facing
-	elif plan_dir.begins_with("avant") and _rand(100) < 30 + 10 * level:
-		inp[Sim.MX] = -60 * facing  # tsukuri : recule en tirant
-	elif plan_dir.begins_with("arriere") and _rand(100) < 25 + 10 * level:
-		inp[Sim.MX] = 50 * facing  # tsukuri : avance en poussant
+		move_intent = 70
+		move_left = 0
+	elif move_left <= 0:
+		var roll := _rand(100)
+		if linked and plan_dir.begins_with("avant") and roll < 45 + 10 * level:
+			move_intent = -60  # tsukuri : recule en tirant
+		elif linked and plan_dir.begins_with("arriere") and roll < 40 + 10 * level:
+			move_intent = 50  # tsukuri : avance en poussant
+		elif not linked and roll < 50:
+			move_intent = 45 if _rand(2) == 0 else -45  # jeu de jambes en bataille de mains
+		else:
+			move_intent = 0
+		move_left = 18 + _rand(30)
+	inp[Sim.MX] = move_intent * facing
 
 	# --- Réaction au kuzushi adverse : suivre, résister, ou subir (un choix par épisode)
 	var pulled: int = f.bal_x  # > 0 : tiré vers l'avant ; < 0 : poussé en arrière

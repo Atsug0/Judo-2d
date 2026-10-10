@@ -59,7 +59,12 @@ var ref_walk = 0.0
 var ref_side = 1.0
 var ref_walking = false
 var dojo = null  # session de dojo (leçon ou entraînement), sinon null
-var knock = [[0, 0], [0, 0]]  # main chassée : images restantes de l'animation, par joueur et par main
+var knock = [[0, 0], [0, 0]]
+var impacts: Array = []          # chocs visuels (mains chassées, blocages…) : {p, col, s, t}
+var walk_ph = [0.0, 0.0]         # cycle de marche, avancé à la distance réellement parcourue
+var walk_amp = [0.0, 0.0]
+var walk_dir = [1.0, 1.0]
+var prev_dx = [-1.0, -1.0]  # main chassée : images restantes de l'animation, par joueur et par main
 const PAUSE_ITEMS := ["REPRENDRE", "RECOMMENCER", "PERSONNALISATION", "MENU PRINCIPAL"]
 
 
@@ -239,32 +244,33 @@ func _consume_events() -> void:
 				_feed("%s contre : %s !" % [nm, sim.tech_name(e.tech)], Style.HOT)
 				_popup("CONTRE !", who, Style.HOT)
 			"exposed":
-				_popup("EXPOSÉ", who, Style.DANGER)
+				_impact(_between(0.55), Style.DANGER, 1.0)
 			"stuffed":
-				_popup("STOPPÉ", who, Style.MUTED)
+				_impact(_between(0.62), Style.PAPER, 1.1)
 				hitstop = maxi(hitstop, 3)
 			"block":
-				_popup("BLOQUE", who, Style.PAPER)
+				_impact(_between(0.62), Style.PAPER, 1.3)
 				hitstop = maxi(hitstop, 3)
 				shake = maxf(shake, 3.0)
 			"break":
-				_popup("CASSE LA GARDE", who, Style.GOOD)
 				knock[1 - who][e.get("hand", 0)] = 14
+				_impact(_between(0.75), Style.GOOD, 0.8)
 			"parry":
-				_popup("MAIN CHASSÉE", who, Style.P1 if who == 0 else Style.P2)
 				knock[1 - who][e.hand] = 14
+				_impact(_between(0.72), Style.P1 if who == 0 else Style.P2, 0.7)
 				hitstop = maxi(hitstop, 2)
 			"whiff":
-				_popup("ESQUIVE", who, Style.PAPER)
+				pass
 			"dash":
 				_dust(Vector2(_draw_x(who), FEET_Y), 6, 0.45)
 				if sim.has_grip(sim.state.fighters[who]):
 					shake = maxf(shake, 2.5)
 			"reaction":
 				_popup("ACTION-RÉACTION !", who, Style.GOLD)
+				_impact(_between(0.6), Style.GOLD, 1.2)
 				excite = maxf(excite, 0.5)
 			"feint":
-				_popup("FEINTE", who, Style.MUTED)
+				pass
 			"shido":
 				_feed("Shido %s : %s" % [nm, e.reason], Style.P1)
 				capture_flag = true
@@ -481,6 +487,7 @@ func _draw_layer_world(ci: CanvasItem) -> void:
 	_draw_referee()
 	_draw_fighters()
 	_draw_particles()
+	_draw_impacts()
 	_draw_popups()
 
 
@@ -560,6 +567,24 @@ func _update_camera() -> void:
 
 
 func _update_fx() -> void:
+	# marche : la foulée suit le déplacement réel (pas de pieds qui glissent)
+	if sim != null and sim.state.phase == "fight":
+		for i in 2:
+			var x = _draw_x(i)
+			if prev_dx[i] < 0.0:
+				prev_dx[i] = x
+			var dx = x - prev_dx[i]
+			prev_dx[i] = x
+			walk_ph[i] += absf(dx) * 0.16
+			walk_amp[i] = lerpf(walk_amp[i], clampf(absf(dx) / 1.4, 0.0, 1.0), 0.2)
+			if absf(dx) > 0.05:
+				walk_dir[i] = signf(dx * sim.state.fighters[i].facing)
+	else:
+		prev_dx = [-1.0, -1.0]
+		walk_amp = [walk_amp[0] * 0.8, walk_amp[1] * 0.8]
+	for im in impacts:
+		im.t += 1
+	impacts = impacts.filter(func(im): return im.t < 12)
 	for i in 2:
 		for h in 2:
 			if knock[i][h] > 0:
@@ -592,6 +617,24 @@ func _dust(at: Vector2, count: int, power: float) -> void:
 		var life = 22 + (s >> 4) % 18
 		particles.append({"p": at + Vector2(float((s >> 6) % 60) - 30.0, 0), "v": Vector2(cos(a) * sp * 1.6, sin(a) * sp),
 			"life": life, "max": life, "size": 3.0 + float((s >> 12) % 5), "col": Color("fff3c4") if k % 3 else Style.PAPER})
+
+
+## Point entre les deux judokas, à une hauteur relative (0 = pieds, 1 = tête).
+func _between(h: float) -> Vector2:
+	var x = (_draw_x(0) + _draw_x(1)) * 0.5
+	return Vector2(x, FEET_Y - h * 124.0 * K / 2.2 * 2.2)
+
+
+func _impact(p: Vector2, col: Color, size: float) -> void:
+	impacts.append({"p": p, "col": col, "s": size, "t": 0})
+
+
+func _draw_impacts() -> void:
+	for im in impacts:
+		var q = float(im.t) / 12.0
+		var r = (14.0 + 26.0 * q) * im.s
+		var a = 1.0 - q
+		Style.burst(_ci, im.p, r * 0.45, r, 8, Color(im.col, a), Color(Style.INK, a), 3, im.t * 0.05)
 
 
 func _draw_particles() -> void:
@@ -705,7 +748,7 @@ func _fighter_xform(i: int) -> Transform2D:
 
 
 ## Position d'affichage : écart visuel minimum entre les deux judokas (lisibilité du kumikata).
-const VIS_GAP := 92.0
+const VIS_GAP := 110.0
 func _draw_x(i: int) -> float:
 	var fs: Array = sim.state.fighters
 	var x = wx(fs[i].x)
@@ -753,12 +796,14 @@ func _standing_pose(i: int) -> Dictionary:
 	var breath = sin(frame * 0.06 + i * 1.3)
 	pose.hip += Vector2(0, breath * 0.7)
 	var free_legs = false
-	if f.last_move != 0:
-		var ph = frame * 0.32
-		var dir = signf(float(f.last_move * f.facing))
-		pose.fb += Vector2(sin(ph) * 5.0 * dir, -maxf(0.0, cos(ph)) * 3.5)
-		pose.ff += Vector2(-sin(ph) * 5.0 * dir, -maxf(0.0, -cos(ph)) * 3.5)
-		pose.hip += Vector2(0, -absf(sin(ph)) * 1.2)
+	if walk_amp[i] > 0.04:
+		# suri-ashi : pas glissés, le pied arrière ne dépasse jamais l'avant
+		var ph = walk_ph[i]
+		var am = walk_amp[i]
+		var dir = walk_dir[i]
+		pose.fb += Vector2(sin(ph) * 6.0 * dir * am, -maxf(0.0, cos(ph)) * 3.0 * am)
+		pose.ff += Vector2(sin(ph + PI) * 6.0 * dir * am, -maxf(0.0, -cos(ph)) * 3.0 * am)
+		pose.hip += Vector2(0, -absf(sin(ph)) * 1.2 * am)
 		free_legs = true
 	# déséquilibre subi : bal_x > 0 = tiré vers l'avant (vers l'adversaire)
 	var bx = clampf(float(f.bal_x + f.react) / 10000.0, -1.0, 1.0)
@@ -774,8 +819,9 @@ func _standing_pose(i: int) -> Dictionary:
 		free_legs = true
 	# kumikata : légère inclinaison vers l'adversaire quand on le tient
 	if sim.has_grip(f):
-		pose.bow += 0.08
-		pose.hip += Vector2(2, 1)
+		# posture de kumikata : buste vers l'avant, hanches en retrait, bras tendus
+		pose.bow += 0.14
+		pose.hip += Vector2(-3, 2)
 		free_legs = true
 	# domination : le dominé se fait courber, le dominant se tient droit
 	var dm = float(sim.dom_of(i)) / 10000.0
@@ -911,6 +957,11 @@ func _hands_world(i: int, rigs: Array, th: Dictionary, throwing: bool) -> Array:
 			var reach = float(cfg.grip_reach_ticks - (cfg.fast_reach_cut if f.fast_reach_t > 0 else 0))
 			var q = clampf(float(hand.t) / reach, 0.0, 1.0)
 			hands[h] = rest.lerp(target, q * q * (3.0 - 2.0 * q))
+		elif hand.state == Sim.HAND_FREE and sim.state.phase == "fight" and hand.lock == 0 \
+				and absi(sim.state.fighters[o].x - f.x) <= cfg.grip_range:
+			# bataille de mains : les mains cherchent, avancent, se retirent
+			var paw = 0.28 + 0.16 * sin(frame * 0.14 + h * 2.1 + i * 1.3) + 0.06 * sin(frame * 0.37 + h)
+			hands[h] = rest.lerp(target, paw)
 		if knock[i][h] > 0:
 			# main chassée : projetée vers le bas et en arrière, puis revient en garde
 			var kq = float(knock[i][h]) / 14.0
@@ -1388,7 +1439,7 @@ func _update_referee() -> void:
 	var gap = 0.0
 	if sim.state.throw.is_empty() and sim.state.newaza.is_empty():
 		gap = absf(_draw_x(0) - _draw_x(1))
-	var off = 0.0 if gap > 190.0 else maxf(REF_OFFSET, gap * 0.5 + 105.0)
+	var off = 0.0 if gap > 230.0 else maxf(REF_OFFSET, gap * 0.5 + 150.0)
 	var target_x = center + ref_side * off
 	if target_x < lo or target_x > hi:
 		var other = center - ref_side * off

@@ -10,7 +10,7 @@
   "mat_right": 58000,
   "start_gap": 15000,
   "min_gap": 3600,
-  "grip_range": 7600,
+  "grip_range": 9000,
   "move_speed": 90,
   "move_slow_when_gripped": 60,
   "push_speed": 45,
@@ -102,12 +102,12 @@
   "newaza_escape": 2500,
   "sub_ticks": 150,
   "sub_control": 7500,
-  "free_gap": 5400,
+  "free_gap": 7600,
   "garde_dist": {
-    "sleeve": 6800,
-    "lapel": 6200,
-    "collar": 5400,
-    "belt": 4600
+    "sleeve": 8000,
+    "lapel": 7400,
+    "collar": 6600,
+    "belt": 5600
   },
   "pair_move_pct": 55,
   "gap_relax": 60,
