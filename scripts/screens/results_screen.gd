@@ -112,7 +112,8 @@ func _draw() -> void:
 	Art.draw_arm(self, xf * Art.SHOULDER_FRONT, xf * Art.REST_HANDS[1], pal, false, 3.6)
 	var tr = Rect2(-20, 40, 680, 120)
 	Style.panel(self, tr, tcol, Style.INK, 5.0, 10.0)
-	Style.text(self, Vector2(40, 136), title, 104, Style.INK, "display", HORIZONTAL_ALIGNMENT_LEFT, -1, 2, -1.0)
+	var tsize = mini(104, int(104.0 * 580.0 / maxf(1.0, Style.text_width(title, 104))))
+	Style.text(self, Vector2(40, 100 + tsize * 0.35), title, tsize, Style.INK, "display", HORIZONTAL_ALIGNMENT_LEFT, -1, 2, -1.0)
 	# méthode
 	var reason: String = state.win_reason
 	var mr = Rect2(40, 176, Style.text_width(reason.to_upper(), 22, "black") + 50, 40)

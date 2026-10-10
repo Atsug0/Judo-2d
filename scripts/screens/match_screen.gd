@@ -1149,7 +1149,7 @@ func _draw_dominance() -> void:
 	var inner = r.grow(-4)
 	var half = inner.size.x * 0.5
 	var v = clampf(dom_shown, -1.0, 1.0)
-	if absf(v) > 0.01:
+	if absf(v) * half > 3.0:
 		var col = Style.P1 if v > 0.0 else Style.P2
 		var w = half * absf(v)
 		var fr = Rect2(c - w, inner.position.y, w, inner.size.y) if v > 0.0 else Rect2(c, inner.position.y, w, inner.size.y)

@@ -7,6 +7,7 @@ extends Node2D
 ##   --until=<tick> --ticks=a,b,c --events     (combat) instants à capturer
 ##   --frames=<n> --nav=down,down,accept       (menus) animer puis naviguer avant la capture
 ##   --seed=<n> --level=<1..3>                 combat IA
+##   --demo=<fichier.json>                     pilotage scripté des menus (vidéos de présentation)
 
 const SCREENS := {
 	"title": "res://scripts/screens/title_screen.gd",
@@ -39,6 +40,8 @@ var last_match_params := {}
 ## État de la session de jeu (tournoi en cours, etc.).
 var session := {}
 var _held := {}  # "device:action" -> frames tenus
+var _demo: Array = []  # [[image, action], ...] : navigation scriptée
+var _demo_frame := 0
 ## Transition entre écrans : bandes inclinées qui se retirent.
 var _trans_layer: CanvasLayer
 var _trans_draw: Node2D
@@ -79,6 +82,12 @@ func _ready() -> void:
 	capture_mode = args.has("capture")
 	if not capture_mode:
 		preload("res://scripts/settings.gd").apply()
+	if args.has("demo"):
+		var f := FileAccess.open(String(args.demo), FileAccess.READ)
+		if f:
+			var d = JSON.parse_string(f.get_as_text())
+			if typeof(d) == TYPE_DICTIONARY:
+				_demo = d.get("steps", [])
 	var start: String = args.get("screen", "title")
 	var params := {}
 	if start == "match":
@@ -150,8 +159,22 @@ func _physics_process(_delta: float) -> void:
 		_trans_t += 1
 		_trans_draw.queue_redraw()
 	_poll_nav()
+	_run_demo()
 	if current.has_method("tick"):
 		current.tick()
+
+
+func _run_demo() -> void:
+	if _demo.is_empty():
+		return
+	_demo_frame += 1
+	while not _demo.is_empty() and int(_demo[0][0]) <= _demo_frame:
+		var action: String = _demo.pop_front()[1]
+		if action == "quit":
+			get_tree().quit()
+			return
+		Sound.ui(action)
+		current.nav(action, 0)
 
 
 func _poll_nav() -> void:
