@@ -390,7 +390,7 @@ func _draw_physique(b: Dictionary) -> void:
 		Style.text(self, Vector2(r.position.x + 30, r.position.y + 42), st.name.to_upper(), 30, Style.P2 if sel else Style.PAPER, "display")
 		Style.label(self, Vector2(r.position.x + 32, r.position.y + 72), st.detail, 14, Style.MUTED, "bold")
 		for s in phys.max:
-			var seg = Rect2(r.position.x + 430 + s * 35, r.position.y + 24, 30, 40)
+			var seg = Rect2(r.position.x + 420 + s * 33, r.position.y + 24, 28, 40)
 			var on = s < v
 			var col = Style.P2 if on else Style.NIGHT
 			if on and s >= phys.base:
@@ -399,7 +399,7 @@ func _draw_physique(b: Dictionary) -> void:
 				col = Style.P2.darkened(0.35)
 			Style.panel(self, seg, col, Style.INK, 2.5, 0.0, 0.25)
 		var nxt = "MAX" if v >= phys.max else "+1 : %d PT%s" % [Build.step_cost(v), "S" if Build.step_cost(v) > 1 else ""]
-		Style.label(self, Vector2(r.position.x + 788, r.position.y + 52), nxt, 13, Style.P2 if sel else Style.MUTED, "black")
+		Style.label(self, Vector2(r.position.x + 756, r.position.y + 52), nxt, 13, Style.P2 if sel else Style.MUTED, "black")
 		y += 104
 	# encart règle
 	var info = Rect2(940, 214, 300, 400)
