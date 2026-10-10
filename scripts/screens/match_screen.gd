@@ -52,6 +52,10 @@ var flash = 0.0       # flash blanc (0..1)
 var excite = 0.0      # excitation de la foule (0..1)
 var particles: Array = []  # poussière : {p, v, life, max, size, col}
 var shown = [null, null]  # squelettes affichés (lissés) : {xf, pose}
+var ref_x = 790.0         # arbitre : position (monde, px) et sens du regard
+var ref_face = -1
+var ref_walk = 0.0
+var ref_side = 1.0
 const PAUSE_ITEMS := ["REPRENDRE", "RECOMMENCER", "PERSONNALISATION", "MENU PRINCIPAL"]
 
 
@@ -307,6 +311,7 @@ func _draw_layer_world(ci: CanvasItem) -> void:
 		return
 	_ci = ci
 	_draw_mat()
+	_draw_referee()
 	_draw_fighters()
 	_draw_particles()
 	_draw_popups()
@@ -1062,3 +1067,122 @@ func _draw_pause() -> void:
 		var r = Rect2(440 - (12 if sel else 0), 250 + k * 70, 400 + (24 if sel else 0), 56)
 		Style.panel(_ci, r, Style.HOT if sel else Style.NIGHT_2, Style.INK, 4.0, 6.0)
 		Style.text(_ci, Vector2(r.position.x, r.position.y + 41), PAUSE_ITEMS[k], 32, Style.INK if sel else Style.PAPER, "display", HORIZONTAL_ALIGNMENT_CENTER, r.size.x, 3, 0.0)
+
+
+# =============================================================================
+# Arbitre
+# =============================================================================
+
+const REF_SCALE := 0.74    # au fond du tatami, donc plus petit
+const REF_FEET_Y := 566.0
+const REF_OFFSET := 150.0  # distance latérale à l'action
+
+
+## Centre de l'action (monde, px) et éventuel judoka désigné par le geste en cours.
+func _action_center() -> float:
+	var st: Dictionary = sim.state
+	if not st.newaza.is_empty() and st.phase in ["newaza", "score", "ended"]:
+		return _newaza_center_x(st.newaza)
+	if not st.throw.is_empty() and st.phase in ["throw", "score", "ended"]:
+		return (wx(st.throw.tori_x) + wx(st.throw.uke_x)) * 0.5
+	return (_draw_x(0) + _draw_x(1)) * 0.5
+
+
+## Geste officiel selon l'annonce en cours : [main arrière, main avant, inclinaison, joueur visé].
+func _referee_gesture() -> Dictionary:
+	var st: Dictionary = sim.state
+	var g = {"hb": Vector2(-3, -44), "hf": Vector2(5, -44), "bow": 0.0, "target": -1}
+	var call: String = st.announce if st.announce_t > 0 else ""
+	if st.phase == "newaza" and st.newaza.get("osae", false):
+		call = "OSAEKOMI"
+	var scorer = -1
+	if not st.throw.is_empty():
+		scorer = st.throw.tori
+	elif not st.newaza.is_empty():
+		scorer = st.newaza.top
+	match call:
+		"IPPON !":
+			g.hf = Vector2(10, -122)  # bras tendu vers le ciel
+			g.target = st.winner if st.winner >= 0 else scorer
+		"WAZA-ARI":
+			g.hf = Vector2(40, -76)  # bras à l'horizontale, côté du marqueur
+			g.target = scorer
+		"MATTE":
+			g.hf = Vector2(38, -86)  # main levée, paume vers la table
+			g.hb = Vector2(-2, -46)
+		"HAJIME":
+			g.hb = Vector2(24, -70)
+			g.hf = Vector2(30, -74)
+		"OSAEKOMI":
+			g.hf = Vector2(38, -52)  # bras tendu vers les combattants, penché
+			g.bow = 0.35
+			g.target = scorer
+		"TOKETA":
+			var wave = sin(frame * 0.5) * 8.0
+			g.hf = Vector2(38, -70 + wave)
+			g.target = scorer
+		"SHIDO":
+			g.hf = Vector2(38, -60)  # désigne le pénalisé
+			var pen = 0 if st.fighters[0].shidos > st.fighters[1].shidos else 1
+			g.target = pen
+		"SORE-MADE", "HANSOKU-MAKE", "GOLDEN SCORE":
+			g.hb = Vector2(22, -68)
+			g.hf = Vector2(30, -72)
+	if st.phase == "ended" and st.announce_t <= 0 and st.winner >= 0:
+		g.hf = Vector2(28, -112)  # désigne le vainqueur
+		g.target = st.winner
+	return g
+
+
+## Palette de l'arbitre légèrement fondue dans le décor (profondeur).
+var _ref_pal: Dictionary = _make_ref_pal()
+
+
+static func _make_ref_pal() -> Dictionary:
+	var pal: Dictionary = Art.referee_palette()
+	for key in pal.keys():
+		if pal[key] is Color:
+			pal[key] = (pal[key] as Color).lerp(Color("2a2350"), 0.18)
+	return pal
+
+
+func _draw_referee() -> void:
+	var g = _referee_gesture()
+	var center = _action_center()
+	# se place au fond, sur le côté de l'action qui reste dans le champ de la caméra
+	var hw = 640.0 / cam_z
+	var lo = cam_c.x - hw + 70.0
+	var hi = cam_c.x + hw - 70.0
+	var target_x = center + ref_side * REF_OFFSET
+	if target_x < lo or target_x > hi:
+		var other = center - ref_side * REF_OFFSET
+		if other >= lo and other <= hi:
+			ref_side = -ref_side
+			target_x = other
+	target_x = clampf(target_x, maxf(lo, 110.0), minf(hi, W - 110.0))
+	var dx = target_x - ref_x
+	ref_x += clampf(dx * 0.08, -4.0, 4.0)
+	var walking = absf(dx) > 6.0
+	ref_walk += 0.25 if walking else 0.0
+	# regarde l'action, ou le judoka désigné par son geste
+	var look_x = center
+	if g.target >= 0:
+		look_x = _draw_x(g.target) if sim.state.newaza.is_empty() else center
+	ref_face = 1 if look_x > ref_x else -1
+	var pose: Dictionary = Art.pose_stand(0.15)
+	pose.hb = g.hb
+	pose.hf = g.hf
+	pose.bow = g.bow
+	if walking:
+		pose.fb += Vector2(sin(ref_walk) * 4.0, -maxf(0.0, cos(ref_walk)) * 3.0)
+		pose.ff += Vector2(-sin(ref_walk) * 4.0, -maxf(0.0, -cos(ref_walk)) * 3.0)
+		pose.erase("kb")
+		pose.erase("kf")
+	if g.bow > 0.0:
+		pose.hip += Vector2(-2, 4)
+		pose.erase("kb")
+		pose.erase("kf")
+	var k = K * REF_SCALE
+	var xf = Transform2D(0.0, Vector2(ref_face * k, k), 0.0, Vector2(ref_x, REF_FEET_Y))
+	Art.shadow(_ci, Vector2(ref_x, REF_FEET_Y + 2), k, 0.22)
+	Art.draw_fighter(_ci, xf, _ref_pal, pose)

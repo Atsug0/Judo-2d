@@ -28,6 +28,13 @@ static func palette(player: int) -> Dictionary:
 		"accent": Style.P2}
 
 
+## Arbitre : costume sombre, chemise claire (revers), chaussettes sombres.
+static func referee_palette() -> Dictionary:
+	return {"gi": Color("34334a"), "gi_shade": Color("24233a"), "gi_deep": Color("f1ece0"),
+		"skin": Color("d9a37c"), "skin_shade": Color("b07a55"), "hair": Color("b9b6c8"), "hair_style": 1,
+		"accent": Color("8d88b8"), "feet": Color("1b1a28"), "feet_shade": Color("121120")}
+
+
 static func stand_xform(feet: Vector2, facing: int, lean: float, scale: float, crouch: float = 0.0) -> Transform2D:
 	return Transform2D(facing * lean, Vector2(facing * scale, scale * (1.0 - crouch * 0.12)), 0.0, feet)
 
@@ -488,7 +495,7 @@ static func draw_fighter(ci: CanvasItem, xf: Transform2D, pal: Dictionary, pose:
 	_limb(ci, [att_b, kb, fb], 12.0, pal.gi_shade, ow)
 	_limb(ci, [att_f, kf, ff], 12.5, pal.gi, ow)
 	ci.draw_set_transform_matrix(xf)
-	for leg in [[kb, fb, SHIN_ANGLE_B, -1.0, pal.skin_shade], [kf, ff, SHIN_ANGLE_F, 1.0, pal.skin]]:
+	for leg in [[kb, fb, SHIN_ANGLE_B, -1.0, pal.get("feet_shade", pal.skin_shade)], [kf, ff, SHIN_ANGLE_F, 1.0, pal.get("feet", pal.skin)]]:
 		var dev: float = (leg[1] - leg[0]).angle() - leg[2]
 		ci.draw_set_transform_matrix(xf * Transform2D(dev, leg[1]) * Transform2D(0.0, -leg[1]))
 		_foot(ci, leg[1] + Vector2(0, 2.6), leg[3], leg[4], dw * 1.3)
