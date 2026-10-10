@@ -17,8 +17,9 @@ func _init() -> void:
 	var techs := GameData.load_json("res://data/techniques.json")
 	var bs: Array = Build.defaults()
 	var bi: PackedStringArray = String(args.get("builds", "0,1")).split(",")
-	var b0: Dictionary = bs[int(bi[0])]
-	var b1: Dictionary = bs[int(bi[1])]
+	# indices des builds par défaut, ou identifiants de légendes (ex. lame,mur)
+	var b0: Dictionary = bs[int(bi[0])] if bi[0].is_valid_int() else Build.find(bi[0])
+	var b1: Dictionary = bs[int(bi[1])] if bi[1].is_valid_int() else Build.find(bi[1])
 	var level := int(args.get("level", "2"))
 	var results := []
 	for sd in range(int(args.get("from", "1")), int(args.get("to", "200"))):

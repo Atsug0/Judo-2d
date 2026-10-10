@@ -1,11 +1,17 @@
 {
-  "_doc": "Navigation scriptée de la vidéo de présentation (images à 60 i/s). godot --path . --write-movie out.avi --fixed-fps 60 -- --demo=tools/video/presentation.json --seed=123",
+  "_doc": "Navigation scriptée de la vidéo de présentation (images à 60 i/s). Données utilisateur vierges requises. godot --path . --write-movie out.avi --fixed-fps 60 -- --demo=tools/video/presentation.json --seed=218",
   "steps": [
-    [220, "accept"],
-    [300, "down"], [360, "down"], [420, "down"], [510, "accept"],
-    [600, "down"], [650, "down"], [700, "down"], [790, "next"], [860, "down"], [940, "next"], [1000, "down"], [1050, "right"], [1110, "left"], [1190, "back"],
-    [1260, "down"], [1330, "accept"],
-    [1400, "right"], [1460, "right"], [1520, "left"], [1580, "left"], [1660, "accept"],
-    [4020, "quit"]
+    [200, "accept"],
+    [260, "down"], [320, "down"], [380, "down"], [440, "down"], [520, "accept"],
+    [600, "down"], [650, "down"], [700, "right"], [760, "right"], [820, "left"], [880, "left"],
+    [940, "down"], [990, "right"], [1050, "left"],
+    [1110, "next"], [1170, "down"], [1220, "down"], [1300, "next"], [1380, "next"], [1460, "back"],
+    [1530, "down"], [1600, "accept"],
+    [1680, "right"], [1730, "right"], [1780, "right"], [1830, "right"], [1920, "accept"],
+    [1990, "right"], [2050, "left"], [2140, "accept"],
+    [4560, "down"], [4620, "down"], [4680, "accept"],
+    [4760, "down"], [4820, "down"], [4880, "accept"],
+    [4960, "right"], [5020, "down"], [5080, "down"], [5160, "accept"],
+    [5760, "quit"]
   ]
 }
