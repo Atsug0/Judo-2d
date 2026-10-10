@@ -118,7 +118,7 @@ func _run_capture() -> void:
 	var dir: String = args.capture
 	DirAccess.make_dir_recursive_absolute(dir)
 	await get_tree().process_frame
-	if current_name == "match":
+	if current_name == "match" and not args.has("frames"):
 		var until := int(args.get("until", "4000"))
 		var max_shots := int(args.get("max", "10"))
 		var wanted := {}
@@ -129,7 +129,7 @@ func _run_capture() -> void:
 		while current.sim.state.tick < until and shots < max_shots:
 			current.tick()
 			var t: int = current.sim.state.tick
-			if wanted.has(t) or (args.has("events") and current.capture_flag):
+			if wanted.has(t) or (args.has("events") and current.capture_flag) or (args.has("attack") and current.attack_flag and t > int(args.get("after", "0"))):
 				await _shot("%s/match_%05d.png" % [dir, t])
 				shots += 1
 			if current.sim.state.phase == "ended" and current.end_timer > 30:

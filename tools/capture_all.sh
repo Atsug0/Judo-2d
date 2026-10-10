@@ -1,0 +1,42 @@
+#!/usr/bin/env bash
+# Génère toutes les captures d'écran de référence dans screenshots/.
+# Usage : tools/capture_all.sh [écran...]   (sans argument : tous les écrans)
+# Nécessite Godot 4 dans le PATH ; sous Linux sans écran, lancer Xvfb (DISPLAY=:99).
+set -euo pipefail
+cd "$(dirname "$0")/.."
+OUT="$PWD/screenshots"
+TMP="$PWD/captures"
+mkdir -p "$OUT"
+GODOT=${GODOT:-godot}
+run() { DISPLAY=${DISPLAY:-:99} LIBGL_ALWAYS_SOFTWARE=1 timeout 900 "$GODOT" --path . --rendering-driver opengl3 -- "$@" 2>&1 | grep -E "SCRIPT ERROR|capture :" || true; }
+want() { [ $# -eq 0 ] || [[ " ${TARGETS} " == *" $1 "* ]]; }
+TARGETS="${*:-}"
+
+if [ -z "$TARGETS" ] || [[ " $TARGETS " == *" match "* ]]; then
+  rm -rf "$TMP"
+  run --screen=match --capture="$TMP" --attack --after=600 --max=1 --until=8000 --seed=5
+  cp "$TMP"/match_*.png "$OUT/02_combat_attaque.png"
+  rm -rf "$TMP"
+  run --screen=match --capture="$TMP" --events --max=4 --until=20000 --seed=5
+  files=("$TMP"/match_*.png)
+  cp "${files[0]}" "$OUT/03_combat_projection.png"
+  cp "${files[1]}" "$OUT/04_combat_waza_ari.png"
+  cp "${files[-1]}" "$OUT/05_combat_fin.png"
+  rm -rf "$TMP"
+fi
+for s in title menu customize select tournament results options online pause; do
+  if [ -z "$TARGETS" ] || [[ " $TARGETS " == *" $s "* ]]; then
+    case $s in
+      title) run --screen=title --capture="$OUT" --name=00_titre --frames=40 ;;
+      menu) run --screen=menu --capture="$OUT" --name=01_menu --frames=30 ;;
+      customize) run --screen=customize --capture="$OUT" --name=06_personnalisation --frames=20 --nav=down,down,right ;;
+      select) run --screen=select --capture="$OUT" --name=07_selection --frames=20 ;;
+      tournament) run --screen=tournament --capture="$OUT" --name=08_tournoi --frames=20 ;;
+      results) run --screen=results --capture="$OUT" --name=09_resultats --frames=40 ;;
+      options) run --screen=options --capture="$OUT" --name=10_options --frames=20 ;;
+      online) run --screen=online --capture="$OUT" --name=11_en_ligne --frames=30 ;;
+      pause) run --screen=match --capture="$OUT" --name=12_pause --frames=900 --seed=5 --nav=start ;;
+    esac
+  fi
+done
+ls -1 "$OUT"

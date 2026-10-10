@@ -30,6 +30,7 @@ var paused = false
 var pause_index = 0
 var end_timer = 0
 var capture_flag = false   # demande de capture (mode capture d'écran)
+var attack_flag = false    # une attaque est à mi-entrée
 var frame = 0
 const PAUSE_ITEMS := ["REPRENDRE", "RECOMMENCER", "PERSONNALISATION", "MENU PRINCIPAL"]
 
@@ -133,6 +134,10 @@ func _consume_events() -> void:
 				_feed("Golden score !", Style.GOLD)
 			"end":
 				_feed("Victoire de %s — %s" % [nm, e.reason], Style.GOLD)
+	attack_flag = false
+	for f in sim.state.fighters:
+		if not f.attack.is_empty() and f.attack.t == 9:
+			attack_flag = true
 	var th: Dictionary = sim.state.throw
 	if sim.state.phase == "throw" and th.t == cfg.throw_ticks - 4:
 		shake = 9.0 if th.result == "ippon" else 6.0
@@ -341,8 +346,8 @@ func _throw_xforms(th: Dictionary, p: float) -> Array:
 	if th.dir in ["avant", "contre"]:
 		# uke passe par-dessus tori et retombe de l'autre côté
 		var end_x = tx - fc * 64.0 * K / 2.0
-		var mid = Vector2(lerpf(ux, end_x, e), lerpf(FEET_Y - 44.0 * K / 2.0, FEET_Y - 16.0, e) - sin(PI * p) * (210.0 if big else 180.0))
-		var rot = -fc * PI * (1.5 if big else 1.35) * e
+		var mid = Vector2(lerpf(ux, end_x, e), lerpf(FEET_Y - 44.0 * K / 2.0, FEET_Y - 24.0, e) - sin(PI * p) * (210.0 if big else 180.0))
+		var rot = -fc * PI * 1.5 * e
 		res[uke] = Transform2D(rot, Vector2(uke_f * K, K), 0.0, mid) * Transform2D(0.0, Vector2(0, 22.0))
 		var tori_lean = (0.55 * sin(PI * minf(p * 1.3, 1.0))) if th.dir == "avant" else (-0.45 * sin(PI * minf(p * 1.2, 1.0)))
 		var tori_face = -fc if th.dir == "avant" and p > 0.15 and p < 0.9 else fc
@@ -351,8 +356,8 @@ func _throw_xforms(th: Dictionary, p: float) -> Array:
 		# uke bascule en arrière, loin de tori
 		var end_x = ux + fc * 34.0
 		var lift = 34.0 if big else 20.0
-		var mid = Vector2(lerpf(ux, end_x, e), lerpf(FEET_Y - 44.0 * K / 2.0, FEET_Y - 16.0, e) - sin(PI * p) * lift)
-		var rot = fc * PI * (0.5 if big else 0.42) * e
+		var mid = Vector2(lerpf(ux, end_x, e), lerpf(FEET_Y - 44.0 * K / 2.0, FEET_Y - 24.0, e) - sin(PI * p) * lift)
+		var rot = fc * PI * 0.5 * e
 		res[uke] = Transform2D(rot, Vector2(uke_f * K, K), 0.0, mid) * Transform2D(0.0, Vector2(0, 22.0))
 		res[tori] = Art.stand_xform(Vector2(tx + fc * 10.0 * e, FEET_Y), fc, 0.32 * sin(PI * minf(p * 1.2, 1.0)), K, 0.3 * sin(PI * p))
 	return res
