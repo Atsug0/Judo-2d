@@ -50,6 +50,8 @@ func nav(action: String, _player: int = 0) -> void:
 			var id: String = ITEMS[index].id
 			if id == "quit":
 				get_tree().quit()
+			elif id == "tournament" and app.session.get("tournament", {}).is_empty():
+				app.goto("select", {"mode": "tournament"})  # choisir son judoka d'abord
 			else:
 				app.goto(id, {})
 	queue_redraw()
@@ -88,15 +90,15 @@ func _draw() -> void:
 	# boutons
 	for k in ITEMS.size():
 		var sel := k == index
-		var y := 170.0 + k * 76.0
-		var x := 60.0 - k * 10.0
+		var y := 160.0 + k * 68.0
+		var x := 60.0 - k * 9.0
 		var w := 470.0 + (40.0 if sel else 0.0)
-		var r := Rect2(x + (16.0 if sel else 0.0), y, w, 62)
+		var r := Rect2(x + (16.0 if sel else 0.0), y, w, 56)
 		var c := _accent(ITEMS[k].accent)
 		Style.panel(self, r, c if sel else Style.NIGHT_2, Style.INK, 4.0, 7.0 if sel else 5.0)
 		if not sel:
 			draw_colored_polygon(Style.slant_points(Rect2(r.position + Vector2(4, 4), Vector2(14, r.size.y - 8))), c)
-		Style.text(self, Vector2(r.position.x + 40, r.position.y + 46), ITEMS[k].label, 40 if sel else 34,
+		Style.text(self, Vector2(r.position.x + 40, r.position.y + 42), ITEMS[k].label, 36 if sel else 32,
 			Style.INK if sel else Style.PAPER, "display", HORIZONTAL_ALIGNMENT_LEFT, -1, 3 if sel else 4, 0.0 if sel else 3.0)
 		if ITEMS[k].has("badge"):
 			var br := Rect2(r.end.x - 130, r.position.y + 16, 96, 30)
@@ -104,8 +106,8 @@ func _draw() -> void:
 			Style.label(self, Vector2(br.position.x, br.position.y + 22), ITEMS[k].badge, 15, c, "black", HORIZONTAL_ALIGNMENT_CENTER, br.size.x)
 		if sel:
 			var ax := r.end.x + 14
-			draw_colored_polygon(PackedVector2Array([Vector2(ax, y + 14), Vector2(ax + 22, y + 31), Vector2(ax, y + 48)]), Style.INK)
-			draw_colored_polygon(PackedVector2Array([Vector2(ax - 4, y + 18), Vector2(ax + 14, y + 31), Vector2(ax - 4, y + 44)]), c)
+			draw_colored_polygon(PackedVector2Array([Vector2(ax, y + 11), Vector2(ax + 22, y + 28), Vector2(ax, y + 45)]), Style.INK)
+			draw_colored_polygon(PackedVector2Array([Vector2(ax - 4, y + 15), Vector2(ax + 14, y + 28), Vector2(ax - 4, y + 41)]), c)
 	# panneau de description
 	var slide := (1.0 - anim) * 60.0
 	var dr := Rect2(650 + slide, 150, 580, 470)

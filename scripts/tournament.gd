@@ -39,11 +39,23 @@ const RIVALS := [
 
 
 static func create(human_build: Dictionary, seed_value: int) -> Dictionary:
-	var players = [{"name": human_build.name, "tag": human_build.tag, "tokui": human_build.slots.tokui[0],
+	var players = [{"name": human_build.name, "tag": human_build.get("tag", ""), "tokui": human_build.slots.tokui[0],
 		"style": human_build.style, "garde": human_build.garde, "human": true, "power": 0, "build": human_build.duplicate(true)}]
 	var power = [3, 2, 2, 3, 1, 2, 1]  # force relative des rivaux
-	for k in RIVALS.size():
-		var rb: Dictionary = RIVALS[k].duplicate(true)
+	# rivaux : 7 légendes tirées de façon déterministe (sans le judoka choisi)
+	var pool: Array = []
+	for lg in preload("res://scripts/build.gd").legends():
+		if lg.get("id", "") != human_build.get("id", "-"):
+			pool.append(lg)
+	var rivals: Array = []
+	var st: int = seed_value * 2654435761 % 2147483647 + 1
+	while rivals.size() < 7 and not pool.is_empty():
+		st = (st * 1103515245 + 12345) & 0x7fffffff
+		rivals.append(pool.pop_at(st % pool.size()))
+	while rivals.size() < 7:
+		rivals.append(RIVALS[rivals.size() % RIVALS.size()])
+	for k in rivals.size():
+		var rb: Dictionary = rivals[k].duplicate(true)
 		var r := {"name": rb.name, "tag": rb.tag, "tokui": rb.slots.tokui[0], "style": rb.style, "garde": rb.garde,
 			"human": false, "power": power[k], "build": rb}
 		players.append(r)

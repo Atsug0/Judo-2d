@@ -105,7 +105,8 @@ func _draw() -> void:
 	# judoka vainqueur, poing levé
 	var feet = Vector2(480, 655)
 	var xf = Art.stand_xform(feet, 1 if w == 0 else -1, 0.0, 3.6, 0.0)
-	var pal = Art.palette(w)
+	var mbs = match_params.get("builds", [])
+	var pal = Art.palette(w, mbs[w].get("look", {}) if mbs is Array and w >= 0 and mbs.size() > w and mbs[w] is Dictionary else {})
 	Art.shadow(self, feet + Vector2(0, 2), 3.6, 0.45)
 	Art.draw_arm(self, xf * Art.SHOULDER_BACK, xf * Vector2(-14, -126), pal, true, 3.6)
 	Art.draw_body(self, xf, pal, 0.3)

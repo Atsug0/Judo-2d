@@ -69,7 +69,7 @@ func _draw() -> void:
 		var sc = 4.9
 		var bob = sin(frame * 0.07 + i * 1.7) * 3.0
 		var xf = Art.stand_xform(Vector2(x, 850 + bob), fc, 0.0, sc, 0.25)
-		var pal = Art.palette(i)
+		var pal = Art.palette(i, builds[i].get("look", {}))
 		Art.draw_arm(self, xf * Art.SHOULDER_BACK, xf * Art.REST_HANDS[0], pal, true, sc)
 		Art.draw_body(self, xf, pal, 0.4)
 		Art.draw_arm(self, xf * Art.SHOULDER_FRONT, xf * Art.REST_HANDS[1], pal, false, sc)

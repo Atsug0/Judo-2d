@@ -13,7 +13,7 @@ var t: Dictionary
 
 func on_enter(params: Dictionary) -> void:
 	if app.session.get("tournament", {}).is_empty() or params.get("new", false):
-		app.session.tournament = Tournament.create(Build.load_all()[0], int(Time.get_unix_time_from_system()) % 100000 if not app.capture_mode else 7)
+		app.session.tournament = Tournament.create(params.get("build", Build.load_all()[0]), int(Time.get_unix_time_from_system()) % 100000 if not app.capture_mode else 7)
 	t = app.session.tournament
 	if app.capture_mode and app.args.has("demo_round"):
 		# capture : simule une progression jusqu'en demi-finale
@@ -162,9 +162,10 @@ func _draw_next_card() -> void:
 	draw_rect(pr.grow(-4), Style.P2.darkened(0.6))
 	Style.halftone(self, pr.grow(-4), Color(Style.P2, 0.3), 12.0, 4.0, Vector2(0, -1))
 	var xf = Art.stand_xform(Vector2(pr.get_center().x + 6, pr.end.y + 120), -1, 0.0, 2.6, 0.0)
-	Art.draw_arm(self, xf * Art.SHOULDER_BACK, xf * Art.REST_HANDS[0], Art.palette(1), true, 2.6)
-	Art.draw_body(self, xf, Art.palette(1), 0.3)
-	Art.draw_arm(self, xf * Art.SHOULDER_FRONT, xf * Art.REST_HANDS[1], Art.palette(1), false, 2.6)
+	var opal = Art.palette(1, o.get("build", {}).get("look", {}))
+	Art.draw_arm(self, xf * Art.SHOULDER_BACK, xf * Art.REST_HANDS[0], opal, true, 2.6)
+	Art.draw_body(self, xf, opal, 0.3)
+	Art.draw_arm(self, xf * Art.SHOULDER_FRONT, xf * Art.REST_HANDS[1], opal, false, 2.6)
 	# recouvre ce qui dépasse sous le cadre
 	draw_rect(Rect2(pr.position.x - 4, pr.end.y, pr.size.x + 8, 130), Style.NIGHT_2)
 	draw_rect(pr, Style.INK, false, 4.0)

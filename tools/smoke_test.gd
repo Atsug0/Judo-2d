@@ -17,8 +17,10 @@ func _run() -> void:
 	root.add_child(app)
 	await process_frame
 	await _flow("titre → menu", "title", ["accept"], "menu")
-	await _flow("menu → tournoi → présentation → combat", "menu", ["accept", "accept", "accept"], "match")
-	await _flow("menu → versus → présentation", "menu", ["down", "accept", "accept"], "vs")
+	await _flow("menu → tournoi → sélection → tableau", "menu", ["accept", "right", "accept"], "tournament")
+	await _flow("tournoi → présentation → combat", "tournament", ["accept", "accept"], "match")
+	await _flow("versus : sélection P1, IA, combat", "select", ["right", "accept", "down", "accept", "accept"], "match")
+	await _flow("menu → versus → présentation", "menu", ["down", "accept", "accept", "accept"], "vs")
 	await _flow("menu → dojo → retour", "menu", ["down", "down", "accept", "back"], "menu")
 	await _flow("dojo → leçon → intro → dojo", "dojo", ["accept", "accept", "back"], "dojo")
 	await _flow("dojo → leçon → pause → quitter", "dojo", ["accept", "accept", "accept", "start", "up", "accept"], "dojo")

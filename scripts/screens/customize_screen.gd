@@ -1,11 +1,16 @@
 extends Node2D
-## Personnalisation du combattant : set de techniques (15 points), garde et style, profil physique.
+## Création et personnalisation des judokas : profil (nom, surnom, apparence), set de
+## techniques (15 points), garde et style, profil physique. Plusieurs judokas par joueur.
 
 const Style := preload("res://scripts/ui/style.gd")
 const Art := preload("res://scripts/view/fighter_art.gd")
 const Build := preload("res://scripts/build.gd")
 
-const TABS := ["TECHNIQUES", "GARDE & STYLE", "PROFIL PHYSIQUE"]
+const TABS := ["PROFIL", "TECHNIQUES", "GARDE & STYLE", "PHYSIQUE"]
+const PROFILE_ROWS := ["NOM", "SURNOM", "PEAU", "CHEVEUX", "COULEUR", "NOUVEAU JUDOKA", "COPIER UNE LÉGENDE", "SUPPRIMER"]
+const KB_ROWS := [["A", "B", "C", "D", "E", "F", "G", "H", "I", "J"], ["K", "L", "M", "N", "O", "P", "Q", "R", "S", "T"],
+	["U", "V", "W", "X", "Y", "Z", "É", "È", "-", "'"], ["ESPACE", "EFFACER", "OK"]]
+const MAX_JUDOKAS := 12
 const DIR_LABELS := {"avant": "AVANT", "arriere": "ARRIÈRE", "cote": "CÔTÉ", "arriere_cote": "ARRIÈRE-CÔTÉ",
 	"avant_cote": "AVANT-CÔTÉ", "arriere_avant": "ARRIÈRE → AVANT", "cote_avant": "CÔTÉ → AVANT", "sol": "SOL"}
 ## Pierre-feuille-ciseaux des styles : clé bat valeur.
@@ -20,6 +25,12 @@ var row = 0
 var frame = 0
 var flash = 0
 var rows: Array = []  # [[slot_id, index]]
+var legend_i = 0
+var kb_open = false     # clavier à l'écran (nom, surnom)
+var kb_field = "name"
+var kb_text = ""
+var kb_r = 0
+var kb_c = 0
 
 
 func on_enter(_params: Dictionary) -> void:
@@ -42,6 +53,10 @@ func _b() -> Dictionary:
 
 
 func nav(action: String, _player: int = 0) -> void:
+	if kb_open:
+		_kb_nav(action)
+		queue_redraw()
+		return
 	match action:
 		"prev":
 			tab = (tab + TABS.size() - 1) % TABS.size()
@@ -60,8 +75,11 @@ func nav(action: String, _player: int = 0) -> void:
 		"right":
 			_change(1)
 		"accept":
-			Build.save_all(builds)
-			flash = 60
+			if tab == 0 and _profile_action():
+				pass
+			else:
+				Build.save_all(builds)
+				flash = 60
 		"back":
 			Build.save_all(builds)
 			app.goto("menu", {})
@@ -71,16 +89,101 @@ func nav(action: String, _player: int = 0) -> void:
 func _row_count() -> int:
 	match tab:
 		0:
-			return rows.size()
+			return PROFILE_ROWS.size()
 		1:
+			return rows.size()
+		2:
 			return 2
 	return cat.physique.stats.size()
+
+
+## Actions du profil (A) : renommer, créer, copier une légende, supprimer. Renvoie true si consommé.
+func _profile_action() -> bool:
+	match PROFILE_ROWS[row]:
+		"NOM", "SURNOM":
+			kb_open = true
+			kb_field = "name" if PROFILE_ROWS[row] == "NOM" else "nick"
+			kb_text = String(_b().get(kb_field, ""))
+			kb_r = 0
+			kb_c = 0
+			return true
+		"NOUVEAU JUDOKA":
+			if builds.size() < MAX_JUDOKAS:
+				builds.append(Build.new_judoka({}, builds.size()))
+				bi = builds.size() - 1
+				Build.save_all(builds)
+			return true
+		"COPIER UNE LÉGENDE":
+			if builds.size() < MAX_JUDOKAS:
+				var lg: Dictionary = Build.legends()[legend_i]
+				builds.append(Build.new_judoka(lg, builds.size()))
+				bi = builds.size() - 1
+				Build.save_all(builds)
+			return true
+		"SUPPRIMER":
+			if builds.size() > 1:
+				builds.remove_at(bi)
+				bi = mini(bi, builds.size() - 1)
+				Build.save_all(builds)
+			return true
+	return false
+
+
+func _kb_nav(action: String) -> void:
+	match action:
+		"up":
+			kb_r = (kb_r + KB_ROWS.size() - 1) % KB_ROWS.size()
+		"down":
+			kb_r = (kb_r + 1) % KB_ROWS.size()
+		"left":
+			kb_c -= 1
+		"right":
+			kb_c += 1
+		"back":
+			kb_text = kb_text.substr(0, maxi(0, kb_text.length() - 1))
+		"start":
+			_kb_commit()
+		"accept":
+			var key: String = KB_ROWS[kb_r][clampi(kb_c, 0, KB_ROWS[kb_r].size() - 1)]
+			match key:
+				"ESPACE":
+					if kb_text.length() < 14:
+						kb_text += " "
+				"EFFACER":
+					kb_text = kb_text.substr(0, maxi(0, kb_text.length() - 1))
+				"OK":
+					_kb_commit()
+				_:
+					if kb_text.length() < 14:
+						kb_text += key
+	kb_c = (kb_c + KB_ROWS[kb_r].size()) % KB_ROWS[kb_r].size()
+
+
+func _kb_commit() -> void:
+	var t := kb_text.strip_edges()
+	if kb_field == "name" and t == "":
+		return
+	_b()[kb_field] = t
+	kb_open = false
+	Build.save_all(builds)
 
 
 func _change(delta: int) -> void:
 	var b = _b()
 	match tab:
 		0:
+			var lk: Dictionary = b.look
+			match PROFILE_ROWS[row]:
+				"PEAU":
+					lk.skin = (int(lk.skin) + delta + Art.SKINS.size()) % Art.SKINS.size()
+				"CHEVEUX":
+					lk.hair = (int(lk.hair) + delta + Art.HAIR_STYLES.size()) % Art.HAIR_STYLES.size()
+				"COULEUR":
+					lk.hair_color = (int(lk.hair_color) + delta + Art.HAIR_COLORS.size()) % Art.HAIR_COLORS.size()
+				"COPIER UNE LÉGENDE":
+					var n: int = Build.legends().size()
+					legend_i = (legend_i + delta + n) % n
+		1:
 			var slot_id: String = rows[row][0]
 			var k: int = rows[row][1]
 			var kind = Build.kind_of(slot_id)
@@ -95,13 +198,13 @@ func _change(delta: int) -> void:
 				if cand == "" or not _used_elsewhere(cand, kind, slot_id, k):
 					b.slots[slot_id][k] = cand
 					break
-		1:
+		2:
 			if row == 0:
 				b.garde = "gaucher" if b.garde == "droitier" else "droitier"
 			else:
 				var keys: Array = cat.styles.keys()
 				b.style = keys[(keys.find(b.style) + delta + keys.size()) % keys.size()]
-		2:
+		3:
 			var st: Dictionary = cat.physique.stats[row]
 			var v: int = b.physique[st.id]
 			if delta > 0 and v < cat.physique.max:
@@ -133,31 +236,37 @@ func _draw() -> void:
 	_draw_tabs()
 	match tab:
 		0:
-			_draw_techniques(b)
+			_draw_profile(b)
 		1:
-			_draw_style(b)
+			_draw_techniques(b)
 		2:
+			_draw_style(b)
+		3:
 			_draw_physique(b)
 	if flash > 0:
 		var r = Rect2(500, 300, 280, 70)
 		Style.panel(self, r, Style.GOOD, Style.INK, 4.0, 8.0)
 		Style.text(self, Vector2(r.position.x, r.position.y + 50), "SAUVEGARDÉ", 40, Style.INK, "display", HORIZONTAL_ALIGNMENT_CENTER, r.size.x, 1, -1.0)
-	var h = [["LB", "RB", "Onglets"], ["X", "Changer de build"], ["A", "Sauvegarder"], ["B", "Retour"]]
+	var h = [["LB", "RB", "Onglets"], ["X", "Judoka suivant"], ["A", "Valider"], ["B", "Retour"]]
 	h.insert(0, ["←→", "Modifier"])
+	if kb_open:
+		h = [["A", "Taper"], ["B", "Effacer"], ["START", "Valider"]]
 	Style.hints(self, h)
+	if kb_open:
+		_draw_keyboard()
 
 
 func _draw_build_chip(b: Dictionary) -> void:
 	var r = Rect2(850, 28, 400, 60)
 	Style.panel(self, r, Style.NIGHT_2, Style.INK, 4.0, 6.0)
-	var pal = Art.palette(bi % 2)
+	var pal = Art.palette(0, b.get("look", {}))
 	draw_circle(Vector2(r.position.x + 44, r.position.y + 30), 21, Style.INK)
 	draw_circle(Vector2(r.position.x + 44, r.position.y + 30), 18, pal.accent)
 	Style.label(self, Vector2(r.position.x + 32, r.position.y + 38), b.name.substr(0, 1), 22, Style.INK, "black", HORIZONTAL_ALIGNMENT_CENTER, 24)
 	Style.text(self, Vector2(r.position.x + 76, r.position.y + 34), b.name, 30, Style.PAPER, "display")
 	Style.label(self, Vector2(r.position.x + 78, r.position.y + 52), b.tag.to_upper(), 13, Style.MUTED, "black")
 	Style.pad_button(self, Vector2(r.end.x - 34, r.position.y + 30), "X", 13.0)
-	Style.label(self, Vector2(r.end.x - 160, r.position.y + 36), "BUILD %d/%d" % [bi + 1, builds.size()], 15, Style.MUTED, "black", HORIZONTAL_ALIGNMENT_RIGHT, 100)
+	Style.label(self, Vector2(r.end.x - 160, r.position.y + 36), "JUDOKA %d/%d" % [bi + 1, builds.size()], 15, Style.MUTED, "black", HORIZONTAL_ALIGNMENT_RIGHT, 100)
 
 
 func _draw_tabs() -> void:
@@ -172,6 +281,90 @@ func _draw_tabs() -> void:
 		Style.text(self, Vector2(r.position.x, r.position.y + 29), TABS[k], 24, Style.INK if sel else Style.MUTED, "display", HORIZONTAL_ALIGNMENT_CENTER, w, 1 if sel else 3, -1.0 if sel else 0.0)
 		x += w + 10
 	Style.pad_button(self, Vector2(x + 18, 168), "RB", 12.0)
+
+
+# --- Onglet 0 : profil -----------------------------------------------------------
+
+func _draw_profile(b: Dictionary) -> void:
+	var lk: Dictionary = b.look
+	var vals := {
+		"NOM": String(b.name), "SURNOM": String(b.get("nick", "")) if String(b.get("nick", "")) != "" else "—",
+		"PEAU": Art.SKIN_NAMES[int(lk.skin)], "CHEVEUX": Art.HAIR_STYLES[int(lk.hair)], "COULEUR": Art.HAIR_COLOR_NAMES[int(lk.hair_color)],
+		"NOUVEAU JUDOKA": "%d / %d" % [builds.size(), MAX_JUDOKAS], "COPIER UNE LÉGENDE": String(Build.legends()[legend_i].name) + " « " + String(Build.legends()[legend_i].nick) + " »",
+		"SUPPRIMER": "" if builds.size() > 1 else "(dernier judoka)",
+	}
+	var y = 210.0
+	for k in PROFILE_ROWS.size():
+		var key: String = PROFILE_ROWS[k]
+		var sel = k == row
+		var action_row = key in ["NOUVEAU JUDOKA", "COPIER UNE LÉGENDE", "SUPPRIMER"]
+		if key == "NOUVEAU JUDOKA":
+			y += 14.0
+		var r = Rect2(60 + (12.0 if sel else 0.0), y, 600, 42)
+		var fill = Style.NIGHT_3 if sel else Style.NIGHT_2
+		if key == "SUPPRIMER" and sel:
+			fill = Style.DANGER.darkened(0.35)
+		Style.panel(self, r, fill, Style.P1 if sel else Style.INK, 3.0, 4.0)
+		Style.label(self, Vector2(r.position.x + 22, r.position.y + 28), key, 14, Style.P1 if sel else Style.MUTED, "black")
+		Style.label(self, Vector2(r.position.x + 230, r.position.y + 29), vals[key].to_upper(), 19, Style.PAPER, "black")
+		if sel:
+			if key in ["NOM", "SURNOM"] or action_row:
+				Style.pad_button(self, Vector2(r.end.x - 30, r.position.y + 21), "A", 11.0)
+			if key in ["PEAU", "CHEVEUX", "COULEUR", "COPIER UNE LÉGENDE"]:
+				_arrow(Vector2(r.position.x + 214, r.position.y + 21), -1)
+				_arrow(Vector2(r.end.x - 60, r.position.y + 21), 1)
+		y += 48.0
+	# aperçu du judoka
+	var pr = Rect2(700, 206, 550, 436)
+	Style.panel(self, pr, Style.NIGHT_2, Style.INK, 4.0, 10.0, 0.06)
+	Style.halftone(self, pr.grow(-10), Color(1, 1, 1, 0.04), 16.0, 4.0, Vector2(0, 1))
+	var sc = 3.3
+	var feet = Vector2(pr.position.x + 190, pr.end.y - 30)
+	var xf = Art.stand_xform(feet, 1, 0.0, sc, 0.15)
+	var pal = Art.palette(0, lk)
+	Art.shadow(self, feet + Vector2(0, 2), sc, 0.4)
+	Art.draw_arm(self, xf * Art.SHOULDER_BACK, xf * Art.REST_HANDS[0], pal, true, sc)
+	Art.draw_body(self, xf, pal, 0.3)
+	Art.draw_arm(self, xf * Art.SHOULDER_FRONT, xf * Art.REST_HANDS[1], pal, false, sc)
+	var tx = pr.position.x + 330
+	Style.text(self, Vector2(tx, pr.position.y + 60), String(b.name), 34, Style.P1, "display")
+	if String(b.get("nick", "")) != "":
+		Style.label(self, Vector2(tx + 2, pr.position.y + 98), "« %s »" % String(b.nick).to_upper(), 16, Style.PAPER, "black")
+	var info = [["TOKUI", Build.entry("technique", b.slots.tokui[0]).get("name", "—")], ["GARDE", String(b.garde).capitalize()],
+		["STYLE", cat.styles[b.style].name], ["SET", "%d / %d pts" % [Build.set_cost(b), cat.budget]], ["PHYSIQUE", "%d / %d pts" % [Build.physique_cost(b), cat.physique.budget]]]
+	var iy = pr.position.y + 124
+	for it in info:
+		Style.label(self, Vector2(tx, iy), it[0], 12, Style.MUTED, "black")
+		Style.label(self, Vector2(tx, iy + 20), String(it[1]).to_upper(), 17, Style.PAPER, "black")
+		iy += 44
+	for st in cat.physique.stats:
+		var v: int = b.physique[st.id]
+		Style.label(self, Vector2(tx, iy + 2), String(st.name).substr(0, 4).to_upper(), 11, Style.MUTED, "black")
+		for s2 in 10:
+			draw_rect(Rect2(tx + 44 + s2 * 15, iy - 8, 12, 10), Style.P2 if s2 < v else Style.NIGHT)
+		iy += 18
+
+
+func _draw_keyboard() -> void:
+	draw_rect(Rect2(0, 0, 1280, 720), Color(0.04, 0.03, 0.1, 0.75))
+	var r = Rect2(240, 150, 800, 420)
+	Style.panel(self, r, Style.NIGHT_2, Style.P1, 4.0, 10.0)
+	Style.label(self, r.position + Vector2(40, 40), "NOM" if kb_field == "name" else "SURNOM", 15, Style.MUTED, "black")
+	var fr = Rect2(r.position.x + 36, r.position.y + 56, r.size.x - 72, 64)
+	Style.panel(self, fr, Style.INK, Style.P1, 3.0, 4.0, 0.08)
+	var caret = "_" if (frame / 20) % 2 == 0 else " "
+	Style.text(self, Vector2(fr.position.x + 24, fr.position.y + 48), kb_text + caret, 40, Style.PAPER, "display")
+	for rr in KB_ROWS.size():
+		var keys: Array = KB_ROWS[rr]
+		var kw = 62.0 if keys.size() > 3 else 220.0
+		var x = r.position.x + 40 + (0.0 if keys.size() > 3 else 0.0)
+		for cc in keys.size():
+			var sel = rr == kb_r and cc == clampi(kb_c, 0, keys.size() - 1)
+			var kr = Rect2(x, r.position.y + 146 + rr * 64, kw, 54)
+			Style.panel(self, kr, Style.P1 if sel else Style.NIGHT_3, Style.INK, 3.0, 4.0, 0.1)
+			Style.label(self, Vector2(kr.position.x, kr.position.y + 36), keys[cc], 22 if keys.size() > 3 else 18,
+				Style.INK if sel else Style.PAPER, "black", HORIZONTAL_ALIGNMENT_CENTER, kr.size.x)
+			x += kw + 10
 
 
 # --- Onglet 1 : techniques ------------------------------------------------------

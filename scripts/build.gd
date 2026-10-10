@@ -73,12 +73,64 @@ static func physique_cost(b: Dictionary) -> int:
 
 
 static func load_all() -> Array:
+	var list: Array = defaults()
 	if FileAccess.file_exists(SAVE_PATH):
 		var f := FileAccess.open(SAVE_PATH, FileAccess.READ)
 		var parsed = JSON.parse_string(f.get_as_text())
 		if typeof(parsed) == TYPE_ARRAY and parsed.size() > 0:
-			return GameData._to_ints(parsed)
-	return defaults()
+			list = GameData._to_ints(parsed)
+	for k in list.size():
+		_normalize(list[k], k)
+	return list
+
+
+## Complète un judoka créé par le joueur (identifiant, apparence, surnom).
+static func _normalize(b: Dictionary, k: int) -> void:
+	if not b.has("id"):
+		b.id = "u%d_%s" % [k, String(b.get("name", "J")).to_lower()]
+	if not b.has("look"):
+		b.look = {"skin": [1, 3, 2, 0][k % 4], "hair": [0, 1, 3, 2][k % 4], "hair_color": [1, 0, 0, 2][k % 4]}
+	if not b.has("nick"):
+		b.nick = ""
+	if not b.has("tag"):
+		b.tag = "Mon judoka"
+
+
+static var _legends: Array = []
+
+
+## Judokas pré-configurés (data/legends.json).
+static func legends() -> Array:
+	if _legends.is_empty():
+		_legends = GameData._to_ints(GameData.load_json("res://data/legends.json").legends)
+	return _legends
+
+
+## Tous les judokas jouables : ceux du joueur, puis les légendes.
+static func roster() -> Array:
+	return load_all() + legends()
+
+
+static func find(id: String) -> Dictionary:
+	for b in roster():
+		if b.get("id", "") == id:
+			return b
+	return {}
+
+
+## Nouveau judoka (copie d'un modèle, ou base classique).
+static func new_judoka(from: Dictionary = {}, index: int = 0) -> Dictionary:
+	var b: Dictionary = (from if not from.is_empty() else defaults()[0]).duplicate(true)
+	b.erase("legend")
+	b.erase("bio")
+	b.erase("inspiration")
+	b.id = "u%d_%d" % [index, Time.get_ticks_msec() % 100000]
+	b.name = "JUDOKA %d" % (index + 1) if from.is_empty() else String(from.name)
+	b.nick = "" if from.is_empty() else String(from.get("nick", ""))
+	b.tag = "Mon judoka"
+	if not b.has("look"):
+		b.look = {"skin": 1, "hair": 0, "hair_color": 1}
+	return b
 
 
 static func save_all(builds: Array) -> void:

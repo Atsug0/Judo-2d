@@ -197,6 +197,18 @@ func nav(action: String, _player: int = 0) -> void:
 	queue_redraw()
 
 
+## Palette du judoka i : judogi du côté (blanc/bleu), apparence de son build.
+var _pals = [null, null]
+func _pal(i: int) -> Dictionary:
+	if _pals[i] == null:
+		var bs = params.get("builds", [])
+		var look = {}
+		if bs is Array and bs.size() > i and bs[i] is Dictionary:
+			look = bs[i].get("look", {})
+		_pals[i] = Art.palette(i, look)
+	return _pals[i]
+
+
 func _new_stats() -> Dictionary:
 	return {"attacks": 0, "throws": 0, "counters": 0, "breaks": 0, "feints": 0, "exposed": 0,
 		"blocks": 0, "shidos": 0, "kuzushi_max": 0, "method": ""}
@@ -778,7 +790,7 @@ func _draw_fighters() -> void:
 		order = [th.tori, th.uke] if Anims.family(th.tech) == "sacrifice" else [th.uke, th.tori]
 	for i in order:
 		var hw: Array = _hands_world(i, rigs, th, throwing)
-		Art.draw_fighter(_ci, rigs[i].xf, Art.palette(i), rigs[i].pose, hw[0], hw[1])
+		Art.draw_fighter(_ci, rigs[i].xf, _pal(i), rigs[i].pose, hw[0], hw[1])
 		if not throwing:
 			_draw_callout(i, _base_xf(i))
 
@@ -1030,8 +1042,8 @@ func _draw_newaza(nw: Dictionary) -> void:
 	var origin = Vector2(_newaza_center_x(nw) - fc * center * K, FEET_Y + 4.0)
 	var xf = Transform2D(0.0, Vector2(fc * K, K), 0.0, origin)
 	Art.shadow(_ci, origin + Vector2(fc * center * K, 2), K * 1.9, 0.32)
-	Art.draw_figure(_ci, xf, Art.palette(nw.bottom), poses[1])
-	Art.draw_figure(_ci, xf, Art.palette(nw.top), poses[0], ctrl)
+	Art.draw_figure(_ci, xf, _pal(nw.bottom), poses[1])
+	Art.draw_figure(_ci, xf, _pal(nw.top), poses[0], ctrl)
 
 
 ## Jauge de contrôle au sol, chrono d'osaekomi, bras de fer des clés et étranglements.

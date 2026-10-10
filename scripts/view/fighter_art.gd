@@ -18,14 +18,35 @@ const GRIP_POINTS := {
 const REST_HANDS := [Vector2(22, -57), Vector2(29, -65)]
 
 
-static func palette(player: int) -> Dictionary:
+## Apparence (cosmétique) : teinte de peau, coupe et couleur de cheveux.
+## Le judogi reste fixé par le côté (blanc pour le joueur 1, bleu pour le joueur 2), comme en compétition.
+const SKINS := [["f2cba8", "cc9d78"], ["e7b78f", "c08a63"], ["c98b5e", "9e6640"], ["9a6440", "744528"], ["5e3a24", "40261a"]]
+const HAIR_COLORS := ["120c0a", "3a2416", "6b3f1d", "c9a050", "b8b4ad", "8f3a1c"]
+const HAIR_STYLES := ["Plaqués", "Dégradé", "Rasé", "Chignon"]
+const SKIN_NAMES := ["Très claire", "Claire", "Mate", "Brune", "Foncée"]
+const HAIR_COLOR_NAMES := ["Noirs", "Bruns", "Châtains", "Blonds", "Gris", "Roux"]
+
+
+static func default_look(player: int) -> Dictionary:
+	return {"skin": 1, "hair_color": 1, "hair": 0} if player == 0 else {"skin": 3, "hair_color": 0, "hair": 1}
+
+
+static func palette(player: int, look: Dictionary = {}) -> Dictionary:
+	var lk := default_look(player)
+	for k in look:
+		lk[k] = look[k]
+	var sk: Array = SKINS[clampi(int(lk.skin), 0, SKINS.size() - 1)]
+	var hc := Color(HAIR_COLORS[clampi(int(lk.hair_color), 0, HAIR_COLORS.size() - 1)])
+	var pal := {}
 	if player == 0:
-		return {"gi": Style.GI_WHITE, "gi_shade": Style.GI_WHITE_SHADE, "gi_deep": Color("a59d8f"),
-			"skin": Style.SKIN_A, "skin_shade": Style.SKIN_A_SHADE, "hair": Color("3a2416"), "hair_style": 0,
-			"accent": Style.P1}
-	return {"gi": Style.GI_BLUE, "gi_shade": Style.GI_BLUE_SHADE, "gi_deep": Color("13296b"),
-		"skin": Style.SKIN_B, "skin_shade": Style.SKIN_B_SHADE, "hair": Color("120c0a"), "hair_style": 1,
-		"accent": Style.P2}
+		pal = {"gi": Style.GI_WHITE, "gi_shade": Style.GI_WHITE_SHADE, "gi_deep": Color("a59d8f"), "accent": Style.P1}
+	else:
+		pal = {"gi": Style.GI_BLUE, "gi_shade": Style.GI_BLUE_SHADE, "gi_deep": Color("13296b"), "accent": Style.P2}
+	pal.skin = Color(sk[0])
+	pal.skin_shade = Color(sk[1])
+	pal.hair = hc
+	pal.hair_style = int(lk.hair)
+	return pal
 
 
 ## Arbitre : costume sombre, chemise claire (revers), chaussettes sombres.
@@ -226,14 +247,30 @@ static func _draw_head(ci: CanvasItem, pal: Dictionary, ow: float, dw: float) ->
 			Vector2(-4.8, -100.2)]
 		_poly(ci, hair, pal.hair, ow * 0.8)
 		ci.draw_polyline(PackedVector2Array([Vector2(-9, -108.2), Vector2(-3, -110.6), Vector2(4, -111.4)]), pal.hair.lightened(0.28), dw, true)
+	elif pal.hair_style == 2:
+		# rasé : simple ombre de repousse sur le crâne
+		var cap := [Vector2(-7.6, -103.5), Vector2(-4, -109.5), Vector2(2, -111), Vector2(7, -108.5), Vector2(8.6, -105.5),
+			Vector2(4, -106.6), Vector2(-1, -105.8), Vector2(-4.5, -102.6)]
+		_poly(ci, cap, Color(pal.hair, 0.45), 0.0)
+		ci.draw_polyline(PackedVector2Array([Vector2(-4, -109.5), Vector2(2, -111), Vector2(7, -108.5)]), Color(1, 1, 1, 0.25), dw, true)
 	else:
-		# fade : côtés courts (ombre), dessus texturé
+		# dégradé (et chignon) : côtés courts, dessus texturé
 		var top := [Vector2(-7.6, -105.5), Vector2(-5.5, -111), Vector2(0, -113), Vector2(6, -112), Vector2(9.6, -108.4),
 			Vector2(9.2, -105.6), Vector2(5, -106.8), Vector2(0, -106), Vector2(-3.5, -104.6)]
+		if pal.hair_style == 3:
+			top = [Vector2(-8.6, -100), Vector2(-7.6, -106), Vector2(-5.5, -111.5), Vector2(0, -113.2), Vector2(6, -112),
+				Vector2(9.8, -108.2), Vector2(9.4, -105.2), Vector2(5, -106.4), Vector2(0, -105.6), Vector2(-4, -103.4), Vector2(-5.5, -99.5)]
 		_poly(ci, top, pal.hair, ow * 0.8)
-		for t in 5:
-			var x := -5.0 + t * 3.0
-			ci.draw_arc(Vector2(x, -109.0 + absf(t - 2) * 0.4), 1.2, PI, TAU, 6, pal.hair.lightened(0.25), dw * 0.6, true)
+		if pal.hair_style == 3:
+			# chignon serré à l'arrière, élastique coloré
+			ci.draw_circle(Vector2(-10.6, -107.2), 4.6, Style.INK)
+			ci.draw_circle(Vector2(-10.6, -107.2), 3.6, pal.hair)
+			ci.draw_arc(Vector2(-10.6, -107.2), 2.0, PI * 1.1, PI * 1.9, 6, pal.hair.lightened(0.3), dw * 0.6, true)
+			ci.draw_line(Vector2(-7.8, -109.4), Vector2(-7.4, -105.0), pal.accent, dw * 1.4, true)
+		else:
+			for t in 5:
+				var x := -5.0 + t * 3.0
+				ci.draw_arc(Vector2(x, -109.0 + absf(t - 2) * 0.4), 1.2, PI, TAU, 6, pal.hair.lightened(0.25), dw * 0.6, true)
 	# reflet coloré (liseré) sur l'arrière du crâne
 	ci.draw_polyline(PackedVector2Array([Vector2(-8.0, -100.5), Vector2(-7.2, -104.5), Vector2(-4.5, -108.6)]), Color(acc, 0.9), dw * 0.9, true)
 

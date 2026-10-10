@@ -71,6 +71,10 @@ static func text(ci: CanvasItem, pos: Vector2, s: String, size: int, color: Colo
 		kind: String = "display", align: int = HORIZONTAL_ALIGNMENT_LEFT, width: float = -1,
 		outline: int = 0, shadow: float = 0.0) -> void:
 	var f := font(kind)
+	# texte sombre sur fond vif (éléments sélectionnés) : pas de contour d'encre, sinon il « bave »
+	if color.get_luminance() < 0.2:
+		ci.draw_string(f, pos, s, align, width, size, color)
+		return
 	if outline <= 0:
 		outline = maxi(2, size / 7)
 	if shadow == 0.0:
