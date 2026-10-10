@@ -77,6 +77,14 @@ static func draw_body(ci: CanvasItem, xf: Transform2D, pal: Dictionary, stance: 
 	_foot(ci, Vector2(15 + spread, -1.4), 1.0, pal.skin, dw * 1.3)
 	# pli du pantalon (genou avant)
 	ci.draw_line(Vector2(11 + spread * 0.4 + bend, -28), Vector2(15 + spread * 0.4 + bend, -23), pal.gi_shade, 1.6)
+	_draw_torso(ci, pal, ow)
+	_draw_head(ci, pal, ow, dw)
+	ci.draw_set_transform_matrix(Transform2D.IDENTITY)
+
+
+## Buste en coordonnées « debout » : veste en V, revers, plis, liseré, ceinture et nœud.
+static func _draw_torso(ci: CanvasItem, pal: Dictionary, ow: float) -> void:
+	var acc: Color = pal.accent
 	# --- Veste : silhouette en V (épaules larges, taille serrée, jupe évasée)
 	var jacket := [Vector2(-15, -82), Vector2(-3, -86), Vector2(6, -86), Vector2(15, -81), Vector2(17, -68),
 		Vector2(13, -49), Vector2(17, -33), Vector2(-16, -33), Vector2(-13, -49), Vector2(-17, -68)]
@@ -99,8 +107,6 @@ static func draw_body(ci: CanvasItem, xf: Transform2D, pal: Dictionary, stance: 
 	_poly(ci, [Vector2(10, -48), Vector2(15, -48), Vector2(15, -43), Vector2(10, -43)], Color("26222f"), 0.0)
 	ci.draw_line(Vector2(13, -44), Vector2(19, -32), Color("17141f"), 3.2)
 	ci.draw_line(Vector2(12, -44), Vector2(13, -31), Color("17141f"), 3.2)
-	_draw_head(ci, pal, ow, dw)
-	ci.draw_set_transform_matrix(Transform2D.IDENTITY)
 
 
 ## Bras en coordonnées écran : manche large du judogi avec plis et ourlet,
@@ -386,3 +392,116 @@ static func ground_poses(kind: String, t: int, ctrl: float) -> Array:
 				"knee_b": Vector2(-6, -4), "foot_b": Vector2(-24, -2), "knee_f": Vector2(4, -4), "foot_f": Vector2(-14, -2),
 				"elbow_b": Vector2(30, -30), "hand_b": Vector2(34, -14), "elbow_f": Vector2(20, -28), "hand_f": Vector2(24, -16)}
 	return [tori, uke]
+
+
+# =============================================================================
+# Squelette debout : poses articulées (même rendu que draw_body quand on est droit)
+# =============================================================================
+# Pose = coordonnées locales « debout » (pieds au sol en y = 0, avant = +x) :
+#   hip (bassin), bow (inclinaison du buste, + = vers l'avant), tilt (tête),
+#   fb / ff (pieds arrière / avant), kb / kf (genoux, optionnels : sinon calculés),
+#   hb / hf (mains, optionnelles), lift_b / lift_f (pied décollé : rotation libre).
+
+const HIP0 := Vector2(0, -47)
+const NECK0 := Vector2(1, -86)
+const THIGH := 23.5
+const SHIN := 21.5
+const SHIN_ANGLE_B := 1.986  # angle du tibia arrière en garde (pied à plat)
+const SHIN_ANGLE_F := 1.561
+
+
+## Garde : reproduit exactement draw_body(stance).
+static func pose_stand(stance: float = 0.5) -> Dictionary:
+	var spread := 2.0 + stance * 5.0
+	var bend := 3.0 + stance * 3.0
+	return {"hip": HIP0, "bow": 0.0, "tilt": 0.0,
+		"kb": Vector2(-11 - spread * 0.4, -24 - bend * 0.2), "fb": Vector2(-15 - spread, -4),
+		"kf": Vector2(13 + spread * 0.4 + bend, -25), "ff": Vector2(15 + spread, -4),
+		"hb": REST_HANDS[0], "hf": REST_HANDS[1]}
+
+
+## Interpolation entre deux poses (clés absentes d'un côté : on garde l'autre).
+static func lerp_pose(a: Dictionary, b: Dictionary, t: float) -> Dictionary:
+	var r := {}
+	for k in a:
+		if b.has(k) and typeof(a[k]) == typeof(b[k]) and (typeof(a[k]) == TYPE_VECTOR2 or typeof(a[k]) == TYPE_FLOAT):
+			r[k] = lerp(a[k], b[k], t)
+		elif b.has(k) and t >= 0.5:
+			r[k] = b[k]
+		else:
+			r[k] = a[k]
+	for k in b:
+		if not r.has(k):
+			r[k] = b[k]
+	# genoux explicites seulement s'ils le sont des deux côtés
+	for k in ["kb", "kf"]:
+		if not (a.has(k) and b.has(k)):
+			r.erase(k)
+	return r
+
+
+## Genou par cinématique inverse à deux segments, plié vers l'avant (+x).
+static func ik_knee(hip: Vector2, foot: Vector2, bend_sign: float = 1.0) -> Vector2:
+	var d := foot - hip
+	var dist := clampf(d.length(), 1.0, THIGH + SHIN - 0.01)
+	var a := acos(clampf((THIGH * THIGH + dist * dist - SHIN * SHIN) / (2.0 * THIGH * dist), -1.0, 1.0))
+	var base := d.angle()
+	var k1 := hip + Vector2.from_angle(base + a) * THIGH
+	var k2 := hip + Vector2.from_angle(base - a) * THIGH
+	return k1 if (k1.x - k2.x) * bend_sign > 0.0 else k2
+
+
+## Transformation locale du buste (rotation autour du bassin).
+static func torso_local(pose: Dictionary) -> Transform2D:
+	return Transform2D(float(pose.get("bow", 0.0)), pose.get("hip", HIP0)) * Transform2D(0.0, -HIP0)
+
+
+## Point du buste (coordonnées « debout ») vers l'écran : sert aux saisies sur l'adversaire.
+static func torso_point(xf: Transform2D, pose: Dictionary, p: Vector2) -> Vector2:
+	return xf * (torso_local(pose) * p)
+
+
+## Dessine un judoka articulé. hands_world : [main arrière, main avant] en coordonnées
+## écran (saisies), sinon les mains de la pose. grip : force de chaque main (-1 = pas de prise).
+static func draw_fighter(ci: CanvasItem, xf: Transform2D, pal: Dictionary, pose: Dictionary,
+		hands_world: Array = [], grip: Array = [-1.0, -1.0]) -> void:
+	var k := absf(xf.get_scale().y)
+	var sc := maxf(0.5, k)
+	var ow := 4.2 / sc
+	var dw := 2.6 / sc
+	var tl := torso_local(pose)
+	var hip: Vector2 = pose.get("hip", HIP0)
+	var att_b := tl * Vector2(-6, -47)
+	var att_f := tl * Vector2(6, -47)
+	var fb: Vector2 = pose.fb
+	var ff: Vector2 = pose.ff
+	var kb: Vector2 = pose.kb if pose.has("kb") else ik_knee(att_b, fb)
+	var kf: Vector2 = pose.kf if pose.has("kf") else ik_knee(att_f, ff)
+	var sh_b := tl * SHOULDER_BACK
+	var sh_f := tl * SHOULDER_FRONT
+	var hb: Vector2 = hands_world[0] if hands_world.size() > 0 and hands_world[0] != null else xf * pose.get("hb", REST_HANDS[0])
+	var hf: Vector2 = hands_world[1] if hands_world.size() > 1 and hands_world[1] != null else xf * pose.get("hf", REST_HANDS[1])
+	# --- bras arrière
+	draw_arm(ci, xf * sh_b, hb, pal, true, k, grip[0])
+	# --- jambes (arrière puis avant) et pieds orientés selon le tibia
+	ci.draw_set_transform_matrix(xf)
+	_limb(ci, [att_b, kb, fb], 12.0, pal.gi_shade, ow)
+	_limb(ci, [att_f, kf, ff], 12.5, pal.gi, ow)
+	ci.draw_set_transform_matrix(xf)
+	for leg in [[kb, fb, SHIN_ANGLE_B, -1.0, pal.skin_shade], [kf, ff, SHIN_ANGLE_F, 1.0, pal.skin]]:
+		var dev: float = (leg[1] - leg[0]).angle() - leg[2]
+		ci.draw_set_transform_matrix(xf * Transform2D(dev, leg[1]) * Transform2D(0.0, -leg[1]))
+		_foot(ci, leg[1] + Vector2(0, 2.6), leg[3], leg[4], dw * 1.3)
+	# pli du pantalon au genou avant
+	ci.draw_set_transform_matrix(xf)
+	ci.draw_line(kf + Vector2(-2, -3), kf + Vector2(2, 2), pal.gi_shade, 1.6)
+	# --- buste puis tête
+	ci.draw_set_transform_matrix(xf * tl)
+	_draw_torso(ci, pal, ow)
+	var neck := tl * NECK0
+	var tilt := float(pose.get("tilt", 0.0))
+	ci.draw_set_transform_matrix(xf * Transform2D(float(pose.get("bow", 0.0)) + tilt, neck) * Transform2D(0.0, -NECK0))
+	_draw_head(ci, pal, ow, dw)
+	ci.draw_set_transform_matrix(Transform2D.IDENTITY)
+	# --- bras avant
+	draw_arm(ci, xf * sh_f, hf, pal, false, k, grip[1])

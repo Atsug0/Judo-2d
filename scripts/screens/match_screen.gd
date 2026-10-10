@@ -9,6 +9,7 @@ const Ai := preload("res://scripts/sim/ai_controller.gd")
 const Pad := preload("res://scripts/pad_reader.gd")
 const Settings := preload("res://scripts/settings.gd")
 const SpriteLib := preload("res://scripts/view/sprite_library.gd")
+const Anims := preload("res://scripts/view/throw_anims.gd")
 
 const W := 1280.0
 const H := 720.0
@@ -50,6 +51,7 @@ var slowmo_acc = 0    # compteur pour le ralenti
 var flash = 0.0       # flash blanc (0..1)
 var excite = 0.0      # excitation de la foule (0..1)
 var particles: Array = []  # poussière : {p, v, life, max, size, col}
+var shown = [null, null]  # squelettes affichés (lissés) : {xf, pose}
 const PAUSE_ITEMS := ["REPRENDRE", "RECOMMENCER", "PERSONNALISATION", "MENU PRINCIPAL"]
 
 
@@ -397,9 +399,9 @@ func _update_fx() -> void:
 
 ## Point d'impact au sol d'une projection (monde, px).
 func _throw_landing_point(th: Dictionary) -> Vector2:
-	var pair: Array = _throw_xforms(th, 1.0)
-	var uke_xf: Transform2D = pair[th.uke]
-	return Vector2((uke_xf * Vector2(0, -50)).x, FEET_Y)
+	var fr: Array = _throw_frame(th)
+	var smp: Dictionary = Anims.sample(Anims.keys(th.tech, fr[1]), 1.0)
+	return Vector2((fr[0] * smp.uke.pos).x, FEET_Y)
 
 
 ## Poussière de tatami (déterministe : ne dépend que du numéro d'image).
@@ -525,7 +527,7 @@ func _fighter_xform(i: int) -> Transform2D:
 
 
 ## Position d'affichage : écart visuel minimum entre les deux judokas (lisibilité du kumikata).
-const VIS_GAP := 118.0
+const VIS_GAP := 108.0
 func _draw_x(i: int) -> float:
 	var fs: Array = sim.state.fighters
 	var x = wx(fs[i].x)
@@ -545,29 +547,173 @@ func _draw_fighters() -> void:
 	var throwing: bool = not th.is_empty() and sim.state.phase in ["throw", "score", "ended"]
 	if _draw_sprites(th, throwing):
 		return
-	var xfs = [_fighter_xform(0), _fighter_xform(1)]
-	var p = 0.0
-	if throwing:
-		p = clampf(float(th.t) / float(cfg.throw_ticks), 0.0, 1.0)
-		xfs = _throw_xforms(th, p)
+	var rigs: Array = _throw_rigs(th) if throwing else _standing_rigs()
 	# ombres
 	for i in 2:
-		Art.shadow(_ci, Vector2(xfs[i].origin.x, FEET_Y + 2), K, 0.3)
-	# ordre de dessin : uke derrière pendant la projection, sinon J2 derrière
+		var hip_x: float = (rigs[i].xf * Vector2(0, -47)).x
+		Art.shadow(_ci, Vector2(hip_x, FEET_Y + 2), K, 0.3)
 	var order = [1, 0]
 	if throwing:
-		order = [th.uke, th.tori] if th.dir in ["avant", "contre"] and p < 0.5 else [th.tori, th.uke]
+		order = [th.tori, th.uke] if Anims.family(th.tech) == "sacrifice" else [th.uke, th.tori]
 	for i in order:
-		var pal = Art.palette(i)
+		var hw: Array = _hands_world(i, rigs, th, throwing)
+		Art.draw_fighter(_ci, rigs[i].xf, Art.palette(i), rigs[i].pose, hw[0], hw[1])
+		if not throwing:
+			_draw_callout(i, _base_xf(i))
+
+
+## Repère d'un judoka debout (pieds, sens du regard, échelle).
+func _base_xf(i: int) -> Transform2D:
+	var f: Dictionary = sim.state.fighters[i]
+	return Transform2D(0.0, Vector2(f.facing * K, K), 0.0, Vector2(_draw_x(i), FEET_Y))
+
+
+## Pose de garde vivante : respiration, marche, déséquilibre subi, fatigue, défense.
+func _standing_pose(i: int) -> Dictionary:
+	var f: Dictionary = sim.state.fighters[i]
+	var pose: Dictionary = Art.pose_stand(0.5)
+	var breath = sin(frame * 0.06 + i * 1.3)
+	pose.hip += Vector2(0, breath * 0.7)
+	var free_legs = false
+	if f.last_move != 0:
+		var ph = frame * 0.32
+		var dir = signf(float(f.last_move * f.facing))
+		pose.fb += Vector2(sin(ph) * 5.0 * dir, -maxf(0.0, cos(ph)) * 3.5)
+		pose.ff += Vector2(-sin(ph) * 5.0 * dir, -maxf(0.0, -cos(ph)) * 3.5)
+		pose.hip += Vector2(0, -absf(sin(ph)) * 1.2)
+		free_legs = true
+	# déséquilibre subi : bal_x > 0 = tiré vers l'avant (vers l'adversaire)
+	var bx = clampf(float(f.bal_x) / 10000.0, -1.0, 1.0)
+	var by = clampf(float(f.bal_y) / 10000.0, -1.0, 1.0)
+	pose.bow = bx * 0.5
+	pose.tilt = -bx * 0.25
+	pose.hip += Vector2(bx * 7.0, absf(bx) * 2.0 + absf(by) * 3.0)
+	if bx > 0.45:
+		pose.fb.y -= (bx - 0.45) * 8.0  # sur la pointe des pieds
+	elif bx < -0.45:
+		pose.ff.y -= (-bx - 0.45) * 8.0
+	if absf(bx) > 0.05 or absf(by) > 0.05:
+		free_legs = true
+	# kumikata : on se penche l'un vers l'autre quand on tient l'adversaire
+	if sim.has_grip(f):
+		pose.bow += 0.16
+		pose.hip += Vector2(3, 1)
+		free_legs = true
+	# fatigue : épaules qui tombent, garde plus basse
+	var tired = 1.0 - float(f.stamina) / float(f.stamina_max)
+	if tired > 0.5:
+		var t = (tired - 0.5) * 2.0
+		pose.bow += t * 0.18
+		pose.hip.y += t * 4.0
+		pose.tilt += t * 0.2
+		free_legs = true
+	# défense : hanches basses et en arrière
+	if f.defend_t > 0:
+		pose.hip += Vector2(-4, 6)
+		pose.bow -= 0.15
+		free_legs = true
+	# attaque ratée : emporté vers l'avant
+	if f.exposed_t > 0:
+		var e = float(f.exposed_t) / float(cfg.exposed_ticks)
+		pose.bow += 0.55 * e
+		pose.hip += Vector2(8.0 * e, 4.0 * e)
+		pose.ff += Vector2(10.0 * e, 0)
+		free_legs = true
+	if free_legs:
+		pose.erase("kb")
+		pose.erase("kf")
+	return pose
+
+
+func _standing_rigs() -> Array:
+	var rigs = []
+	for i in 2:
 		var f: Dictionary = sim.state.fighters[i]
-		var xf: Transform2D = xfs[i]
-		var o = 1 - i
-		var oxf: Transform2D = xfs[o]
-		# bras arrière (main gauche), corps, bras avant (main droite)
-		_draw_hand(i, 0, xf, oxf, pal, throwing, p)
-		Art.draw_body(_ci, xf, pal, 1.0 if f.attack.is_empty() else 0.4)
-		_draw_hand(i, 1, xf, oxf, pal, throwing, p)
-		_draw_callout(i, xf)
+		var target = {"xf": _base_xf(i), "pose": _standing_pose(i)}
+		if not f.attack.is_empty():
+			# entrée de la technique : début de la chorégraphie, côté tori
+			var atk: Dictionary = f.attack
+			var e = clampf(float(atk.t) / float(atk.entry), 0.0, 1.0)
+			var d = absf(_draw_x(1 - i) - _draw_x(i)) / K
+			var smp: Dictionary = Anims.sample(Anims.keys(atk.tech, d), Anims.ENTRY * e)
+			target = {"xf": Anims.actor_xform(_base_xf(i), smp.tori), "pose": smp.tori.pose}
+		rigs.append(_smooth(i, target))
+	return rigs
+
+
+## Lissage visuel des squelettes (pas de saut quand une attaque s'interrompt).
+func _smooth(i: int, target: Dictionary) -> Dictionary:
+	var prev = shown[i]
+	var out = target
+	if prev != null and signf(prev.xf.x.x) == signf(target.xf.x.x):
+		out = {"xf": prev.xf.interpolate_with(target.xf, 0.4), "pose": Art.lerp_pose(prev.pose, target.pose, 0.4)}
+		if target.pose.has("kb") and target.pose.has("kf"):
+			out.pose.kb = target.pose.kb
+			out.pose.kf = target.pose.kf
+	shown[i] = out
+	return out
+
+
+## Positions d'affichage de deux judokas à partir de leurs x de simulation (écart visuel minimum).
+func _vis_pair(xa_cpx: int, xb_cpx: int) -> Array:
+	var xa = wx(xa_cpx)
+	var xb = wx(xb_cpx)
+	var d = absf(xb - xa)
+	if d < VIS_GAP:
+		var push = signf(xb - xa) * (VIS_GAP - d) * 0.5
+		xa -= push
+		xb += push
+	return [xa, xb]
+
+
+func _throw_progress(th: Dictionary) -> float:
+	return Anims.ENTRY + (1.0 - Anims.ENTRY) * clampf(float(th.t) / float(cfg.throw_ticks), 0.0, 1.0)
+
+
+func _throw_frame(th: Dictionary) -> Array:
+	var vp: Array = _vis_pair(th.tori_x, th.uke_x)
+	var frame_xf = Transform2D(0.0, Vector2(th.facing * K, K), 0.0, Vector2(vp[0], FEET_Y))
+	var d = absf(vp[1] - vp[0]) / K
+	return [frame_xf, d]
+
+
+func _throw_rigs(th: Dictionary) -> Array:
+	var fr: Array = _throw_frame(th)
+	var smp: Dictionary = Anims.sample(Anims.keys(th.tech, fr[1]), _throw_progress(th))
+	var rigs = [null, null]
+	rigs[th.tori] = {"xf": Anims.actor_xform(fr[0], smp.tori), "pose": smp.tori.pose}
+	rigs[th.uke] = {"xf": Anims.actor_xform(fr[0], smp.uke), "pose": smp.uke.pose}
+	shown = rigs.duplicate()
+	return rigs
+
+
+## Mains en coordonnées écran : saisies sur le judogi adverse (qui suivent son buste).
+func _hands_world(i: int, rigs: Array, th: Dictionary, throwing: bool) -> Array:
+	var o = 1 - i
+	var orig: Dictionary = rigs[o]
+	var f: Dictionary = sim.state.fighters[i]
+	if throwing:
+		var p = clampf(float(th.t) / float(cfg.throw_ticks), 0.0, 1.0)
+		if i == th.tori:
+			var sleeve = Art.torso_point(orig.xf, orig.pose, Art.GRIP_POINTS["sleeve"])
+			var lapel = Art.torso_point(orig.xf, orig.pose, Art.GRIP_POINTS["lapel"])
+			return [[sleeve, lapel if p < 0.85 else null], [0.6, 0.6 if p < 0.85 else -1.0]]
+		if p < 0.25:
+			return [[Art.torso_point(orig.xf, orig.pose, Art.GRIP_POINTS["sleeve"]), null], [-1.0, -1.0]]
+		return [[null, null], [-1.0, -1.0]]
+	var me: Dictionary = rigs[i]
+	var hands = [null, null]
+	var strength = [-1.0, -1.0]
+	for h in 2:
+		var hand: Dictionary = f.hands[h]
+		var target = Art.torso_point(orig.xf, orig.pose, Art.GRIP_POINTS[cfg.grip_targets[hand.target]])
+		var rest = Art.torso_point(me.xf, me.pose, Art.REST_HANDS[h])
+		if hand.state == Sim.HAND_GRIP:
+			hands[h] = target
+			strength[h] = float(hand.trig) / 100.0
+		elif hand.state == Sim.HAND_REACH:
+			hands[h] = rest.lerp(target, clampf(float(hand.t) / float(cfg.grip_reach_ticks), 0.0, 1.0))
+	return [hands, strength]
 
 
 ## Rendu par sprites quand les animations existent. Renvoie false pour retomber
@@ -608,25 +754,6 @@ func _draw_sprites(th: Dictionary, throwing: bool) -> bool:
 			return false
 		_draw_callout(i, Art.stand_xform(feet, f.facing, lean, K))
 	return true
-
-
-func _draw_hand(i: int, h: int, xf: Transform2D, oxf: Transform2D, pal: Dictionary, throwing: bool, p: float) -> void:
-	var f: Dictionary = sim.state.fighters[i]
-	var hand: Dictionary = f.hands[h]
-	var shoulder: Vector2 = xf * (Art.SHOULDER_BACK if h == 0 else Art.SHOULDER_FRONT)
-	var rest: Vector2 = xf * Art.REST_HANDS[h]
-	var target_name: String = cfg.grip_targets[hand.target]
-	var target: Vector2 = oxf * Art.GRIP_POINTS[target_name]
-	var pos = rest
-	var strength = -1.0
-	if throwing and ((p > 0.85 and sim.state.throw.tori != i) or (p > 0.7 and sim.state.throw.tori == i and h == 1)):
-		pos = rest  # uke lâche ; tori ne garde que la manche
-	elif hand.state == Sim.HAND_GRIP or (throwing and hand.state != Sim.HAND_FREE):
-		pos = target
-		strength = float(hand.trig) / 100.0
-	elif hand.state == Sim.HAND_REACH:
-		pos = rest.lerp(target, clampf(float(hand.t) / float(cfg.grip_reach_ticks), 0.0, 1.0))
-	Art.draw_arm(_ci, shoulder, pos, pal, h == 0, K, strength)
 
 
 ## Centre horizontal de la scène au sol (monde, px).
