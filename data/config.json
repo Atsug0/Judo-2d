@@ -18,6 +18,8 @@
   "push_speed": 45,
 
   "grip_reach_ticks": 12,
+  "grip_settle_ticks": 90,
+  "grip_settle_min": 35,
   "grip_min_trigger": 25,
   "grip_targets": ["sleeve", "lapel", "collar", "belt"],
   "grip_target_names": {"sleeve": "Manche", "lapel": "Revers", "collar": "Col haut", "belt": "Ceinture"},
@@ -37,7 +39,7 @@
 
   "pull_force_per_hand": 200,
   "balance_max": 10000,
-  "balance_recover_permille": 40,
+  "balance_recover_permille": 42,
   "tsukuri_bonus": 150,
   "follow_reduction": 60,
 

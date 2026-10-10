@@ -52,8 +52,10 @@ func think(sim) -> Array:
 		inp[Sim.MX] = 100 * facing
 	elif back_room < 6000:
 		inp[Sim.MX] = 70 * facing
-	elif plan_dir == 0 and _rand(100) < 35:
+	elif plan_dir == 0 and _rand(100) < 30 + 10 * level:
 		inp[Sim.MX] = -60 * facing  # tsukuri : recule en tirant
+	elif plan_dir == 1 and _rand(100) < 25 + 10 * level:
+		inp[Sim.MX] = 50 * facing  # tsukuri : avance en poussant
 	# Suivre la traction adverse pour amortir le kuzushi (niveaux 2 et 3).
 	if level >= 2 and dist <= cfg.grip_range and f.bal_x > 3500 and _rand(100) < 8 * level:
 		inp[Sim.MX] = 80 * facing

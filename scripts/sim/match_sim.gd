@@ -172,8 +172,11 @@ func _update_grips(i: int, inp: Array) -> void:
 			hand.t += 1
 			if hand.t >= cfg.grip_reach_ticks:
 				hand.state = HAND_GRIP
+				hand.t = 0
 				events.append({"type": "grip", "who": i, "hand": h})
 		if hand.state == HAND_GRIP:
+			if hand.t < cfg.grip_settle_ticks:
+				hand.t += 1  # installation de la garde
 			var tname: String = cfg.grip_targets[hand.target]
 			var cost: int = trig * cfg.stamina_grip_cost * cfg.grip_cost_mult[tname] / 10000
 			f.stamina = maxi(0, f.stamina - cost)
@@ -221,7 +224,8 @@ func _apply_pull(i: int, inp: Array) -> void:
 	for hand in f.hands:
 		if hand.state == HAND_GRIP:
 			var tname: String = cfg.grip_targets[hand.target]
-			force += cfg.pull_force_per_hand * hand.trig / 100 * cfg.grip_pull_mult[tname] / 100
+			var settle: int = cfg.grip_settle_min + (100 - cfg.grip_settle_min) * mini(hand.t, cfg.grip_settle_ticks) / cfg.grip_settle_ticks
+			force += cfg.pull_force_per_hand * hand.trig / 100 * cfg.grip_pull_mult[tname] / 100 * settle / 100
 	if force == 0:
 		return
 	force = force * (5000 + f.stamina / 2) / 10000
@@ -229,8 +233,9 @@ func _apply_pull(i: int, inp: Array) -> void:
 	# Tirer le stick vers soi déséquilibre l'adversaire vers l'avant.
 	var kx: int = -px * f.facing * force / 100
 	var ky: int = py * force / 100
-	# Tsukuri : reculer en tirant amplifie le déséquilibre avant.
-	if kx > 0 and f.last_move * f.facing < 0:
+	# Tsukuri : reculer en tirant amplifie le déséquilibre avant,
+	# avancer en poussant amplifie le déséquilibre arrière.
+	if (kx > 0 and f.last_move * f.facing < 0) or (kx < 0 and f.last_move * f.facing > 0):
 		kx = kx * cfg.tsukuri_bonus / 100
 	# Suivre le mouvement (marcher dans le sens de la traction) l'atténue.
 	var follow := 0
