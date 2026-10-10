@@ -1,35 +1,58 @@
 {
-  "_doc": "Techniques du prototype. dir = direction du kuzushi requise (avant, arriere, cote, arriere_cote). speed et power de 1 à 5 (fiche du GDD). grips = combinaisons de saisies qui donnent 100 % ; une seule main valable donne partial_grip_mult. counter = contre possible pendant l'entrée.",
-  "seoi_nage": {
-    "name": "Seoi-nage", "dir": "avant", "speed": 4, "power": 4, "stamina": 350,
-    "grips": [["sleeve", "lapel"], ["sleeve", "collar"], ["sleeve", "sleeve"]],
-    "counter": "ura_nage"
-  },
-  "o_soto_gari": {
-    "name": "O-soto-gari", "dir": "arriere", "speed": 3, "power": 5, "stamina": 350,
-    "grips": [["sleeve", "lapel"], ["sleeve", "collar"]],
-    "counter": ""
-  },
-  "o_uchi_gari": {
-    "name": "O-uchi-gari", "dir": "arriere", "speed": 4, "power": 3, "stamina": 200,
-    "grips": [["sleeve", "lapel"], ["lapel"], ["sleeve"]],
-    "counter": ""
-  },
-  "ko_uchi_gari": {
-    "name": "Ko-uchi-gari", "dir": "arriere_cote", "speed": 5, "power": 2, "stamina": 120,
-    "grips": [["sleeve"], ["lapel"]],
-    "counter": ""
-  },
-  "de_ashi_barai": {
-    "name": "De-ashi-barai", "dir": "cote", "speed": 5, "power": 3, "stamina": 120,
-    "grips": [["sleeve"]],
-    "counter": ""
-  },
-  "_buttons": {
-    "a": ["seoi_nage", "o_soto_gari", "de_ashi_barai"],
-    "x": ["o_uchi_gari", "ko_uchi_gari"]
-  },
+  "_doc": "Techniques de la simulation. dir = direction du kuzushi requise (avant, arriere, cote, arriere_cote, avant_cote). speed/power de 1 à 5. grips = combinaisons de saisies qui donnent 100 % (une seule main valable = partial_grip_mult). counter = contre qui punit cette technique. family : te, koshi, ashi, sutemi. sutemi = tori tombe au sol s'il rate.",
+  "seoi_nage": {"name": "Seoi-nage", "family": "te", "dir": "avant", "speed": 4, "power": 4, "stamina": 350,
+    "grips": [["sleeve", "lapel"], ["sleeve", "collar"], ["sleeve", "sleeve"]], "counter": "ura_nage"},
+  "ippon_seoi_nage": {"name": "Ippon-seoi-nage", "family": "te", "dir": "avant", "speed": 4, "power": 4, "stamina": 300,
+    "grips": [["sleeve"]], "counter": "ura_nage"},
+  "tai_otoshi": {"name": "Tai-otoshi", "family": "te", "dir": "avant_cote", "speed": 4, "power": 3, "stamina": 250,
+    "grips": [["sleeve", "lapel"], ["sleeve", "collar"]], "counter": ""},
+  "uchi_mata": {"name": "Uchi-mata", "family": "ashi", "dir": "avant", "speed": 3, "power": 5, "stamina": 420,
+    "grips": [["sleeve", "collar"], ["sleeve", "lapel"]], "counter": "uchi_mata_sukashi"},
+  "harai_goshi": {"name": "Harai-goshi", "family": "koshi", "dir": "avant_cote", "speed": 2, "power": 5, "stamina": 420,
+    "grips": [["sleeve", "collar"], ["sleeve", "belt"]], "counter": "utsuri_goshi"},
+  "o_goshi": {"name": "O-goshi", "family": "koshi", "dir": "avant", "speed": 2, "power": 3, "stamina": 320,
+    "grips": [["sleeve", "belt"]], "counter": "utsuri_goshi"},
+  "o_soto_gari": {"name": "O-soto-gari", "family": "ashi", "dir": "arriere", "speed": 3, "power": 5, "stamina": 350,
+    "grips": [["sleeve", "lapel"], ["sleeve", "collar"]], "counter": "o_soto_gaeshi"},
+  "o_uchi_gari": {"name": "O-uchi-gari", "family": "ashi", "dir": "arriere", "speed": 4, "power": 3, "stamina": 200,
+    "grips": [["sleeve", "lapel"], ["lapel"], ["sleeve"]], "counter": ""},
+  "ko_uchi_gari": {"name": "Ko-uchi-gari", "family": "ashi", "dir": "arriere_cote", "speed": 5, "power": 2, "stamina": 120,
+    "grips": [["sleeve"], ["lapel"]], "counter": ""},
+  "de_ashi_barai": {"name": "De-ashi-barai", "family": "ashi", "dir": "cote", "speed": 5, "power": 3, "stamina": 120,
+    "grips": [["sleeve"]], "counter": "tsubame_gaeshi"},
+  "sasae_tsurikomi_ashi": {"name": "Sasae-tsurikomi-ashi", "family": "ashi", "dir": "avant_cote", "speed": 4, "power": 3, "stamina": 200,
+    "grips": [["sleeve", "lapel"]], "counter": "tsubame_gaeshi"},
+  "tomoe_nage": {"name": "Tomoe-nage", "family": "sutemi", "dir": "avant", "speed": 3, "power": 4, "stamina": 350, "sutemi": true,
+    "grips": [["lapel", "lapel"], ["collar", "lapel"], ["sleeve", "lapel"]], "counter": ""},
+  "sumi_gaeshi": {"name": "Sumi-gaeshi", "family": "sutemi", "dir": "avant", "speed": 3, "power": 4, "stamina": 350, "sutemi": true,
+    "grips": [["sleeve", "belt"], ["sleeve", "collar"]], "counter": ""},
   "_counters": {
-    "ura_nage": {"name": "Ura-nage"}
+    "ura_nage": {"name": "Ura-nage", "dir": "contre"},
+    "utsuri_goshi": {"name": "Utsuri-goshi", "dir": "contre"},
+    "uchi_mata_sukashi": {"name": "Uchi-mata-sukashi", "dir": "contre"},
+    "o_soto_gaeshi": {"name": "O-soto-gaeshi", "dir": "arriere"},
+    "tsubame_gaeshi": {"name": "Tsubame-gaeshi", "dir": "cote"}
+  },
+  "_combos": {
+    "ko_uchi_seoi": ["ko_uchi_gari", "seoi_nage"],
+    "o_uchi_seoi": ["o_uchi_gari", "seoi_nage"],
+    "ko_uchi_uchi_mata": ["ko_uchi_gari", "uchi_mata"],
+    "o_uchi_o_soto": ["o_uchi_gari", "o_soto_gari"],
+    "de_ashi_harai": ["de_ashi_barai", "harai_goshi"]
+  },
+  "_newaza": {
+    "kesa_gatame": {"name": "Kesa-gatame", "kind": "osaekomi"},
+    "yoko_shiho_gatame": {"name": "Yoko-shiho-gatame", "kind": "osaekomi"},
+    "kami_shiho_gatame": {"name": "Kami-shiho-gatame", "kind": "osaekomi"},
+    "juji_gatame": {"name": "Juji-gatame", "kind": "kansetsu"},
+    "okuri_eri_jime": {"name": "Okuri-eri-jime", "kind": "shime"},
+    "sankaku_jime": {"name": "Sankaku-jime", "kind": "shime"}
+  },
+  "_default_set": {
+    "tokui": "seoi_nage",
+    "main": ["seoi_nage", "o_soto_gari", "o_uchi_gari", "ko_uchi_gari", "de_ashi_barai"],
+    "combos": [],
+    "counters": ["ura_nage"],
+    "ground": ["kesa_gatame"]
   }
 }

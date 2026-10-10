@@ -5,6 +5,8 @@ extends RefCounted
 ## - Aucune dépendance au rendu : l'affichage lit `state`, il ne l'écrit jamais.
 ## - L'état complet tient dans un Dictionary copiable (get_state / set_state)
 ##   et vérifiable (checksum) : c'est la base du futur netcode rollback.
+## - Chaque combattant a un « set » issu de son build (techniques, enchaînements,
+##   contres, ne-waza) et des modificateurs (style de kumikata, garde, profil physique).
 ##
 ## Entrées par joueur et par tick : tableau de INPUT_SIZE entiers (états tenus,
 ## les fronts « appuyé » sont calculés ici à partir de l'entrée précédente).
@@ -16,15 +18,18 @@ const LT := 3   # gâchette gauche : main gauche (0..100)
 const RT := 4   # gâchette droite : main droite (0..100)
 const LB := 5   # changer la cible de la main gauche
 const RB := 6   # changer la cible de la main droite
-const BA := 7   # technique principale selon la direction du kuzushi
-const BX := 8   # technique de jambe
-const BY := 9   # tokui-waza
-const BB := 10  # casser la prise / bloquer / contrer
+const BA := 7   # technique selon la direction du kuzushi / osaekomi au sol
+const BX := 8   # technique de jambe / clé de bras au sol
+const BY := 9   # tokui-waza / étranglement au sol
+const BB := 10  # casser la prise, bloquer, contrer / se dégager au sol
 const INPUT_SIZE := 11
 
 const HAND_FREE := 0
 const HAND_REACH := 1
 const HAND_GRIP := 2
+
+## Pierre-feuille-ciseaux des styles de kumikata : clé bat valeur.
+const STYLE_BEATS := {"haute": "classique", "courte": "haute", "classique": "courte"}
 
 var cfg: Dictionary
 var techs: Dictionary
@@ -33,9 +38,14 @@ var state: Dictionary
 var events: Array = []
 
 
-func _init(config: Dictionary, techniques: Dictionary, names: Array = ["Tori", "Uke"], tokui: Array = ["seoi_nage", "o_soto_gari"]) -> void:
+## `loadouts` : pour chaque joueur, soit un build complet (Dictionary), soit
+## simplement l'identifiant de sa tokui-waza (String, set par défaut).
+func _init(config: Dictionary, techniques: Dictionary, names: Array = ["Tori", "Uke"], loadouts: Array = ["seoi_nage", "o_soto_gari"]) -> void:
 	cfg = config
 	techs = techniques
+	var fs := []
+	for i in 2:
+		fs.append(_new_fighter(i, names[i], loadouts[i]))
 	state = {
 		"tick": 0,
 		"phase": "intro",
@@ -45,10 +55,12 @@ func _init(config: Dictionary, techniques: Dictionary, names: Array = ["Tori", "
 		"winner": -1,
 		"win_reason": "",
 		"throw": {},
+		"newaza": {},
 		"announce": "HAJIME",
 		"announce_t": 90,
-		"fighters": [_new_fighter(0, names[0], tokui[0]), _new_fighter(1, names[1], tokui[1])],
+		"fighters": fs,
 	}
+	_apply_matchup()
 	_reset_positions()
 
 
@@ -72,6 +84,119 @@ func checksum() -> int:
 
 
 # ---------------------------------------------------------------------------
+# Construction des combattants
+# ---------------------------------------------------------------------------
+
+func _new_fighter(id: int, fname: String, loadout) -> Dictionary:
+	var loadset := _make_set(loadout)
+	var f := {
+		"id": id, "name": fname, "tokui": loadset.tokui, "set": loadset,
+		"style": "classique", "garde": "droitier",
+		"physique": {"explosivite": 5, "endurance": 5, "poigne": 5, "sol": 5},
+		"x": 0, "facing": 1, "stamina": 0, "stamina_max": cfg.stamina_max,
+		"bal_x": 0, "bal_y": 0,
+		"hands": [_new_hand(0), _new_hand(1)],
+		"prev": empty_input(),
+		"attack": {}, "exposed_t": 0, "exposed_counter": "", "exposed_depth": 0, "exposed_sutemi": false,
+		"defend_t": 0, "break_cd": 0,
+		"combo_t": 0, "combo_next": "",
+		"waza": 0, "ippon": 0, "shidos": 0, "passive_t": 0, "feints": [],
+		"last_move": 0, "last_score": 0,
+		"mods": {},
+	}
+	if typeof(loadout) == TYPE_DICTIONARY:
+		f.style = loadout.get("style", "classique")
+		f.garde = loadout.get("garde", "droitier")
+		var ph: Dictionary = loadout.get("physique", {})
+		for k in f.physique:
+			f.physique[k] = int(ph.get(k, 5))
+	f.mods = _make_mods(f)
+	f.stamina_max = cfg.stamina_max * f.mods.stamina_pct / 100
+	f.stamina = f.stamina_max
+	return f
+
+
+## Set de techniques à partir d'un build (ou d'une simple tokui-waza).
+func _make_set(loadout) -> Dictionary:
+	var d: Dictionary = techs._default_set
+	if typeof(loadout) == TYPE_STRING:
+		var s1 := d.duplicate(true)
+		s1.tokui = loadout
+		if not s1.main.has(loadout):
+			s1.main.append(loadout)
+		return s1
+	var slots: Dictionary = loadout.get("slots", {})
+	var ls := {"tokui": "", "main": [], "combos": [], "counters": [], "ground": []}
+	for id in slots.get("tokui", []):
+		if techs.has(id):
+			ls.tokui = id
+	for id in slots.get("main", []):
+		if techs.has(id) and not ls.main.has(id):
+			ls.main.append(id)
+	if ls.tokui != "" and not ls.main.has(ls.tokui):
+		ls.main.append(ls.tokui)
+	if ls.main.is_empty():
+		ls.main = d.main.duplicate()
+	if ls.tokui == "":
+		ls.tokui = ls.main[0]
+	for id in slots.get("combo", []):
+		if techs._combos.has(id):
+			ls.combos.append(techs._combos[id].duplicate())
+	for id in slots.get("counter", []):
+		if techs._counters.has(id):
+			ls.counters.append(id)
+	for id in slots.get("ground", []):
+		if techs._newaza.has(id):
+			ls.ground.append(id)
+	# un enchaînement donne accès à ses deux techniques
+	for c in ls.combos:
+		for id in c:
+			if not ls.main.has(id):
+				ls.main.append(id)
+	return ls
+
+
+## Modificateurs issus du style, de la garde et du profil physique.
+func _make_mods(f: Dictionary) -> Dictionary:
+	var ph: Dictionary = f.physique
+	var m := {
+		"entry_delta": clampi(5 - int(ph.explosivite), -3, 3),
+		"stamina_pct": 80 + 4 * int(ph.endurance),
+		"recover_pct": 70 + 6 * int(ph.endurance),
+		"pull_pct": 100 + (int(ph.poigne) - 5) * 4,
+		"grip_resist": (int(ph.poigne) - 5) * 4,
+		"sol": int(ph.sol),
+		"settle_extra": 0, "grip_cost_pct": 100, "koshi_bonus": 0,
+		"ippon_extra": 0, "window_extra": 0, "reach_extra": 0, "te_bonus": 0,
+		"style_bonus": 0,
+	}
+	match f.style:
+		"haute":
+			m.settle_extra = cfg.haute_settle
+			m.grip_cost_pct = cfg.haute_cost
+			m.koshi_bonus = cfg.haute_koshi_bonus
+		"courte":
+			m.entry_delta -= cfg.courte_entry
+			m.ippon_extra = cfg.courte_ippon_extra
+			m.window_extra = cfg.courte_window
+	return m
+
+
+## Effets qui dépendent des deux combattants : kenka-yotsu, style contre style.
+func _apply_matchup() -> void:
+	var fs: Array = state.fighters
+	var kenka: bool = fs[0].garde != fs[1].garde
+	for i in 2:
+		var f: Dictionary = fs[i]
+		var o: Dictionary = fs[1 - i]
+		if kenka:
+			f.mods.reach_extra = cfg.kenka_reach
+			f.mods.te_bonus = cfg.kenka_te_bonus
+		if STYLE_BEATS.get(f.style, "") == o.style:
+			f.mods.style_bonus = cfg.style_bonus
+
+
+# ---------------------------------------------------------------------------
 # Boucle principale
 # ---------------------------------------------------------------------------
 
@@ -90,6 +215,8 @@ func step(inputs: Array) -> void:
 			_fight_tick(inputs)
 		"throw":
 			_throw_tick()
+		"newaza":
+			_newaza_tick(inputs)
 		"score":
 			if s.phase_t >= cfg.score_pause_ticks:
 				_matte()
@@ -104,15 +231,24 @@ func step(inputs: Array) -> void:
 		s.fighters[i].prev = (inputs[i] as Array).duplicate()
 
 
-func _fight_tick(inputs: Array) -> void:
+## Fait avancer le chrono. Renvoie false si le temps réglementaire est écoulé.
+func _tick_clock() -> bool:
 	var s := state
 	if s.golden:
 		s.clock += 1
 	else:
 		s.clock -= 1
 		if s.clock <= 0:
-			_time_up()
-			return
+			s.clock = 0
+			return false
+	return true
+
+
+func _fight_tick(inputs: Array) -> void:
+	var s := state
+	if not _tick_clock():
+		_time_up()
+		return
 	var fs: Array = s.fighters
 	for i in 2:
 		fs[i].facing = 1 if fs[1 - i].x > fs[i].x else -1
@@ -145,7 +281,9 @@ func _update_grips(i: int, inp: Array) -> void:
 	var o: Dictionary = state.fighters[1 - i]
 	var in_range: bool = absi(o.x - f.x) <= cfg.grip_range
 	# Poigne plafonnée par l'endurance : à bout de souffle, la main lâche.
-	var trig_cap: int = 40 + 60 * f.stamina / cfg.stamina_max
+	var trig_cap: int = 40 + 60 * f.stamina / f.stamina_max
+	var reach: int = cfg.grip_reach_ticks + f.mods.reach_extra
+	var settle_max: int = cfg.grip_settle_ticks + f.mods.settle_extra
 	for h in 2:
 		var hand: Dictionary = f.hands[h]
 		var cyc := LB if h == 0 else RB
@@ -170,15 +308,15 @@ func _update_grips(i: int, inp: Array) -> void:
 			hand.t = 0
 		if hand.state == HAND_REACH:
 			hand.t += 1
-			if hand.t >= cfg.grip_reach_ticks:
+			if hand.t >= reach:
 				hand.state = HAND_GRIP
 				hand.t = 0
 				events.append({"type": "grip", "who": i, "hand": h})
 		if hand.state == HAND_GRIP:
-			if hand.t < cfg.grip_settle_ticks:
+			if hand.t < settle_max:
 				hand.t += 1  # installation de la garde
 			var tname: String = cfg.grip_targets[hand.target]
-			var cost: int = trig * cfg.stamina_grip_cost * cfg.grip_cost_mult[tname] / 10000
+			var cost: int = trig * cfg.stamina_grip_cost * cfg.grip_cost_mult[tname] / 10000 * f.mods.grip_cost_pct / 100
 			f.stamina = maxi(0, f.stamina - cost)
 
 
@@ -221,16 +359,17 @@ func _apply_pull(i: int, inp: Array) -> void:
 	if px == 0 and py == 0:
 		return
 	var force := 0
+	var settle_max: int = cfg.grip_settle_ticks + f.mods.settle_extra
 	for hand in f.hands:
 		if hand.state == HAND_GRIP:
 			var tname: String = cfg.grip_targets[hand.target]
-			var settle: int = cfg.grip_settle_min + (100 - cfg.grip_settle_min) * mini(hand.t, cfg.grip_settle_ticks) / cfg.grip_settle_ticks
+			var settle: int = cfg.grip_settle_min + (100 - cfg.grip_settle_min) * mini(hand.t, settle_max) / settle_max
 			force += cfg.pull_force_per_hand * hand.trig / 100 * cfg.grip_pull_mult[tname] / 100 * settle / 100
 	if force == 0:
 		return
-	force = force * (5000 + f.stamina / 2) / 10000
+	force = force * (5000 + f.stamina * 5000 / f.stamina_max) / 10000
+	force = force * f.mods.pull_pct / 100
 	# Repère de l'adversaire : « avant » = vers l'attaquant.
-	# Tirer le stick vers soi déséquilibre l'adversaire vers l'avant.
 	var kx: int = -px * f.facing * force / 100
 	var ky: int = py * force / 100
 	# Tsukuri : reculer en tirant amplifie le déséquilibre avant,
@@ -258,11 +397,16 @@ func _recover(i: int) -> void:
 	f.bal_y -= f.bal_y * cfg.balance_recover_permille / 1000
 	if f.attack.is_empty():
 		var rec: int = cfg.stamina_recover_gripping if has_grip(f) else cfg.stamina_recover
-		f.stamina = mini(cfg.stamina_max, f.stamina + rec)
+		rec = rec * f.mods.recover_pct / 100
+		f.stamina = mini(f.stamina_max, f.stamina + maxi(1, rec))
 	if f.break_cd > 0:
 		f.break_cd -= 1
 	if f.defend_t > 0:
 		f.defend_t -= 1
+	if f.combo_t > 0:
+		f.combo_t -= 1
+		if f.combo_t == 0:
+			f.combo_next = ""
 
 
 # ---------------------------------------------------------------------------
@@ -289,7 +433,7 @@ func _update_defense(i: int, inp: Array) -> void:
 		return
 	f.stamina -= cfg.break_cost
 	f.break_cd = cfg.break_cooldown
-	if best_trig < cfg.break_threshold:
+	if best_trig + o.mods.grip_resist < cfg.break_threshold:
 		o.hands[best].state = HAND_FREE
 		o.hands[best].t = 0
 		o.hands[best].lock = 30
@@ -300,7 +444,7 @@ func _update_defense(i: int, inp: Array) -> void:
 
 
 # ---------------------------------------------------------------------------
-# Techniques : entrée, feinte, résolution
+# Techniques : entrée, feinte, enchaînement, résolution
 # ---------------------------------------------------------------------------
 
 func _update_attack(i: int, inp: Array) -> void:
@@ -308,9 +452,14 @@ func _update_attack(i: int, inp: Array) -> void:
 	var o: Dictionary = state.fighters[1 - i]
 	if f.exposed_t > 0:
 		f.exposed_t -= 1
-		if o.defend_t > 0 and f.exposed_counter != "":
+		if o.defend_t > 0 and f.exposed_counter != "" and f.exposed_depth < 0 and o.set.counters.has(f.exposed_counter):
 			f.exposed_t = 0
 			_counter(1 - i, f.exposed_counter, f.exposed_depth)
+			return
+		if f.exposed_t == 0 and f.exposed_sutemi:
+			# sutemi raté : tori est resté au sol, l'adversaire passe au-dessus
+			f.exposed_sutemi = false
+			_start_newaza(1 - i)
 		return
 	if f.attack.is_empty():
 		var btn := -1
@@ -322,14 +471,21 @@ func _update_attack(i: int, inp: Array) -> void:
 			return
 		var tech_id := choose_tech(i, btn)
 		var tech: Dictionary = techs[tech_id]
+		var entry: int = 30 - 4 * int(tech.speed) + f.mods.entry_delta
+		var combo := false
+		if f.combo_t > 0 and tech_id == f.combo_next:
+			combo = true
+			entry -= cfg.combo_entry_cut
 		f.attack = {"tech": tech_id, "btn": btn, "t": 0, "committed": false,
-			"entry": 30 - 4 * tech.speed, "blocked": false}
+			"entry": maxi(cfg.feint_max_ticks + 3, entry), "blocked": false, "combo": combo}
+		f.combo_t = 0
+		f.combo_next = ""
 		return
 	var atk: Dictionary = f.attack
 	var tech: Dictionary = techs[atk.tech]
 	atk.t += 1
 	if not atk.committed:
-		if inp[atk.btn] == 0 and atk.t <= cfg.feint_max_ticks:
+		if inp[atk.btn] == 0 and atk.t <= cfg.feint_max_ticks and not atk.combo:
 			f.attack = {}
 			_feint(i, tech)
 			return
@@ -337,10 +493,10 @@ func _update_attack(i: int, inp: Array) -> void:
 			atk.committed = true
 			f.passive_t = 0
 			f.stamina = maxi(0, f.stamina - tech.stamina)
-			events.append({"type": "attack", "who": i, "tech": atk.tech})
+			events.append({"type": "attack", "who": i, "tech": atk.tech, "combo": atk.combo})
 	elif o.defend_t > 0 and not atk.blocked:
 		var dv := dir_value(1 - i, tech.dir)
-		if tech.counter != "" and dv < cfg.counter_threshold:
+		if tech.counter != "" and o.set.counters.has(tech.counter) and dv < cfg.counter_threshold:
 			f.attack = {}
 			_counter(1 - i, tech.counter, dv)
 			return
@@ -351,13 +507,31 @@ func _update_attack(i: int, inp: Array) -> void:
 		_resolve(i)
 
 
-## Choisit la technique d'un bouton : Y = tokui-waza, A et X = la technique
-## du groupe qui correspond le mieux au déséquilibre actuel de l'adversaire.
-func choose_tech(i: int, btn: int) -> String:
+## Techniques que le bouton peut déclencher pour ce combattant.
+func button_candidates(i: int, btn: int) -> Array:
 	var f: Dictionary = state.fighters[i]
 	if btn == BY:
-		return f.tokui
-	var group: Array = techs._buttons["a" if btn == BA else "x"]
+		return [f.tokui]
+	var res := []
+	for id in f.set.main:
+		var fam: String = techs[id].family
+		if btn == BX and fam == "ashi":
+			res.append(id)
+		elif btn == BA and fam != "ashi":
+			res.append(id)
+	if res.is_empty():
+		res = f.set.main.duplicate()
+	return res
+
+
+## Choisit la technique d'un bouton : Y = tokui-waza ; A et X = la technique
+## équipée qui correspond le mieux au déséquilibre actuel de l'adversaire.
+## Pendant une fenêtre d'enchaînement, la suite de l'enchaînement est prioritaire.
+func choose_tech(i: int, btn: int) -> String:
+	var f: Dictionary = state.fighters[i]
+	var group := button_candidates(i, btn)
+	if f.combo_t > 0 and group.has(f.combo_next):
+		return f.combo_next
 	var best: String = group[0]
 	var best_v := -1
 	for id in group:
@@ -380,6 +554,8 @@ func dir_value(i: int, dir: String) -> int:
 			return absi(f.bal_y)
 		"arriere_cote":
 			return (maxi(0, -f.bal_x) + absi(f.bal_y)) * 7 / 10
+		"avant_cote":
+			return (maxi(0, f.bal_x) + absi(f.bal_y)) * 7 / 10
 	return 0
 
 
@@ -407,22 +583,39 @@ func grip_mult(i: int, tech: Dictionary) -> int:
 	return cfg.partial_grip_mult if partial else 0
 
 
+## Score d'une technique si elle était résolue maintenant (utile à l'IA et au HUD).
+func attack_score(i: int, tech_id: String, blocked: bool = false, combo: bool = false) -> int:
+	var f: Dictionary = state.fighters[i]
+	var tech: Dictionary = techs[tech_id]
+	var dv := dir_value(1 - i, tech.dir)
+	var gm := grip_mult(i, tech)
+	var score: int = dv * gm / 100 + (int(tech.power) - 3) * cfg.power_bonus
+	score -= cfg.low_stamina_malus * (f.stamina_max - f.stamina) / f.stamina_max
+	if tech_id == f.tokui:
+		score += cfg.power_bonus / 2  # tokui-waza : bonus de réussite
+	if tech.family == "koshi":
+		score += f.mods.koshi_bonus
+	if tech.family == "te":
+		score += f.mods.te_bonus
+	score += f.mods.style_bonus
+	if combo:
+		score += cfg.combo_bonus
+	if blocked:
+		score -= cfg.block_malus
+	if gm == 0:
+		score = mini(score, 0)
+	return score
+
+
 func _resolve(i: int) -> void:
 	var f: Dictionary = state.fighters[i]
 	var o: Dictionary = state.fighters[1 - i]
 	var atk: Dictionary = f.attack
 	var tech: Dictionary = techs[atk.tech]
-	var dv := dir_value(1 - i, tech.dir)
-	var gm := grip_mult(i, tech)
-	var score: int = dv * gm / 100 + (tech.power - 3) * cfg.power_bonus
-	score -= cfg.low_stamina_malus * (cfg.stamina_max - f.stamina) / cfg.stamina_max
-	if atk.blocked:
-		score -= cfg.block_malus
-	if gm == 0:
-		score = mini(score, 0)
+	var score := attack_score(i, atk.tech, atk.blocked, atk.combo)
 	f.attack = {}
 	f.last_score = score
-	if score >= cfg.score_ippon:
+	if score >= cfg.score_ippon + f.mods.ippon_extra:
 		_start_throw(i, atk.tech, "ippon")
 	elif score >= cfg.score_waza:
 		_start_throw(i, atk.tech, "waza")
@@ -431,15 +624,38 @@ func _resolve(i: int) -> void:
 		o.bal_x /= 2
 		o.bal_y /= 2
 		events.append({"type": "stuffed", "who": i, "tech": atk.tech})
+		_open_combo(i, atk.tech)
 	else:
 		# Attaque ratée : tori est exposé, emporté par son propre élan.
 		f.exposed_t = cfg.exposed_ticks
 		f.exposed_counter = tech.counter
 		f.exposed_depth = score
+		f.exposed_sutemi = tech.get("sutemi", false)
 		f.bal_x = mini(cfg.balance_max, f.bal_x + 4000)
 		o.bal_x /= 2
 		o.bal_y /= 2
 		events.append({"type": "exposed", "who": i, "tech": atk.tech})
+
+
+## Si la technique est le début d'un enchaînement équipé, l'adversaire réagit
+## (il résiste à l'opposé) et une fenêtre s'ouvre pour la suite.
+func _open_combo(i: int, tech_id: String) -> void:
+	var f: Dictionary = state.fighters[i]
+	var o: Dictionary = state.fighters[1 - i]
+	for c in f.set.combos:
+		if c[0] == tech_id:
+			var push: int = cfg.combo_push
+			var dir: String = techs[c[0]].dir
+			if dir.begins_with("arriere"):
+				o.bal_x = clampi(o.bal_x + push, -cfg.balance_max, cfg.balance_max)
+			elif dir.begins_with("avant"):
+				o.bal_x = clampi(o.bal_x - push, -cfg.balance_max, cfg.balance_max)
+			else:
+				o.bal_x = clampi(o.bal_x + push * 2 / 3, -cfg.balance_max, cfg.balance_max)
+			f.combo_t = cfg.combo_window + f.mods.window_extra
+			f.combo_next = c[1]
+			events.append({"type": "combo_open", "who": i, "tech": c[1]})
+			return
 
 
 func _feint(i: int, tech: Dictionary) -> void:
@@ -447,7 +663,7 @@ func _feint(i: int, tech: Dictionary) -> void:
 	var o: Dictionary = state.fighters[1 - i]
 	# L'adversaire se raidit à l'opposé de la feinte : ça prépare la vraie attaque.
 	var push: int = cfg.feint_push
-	if tech.dir == "avant":
+	if String(tech.dir).begins_with("avant"):
 		o.bal_x = clampi(o.bal_x - push, -cfg.balance_max, cfg.balance_max)
 	else:
 		o.bal_x = clampi(o.bal_x + push, -cfg.balance_max, cfg.balance_max)
@@ -474,17 +690,21 @@ func tech_name(id: String) -> String:
 		return techs[id].name
 	if techs._counters.has(id):
 		return techs._counters[id].name
+	if techs._newaza.has(id):
+		return techs._newaza[id].name
 	return id
 
 
 func tech_dir(id: String) -> String:
 	if techs.has(id):
 		return techs[id].dir
+	if techs._counters.has(id):
+		return techs._counters[id].dir
 	return "contre"
 
 
 # ---------------------------------------------------------------------------
-# Projection, score, règles
+# Projection, score
 # ---------------------------------------------------------------------------
 
 func _start_throw(tori: int, tech_id: String, result: String) -> void:
@@ -495,6 +715,8 @@ func _start_throw(tori: int, tech_id: String, result: String) -> void:
 	for f in fs:
 		f.attack = {}
 		f.exposed_t = 0
+		f.exposed_sutemi = false
+		f.combo_t = 0
 	events.append({"type": "throw", "who": tori, "tech": tech_id, "result": result})
 	_set_phase("throw")
 
@@ -504,25 +726,167 @@ func _throw_tick() -> void:
 	th.t += 1
 	if th.t < cfg.throw_ticks:
 		return
-	var f: Dictionary = state.fighters[th.tori]
-	var label := tech_name(th.tech)
-	if th.result == "ippon":
-		f.ippon = 1
-		_end(th.tori, "Ippon — " + label)
-		_announce("IPPON !")
+	if _award(th.tori, th.result, tech_name(th.tech)):
 		return
+	# waza-ari : on enchaîne au sol, tori au-dessus
+	_start_newaza(th.tori)
+
+
+## Attribue un score. Renvoie true si le combat est terminé.
+func _award(who: int, result: String, label: String) -> bool:
+	var f: Dictionary = state.fighters[who]
+	if result == "ippon":
+		f.ippon = 1
+		_end(who, "Ippon — " + label)
+		_announce("IPPON !")
+		return true
 	f.waza += 1
 	if f.waza >= 2:
-		_end(th.tori, "Waza-ari awasete ippon — " + label)
+		_end(who, "Waza-ari awasete ippon — " + label)
 		_announce("IPPON !")
-		return
+		return true
 	if state.golden:
-		_end(th.tori, "Golden score — " + label)
+		_end(who, "Golden score — " + label)
 		_announce("WAZA-ARI")
-		return
+		return true
 	_announce("WAZA-ARI")
-	_set_phase("score")
+	events.append({"type": "waza", "who": who})
+	return false
 
+
+# ---------------------------------------------------------------------------
+# Ne-waza : jauge de contrôle, osaekomi, clés et étranglements
+# ---------------------------------------------------------------------------
+
+func _start_newaza(top: int) -> void:
+	var fs: Array = state.fighters
+	var base: int = cfg.newaza_start_control + (fs[top].mods.sol - fs[1 - top].mods.sol) * 250
+	state.newaza = {"top": top, "bottom": 1 - top, "control": clampi(base, 3000, 9000), "osae": false,
+		"osae_t": 0, "t": 0, "sub": {}, "hold": "", "x": (fs[0].x + fs[1].x) / 2, "facing": fs[top].facing}
+	for f in fs:
+		f.attack = {}
+		for hand in f.hands:
+			hand.state = HAND_FREE
+	events.append({"type": "newaza", "who": top})
+	_set_phase("newaza")
+
+
+func _newaza_tick(inputs: Array) -> void:
+	var nw: Dictionary = state.newaza
+	var top: int = nw.top
+	var bot: int = nw.bottom
+	var ft: Dictionary = state.fighters[top]
+	var fb: Dictionary = state.fighters[bot]
+	var it: Array = inputs[top]
+	var ib: Array = inputs[bot]
+	nw.t += 1
+	if nw.osae:
+		if not state.golden and state.clock > 0:
+			state.clock -= 1  # un osaekomi en cours continue même après la fin du temps
+	elif not _tick_clock():
+		_time_up()
+		return
+	var sol_t: int = ft.mods.sol
+	var sol_b: int = fb.mods.sol
+	# --- clé de bras ou étranglement en cours : bras de fer d'entrées
+	if not nw.sub.is_empty():
+		var sub: Dictionary = nw.sub
+		sub.t += 1
+		var hold_btn: int = BX if sub.kind == "kansetsu" else BY
+		if it[hold_btn] != 0:
+			sub.tp += 6 + sol_t
+		if _pressed(fb, ib, BB):
+			sub.bp += 40 + sol_b * 6
+		if ib[MX] != 0:
+			sub.bp += 3
+		if sub.t >= cfg.sub_ticks:
+			if sub.tp > sub.bp:
+				events.append({"type": "submission", "who": top, "tech": sub.tech})
+				ft.ippon = 1
+				_end(top, "Ippon (maitta) — " + tech_name(sub.tech))
+				_announce("IPPON !")
+				return
+			nw.sub = {}
+			nw.control -= cfg.newaza_escape
+			events.append({"type": "sub_escape", "who": bot})
+		_newaza_end_checks(nw)
+		return
+	# --- jauge de contrôle
+	var c: int = nw.control
+	if it[BA] != 0:
+		c += cfg.newaza_hold_gain * (80 + sol_t * 4) / 100
+		ft.stamina = maxi(0, ft.stamina - 3)
+	if _pressed(fb, ib, BB) and fb.stamina > 60:
+		c -= cfg.newaza_escape_burst * (80 + sol_b * 4) / 100 * (50 + fb.stamina * 50 / fb.stamina_max) / 100
+		fb.stamina -= 60
+	if ib[MX] != 0:
+		c -= cfg.newaza_stick_escape
+	c -= cfg.newaza_drift
+	nw.control = clampi(c, 0, 10000)
+	# tentative de clé / étranglement (si équipé)
+	if nw.control >= cfg.sub_control:
+		for pair in [[BX, "kansetsu"], [BY, "shime"]]:
+			if _pressed(ft, it, pair[0]):
+				for id in ft.set.ground:
+					if techs._newaza[id].kind == pair[1]:
+						nw.sub = {"kind": pair[1], "tech": id, "t": 0, "tp": 0, "bp": 0}
+						nw.osae = false
+						events.append({"type": "sub_start", "who": top, "tech": id})
+						_announce(tech_name(id).to_upper())
+						return
+	# osaekomi
+	if not nw.osae and nw.control >= cfg.osaekomi_on:
+		nw.osae = true
+		nw.osae_t = 0
+		var hold := "kesa_gatame"
+		for id in ft.set.ground:
+			if techs._newaza[id].kind == "osaekomi":
+				hold = id
+				break
+		nw.hold = hold
+		events.append({"type": "osaekomi", "who": top, "tech": hold})
+		_announce("OSAEKOMI")
+	if nw.osae:
+		nw.osae_t += 1
+		if nw.osae_t == cfg.osaekomi_waza:
+			if _award(top, "waza", tech_name(nw.hold)):
+				return
+		if nw.osae_t >= cfg.osaekomi_ippon:
+			ft.ippon = 1
+			_end(top, "Ippon — " + tech_name(nw.hold))
+			_announce("IPPON !")
+			return
+		if nw.control < cfg.toketa_below:
+			events.append({"type": "toketa", "who": bot})
+			_announce("TOKETA")
+			nw.osae = false
+			_matte_after(40)
+			return
+	_newaza_end_checks(nw)
+
+
+func _newaza_end_checks(nw: Dictionary) -> void:
+	if state.phase != "newaza":
+		return
+	if nw.control < cfg.newaza_escape and nw.sub.is_empty():
+		events.append({"type": "escape", "who": nw.bottom})
+		_matte()
+		return
+	if not nw.osae and nw.sub.is_empty() and nw.t >= cfg.newaza_stall:
+		_matte()
+		return
+	if not nw.osae and state.clock <= 0 and not state.golden:
+		_time_up()
+
+
+func _matte_after(ticks: int) -> void:
+	_set_phase("score")
+	state.phase_t = cfg.score_pause_ticks - ticks
+
+
+# ---------------------------------------------------------------------------
+# Règles
+# ---------------------------------------------------------------------------
 
 func _update_rules(i: int) -> void:
 	var f: Dictionary = state.fighters[i]
@@ -557,6 +921,7 @@ func _time_up() -> void:
 		return
 	state.golden = true
 	state.clock = 0
+	state.newaza = {}
 	events.append({"type": "golden"})
 	_announce("GOLDEN SCORE")
 	_set_phase("matte")
@@ -596,26 +961,16 @@ func _reset_positions() -> void:
 		f.bal_y = 0
 		f.attack = {}
 		f.exposed_t = 0
+		f.exposed_sutemi = false
 		f.defend_t = 0
+		f.combo_t = 0
+		f.combo_next = ""
 		for hand in f.hands:
 			hand.state = HAND_FREE
 			hand.t = 0
 			hand.lock = 0
 	state.throw = {}
-
-
-func _new_fighter(id: int, fname: String, tokui: String) -> Dictionary:
-	return {
-		"id": id, "name": fname, "tokui": tokui,
-		"x": 0, "facing": 1, "stamina": cfg.stamina_max,
-		"bal_x": 0, "bal_y": 0,
-		"hands": [_new_hand(0), _new_hand(1)],
-		"prev": empty_input(),
-		"attack": {}, "exposed_t": 0, "exposed_counter": "", "exposed_depth": 0,
-		"defend_t": 0, "break_cd": 0,
-		"waza": 0, "ippon": 0, "shidos": 0, "passive_t": 0, "feints": [],
-		"last_move": 0, "last_score": 0,
-	}
+	state.newaza = {}
 
 
 func _new_hand(target: int) -> Dictionary:
