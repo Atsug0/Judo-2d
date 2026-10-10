@@ -44,6 +44,8 @@ func _ready() -> void:
 		var kv := a.trim_prefix("--").split("=", true, 1)
 		args[kv[0]] = kv[1] if kv.size() > 1 else "1"
 	capture_mode = args.has("capture")
+	if not capture_mode:
+		preload("res://scripts/settings.gd").apply()
 	var start: String = args.get("screen", "title")
 	var params := {}
 	if start == "match":
@@ -58,7 +60,7 @@ func default_match_params() -> Dictionary:
 	var c1 := "pad0" if pads.size() >= 1 and not capture_mode else "ai"
 	var c2 := "pad1" if pads.size() >= 2 and not capture_mode else "ai"
 	return {"controllers": [c1, c2], "names": ["HUGO", "KENJI"], "tokui": ["seoi_nage", "o_soto_gari"],
-		"seed": int(args.get("seed", "3")), "level": int(args.get("level", "2"))}
+		"seed": int(args.get("seed", "3")), "level": int(args.get("level", str(preload("res://scripts/settings.gd").value("ai_level")))), "mode": "demo"}
 
 
 ## Contrôleur du joueur humain : manette 0 si branchée, sinon l'IA (démo).

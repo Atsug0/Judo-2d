@@ -7,6 +7,7 @@ const GameData := preload("res://scripts/game_data.gd")
 const Sim := preload("res://scripts/sim/match_sim.gd")
 const Ai := preload("res://scripts/sim/ai_controller.gd")
 const Pad := preload("res://scripts/pad_reader.gd")
+const Settings := preload("res://scripts/settings.gd")
 
 const W := 1280.0
 const H := 720.0
@@ -174,6 +175,9 @@ func _consume_events() -> void:
 	var th: Dictionary = sim.state.throw
 	if sim.state.phase == "throw" and th.t == cfg.throw_ticks - 4:
 		shake = 9.0 if th.result == "ippon" else 6.0
+		for i in 2:
+			if controllers[i].begins_with("pad"):
+				Settings.rumble(int(controllers[i].substr(3)), 1.0 if th.result == "ippon" else 0.7, 0.35)
 	if sim.state.phase == "throw" and th.t == cfg.throw_ticks / 2:
 		capture_flag = true
 	if sim.state.phase in ["score", "ended"] and sim.state.phase_t == 14:
@@ -208,8 +212,10 @@ func _draw() -> void:
 	_draw_hud()
 	_draw_popups()
 	_draw_announce()
-	_draw_feed()
-	_draw_hints()
+	if Settings.value("feed"):
+		_draw_feed()
+	if Settings.value("hints"):
+		_draw_hints()
 	if paused:
 		_draw_pause()
 
@@ -493,7 +499,8 @@ func _draw_player_hud(i: int) -> void:
 		Style.label(self, Vector2(cr.position.x, cr.position.y + 20), "%s · %s" % [side, GRIP_LABELS[hand.target]], 14, tcol, "black", HORIZONTAL_ALIGNMENT_CENTER, cr.size.x)
 	# radar de kuzushi
 	var rc = Vector2(430.0 if i == 0 else W - 430.0, 152.0)
-	_draw_radar(rc, f, col)
+	if Settings.value("radar"):
+		_draw_radar(rc, f, col)
 
 
 func _draw_radar(c: Vector2, f: Dictionary, col: Color) -> void:

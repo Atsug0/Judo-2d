@@ -1,0 +1,188 @@
+extends Node2D
+## Options : manette (schéma annoté), audio, affichage, jeu.
+
+const Style := preload("res://scripts/ui/style.gd")
+const Settings := preload("res://scripts/settings.gd")
+
+const CATS := ["MANETTE", "AUDIO", "AFFICHAGE", "JEU"]
+## [clé, libellé, type, min, max]
+const ROWS := {
+	"MANETTE": [["vibrations", "Vibrations", "bool"], ["vibration_force", "Force des vibrations", "range", 1, 5]],
+	"AUDIO": [["volume_master", "Volume général", "range", 0, 10], ["volume_music", "Musique", "range", 0, 10], ["volume_sfx", "Effets sonores", "range", 0, 10]],
+	"AFFICHAGE": [["fullscreen", "Plein écran", "bool"], ["vsync", "Synchronisation verticale", "bool"]],
+	"JEU": [["ai_level", "Niveau de l'IA par défaut", "range", 1, 3], ["radar", "Radar de kuzushi", "bool"], ["hints", "Aide des commandes en combat", "bool"], ["feed", "Fil des événements", "bool"]],
+}
+## Légendes du schéma de manette (mapping du GDD).
+const PAD_LABELS := [
+	["LT", "Main gauche : saisir / serrer"], ["RT", "Main droite : saisir / serrer"],
+	["LB", "Cible main gauche"], ["RB", "Cible main droite"],
+	["LS", "Déplacement"], ["RS", "Kuzushi (traction / poussée)"],
+	["A", "Technique selon le kuzushi"], ["X", "Technique de jambe"],
+	["Y", "Tokui-waza"], ["B", "Casser la prise / contrer"],
+	["START", "Pause"],
+]
+
+var app
+var frame = 0
+var cat = 0
+var row = -1  # -1 = colonne des catégories
+
+
+func on_enter(_params: Dictionary) -> void:
+	pass
+
+
+func tick() -> void:
+	frame += 1
+	queue_redraw()
+
+
+func nav(action: String, _player: int = 0) -> void:
+	var rows: Array = ROWS[CATS[cat]]
+	match action:
+		"up":
+			if row < 0:
+				cat = (cat + CATS.size() - 1) % CATS.size()
+			else:
+				row = maxi(0, row - 1)
+		"down":
+			if row < 0:
+				cat = (cat + 1) % CATS.size()
+			else:
+				row = mini(rows.size() - 1, row + 1)
+		"right", "accept":
+			if row < 0:
+				row = 0
+			else:
+				_change(rows[row], 1)
+		"left":
+			if row < 0:
+				pass
+			elif rows[row][2] == "range":
+				_change(rows[row], -1)
+			else:
+				row = -1
+		"back":
+			if row >= 0:
+				row = -1
+			else:
+				Settings.save()
+				Settings.apply()
+				app.goto("menu", {})
+	queue_redraw()
+
+
+func _change(r: Array, delta: int) -> void:
+	var v = Settings.value(r[0])
+	if r[2] == "bool":
+		Settings.set_value(r[0], not v)
+	else:
+		Settings.set_value(r[0], clampi(int(v) + delta, r[3], r[4]))
+
+
+func _draw() -> void:
+	Style.menu_background(self, Vector2(1280, 720), Style.MUTED)
+	Style.header(self, "OPTIONS", "Réglages sauvegardés automatiquement", Style.PAPER)
+	# catégories
+	for k in CATS.size():
+		var sel = k == cat
+		var r = Rect2(50 + (10 if sel else 0), 170 + k * 70, 260, 56)
+		var focus = sel and row < 0
+		Style.panel(self, r, Style.PAPER if sel else Style.NIGHT_2, Style.HOT if focus else Style.INK, 4.0, 6.0)
+		Style.text(self, Vector2(r.position.x, r.position.y + 41), CATS[k], 30, Style.INK if sel else Style.PAPER, "display", HORIZONTAL_ALIGNMENT_CENTER, r.size.x, 1 if sel else 3, -1.0 if sel else 0.0)
+	# lignes de réglages
+	var rows: Array = ROWS[CATS[cat]]
+	var y = 170.0
+	for k in rows.size():
+		var rr: Array = rows[k]
+		var sel = k == row
+		var r = Rect2(350 + (10 if sel else 0), y, 480, 56)
+		Style.panel(self, r, Style.NIGHT_3 if sel else Style.NIGHT_2, Style.HOT if sel else Style.INK, 4.0, 5.0, 0.12)
+		Style.label(self, Vector2(r.position.x + 28, r.position.y + 35), rr[1].to_upper(), 18, Style.PAPER, "black")
+		var v = Settings.value(rr[0])
+		if rr[2] == "bool":
+			var cr = Rect2(r.end.x - 130, r.position.y + 12, 100, 32)
+			Style.panel(self, cr, Style.GOOD if v else Style.NIGHT, Style.INK, 3.0, 0.0)
+			Style.label(self, Vector2(cr.position.x, cr.position.y + 23), "OUI" if v else "NON", 17, Style.INK if v else Style.MUTED, "black", HORIZONTAL_ALIGNMENT_CENTER, cr.size.x)
+		else:
+			var n: int = rr[4]
+			var seg_w = minf(22.0, 210.0 / n)
+			for s in range(1, n + 1):
+				var sr = Rect2(r.end.x - 40 - (n - s + 1) * (seg_w + 4), r.position.y + 14, seg_w, 28)
+				Style.panel(self, sr, Style.HOT if s <= int(v) else Style.NIGHT, Style.INK, 2.0, 0.0, 0.25)
+		y += 66
+	if CATS[cat] == "MANETTE":
+		_draw_pad_diagram(Vector2(590, 500))
+	elif CATS[cat] == "AUDIO":
+		Style.label(self, Vector2(350, y + 30), "Sons et musiques arrivent avec la phase d'habillage (phase 9).", 16, Style.MUTED, "bold")
+	_draw_side_note()
+	Style.hints(self, [["↑↓", "Choisir"], ["←→", "Modifier"], ["B", "Retour"]])
+
+
+func _draw_side_note() -> void:
+	if CATS[cat] == "MANETTE":
+		return
+	var r = Rect2(910, 170, 330, 300)
+	Style.panel(self, r, Style.INK, Style.MUTED, 3.0, 6.0, 0.06)
+	var notes = {
+		"AUDIO": "Le volume général s'applique à tout ; musique et effets se règlent séparément.",
+		"AFFICHAGE": "Résolution de référence 1280×720, mise à l'échelle nette jusqu'en 4K.",
+		"JEU": "Le radar et le fil d'événements aident à comprendre le kuzushi. Les experts peuvent les masquer.",
+	}
+	Style.text(self, Vector2(r.position.x + 26, r.position.y + 50), "À SAVOIR", 30, Style.PAPER, "display")
+	var words: PackedStringArray = notes.get(CATS[cat], "").split(" ")
+	var line = ""
+	var ly = r.position.y + 90
+	for w in words:
+		var test = (line + " " + w).strip_edges()
+		if Style.font("bold").get_string_size(test, HORIZONTAL_ALIGNMENT_LEFT, -1, 17).x > r.size.x - 60:
+			Style.label(self, Vector2(r.position.x + 28, ly), line, 17, Style.MUTED, "bold")
+			ly += 26
+			line = w
+		else:
+			line = test
+	Style.label(self, Vector2(r.position.x + 28, ly), line, 17, Style.MUTED, "bold")
+
+
+## Schéma de manette stylisé, avec légendes du mapping de combat.
+func _draw_pad_diagram(c: Vector2) -> void:
+	var body = PackedVector2Array()
+	# silhouette de manette (deux poignées)
+	var pts = [Vector2(-150, -60), Vector2(-60, -72), Vector2(60, -72), Vector2(150, -60), Vector2(185, 10),
+		Vector2(200, 80), Vector2(170, 105), Vector2(120, 80), Vector2(80, 40), Vector2(-80, 40), Vector2(-120, 80),
+		Vector2(-170, 105), Vector2(-200, 80), Vector2(-185, 10)]
+	for p in pts:
+		body.append(c + p * 0.9)
+	var sh = PackedVector2Array()
+	for p in body:
+		sh.append(p + Vector2(6, 6))
+	draw_colored_polygon(sh, Style.INK)
+	draw_colored_polygon(body, Style.NIGHT_3)
+	var closed = body.duplicate()
+	closed.append(body[0])
+	draw_polyline(closed, Style.INK, 5.0, true)
+	# gâchettes / bumpers
+	for side in [-1, 1]:
+		draw_rect(Rect2(c + Vector2(side * 118 - 32, -86), Vector2(64, 14)), Style.INK)
+		draw_rect(Rect2(c + Vector2(side * 118 - 30, -84), Vector2(60, 10)), Style.MUTED)
+	# sticks
+	for p in [Vector2(-110, -18), Vector2(52, 22)]:
+		draw_circle(c + p * 0.9, 24, Style.INK)
+		draw_circle(c + p * 0.9, 20, Style.NIGHT)
+		draw_circle(c + p * 0.9, 12, Style.NIGHT_2)
+	# boutons
+	var bc = c + Vector2(110, -22) * 0.9
+	Style.pad_button(self, bc + Vector2(0, 22), "A", 11.0)
+	Style.pad_button(self, bc + Vector2(22, 0), "B", 11.0)
+	Style.pad_button(self, bc + Vector2(-22, 0), "X", 11.0)
+	Style.pad_button(self, bc + Vector2(0, -22), "Y", 11.0)
+	# croix directionnelle
+	var dc = c + Vector2(-52, 22) * 0.9
+	draw_rect(Rect2(dc - Vector2(20, 7), Vector2(40, 14)), Style.INK)
+	draw_rect(Rect2(dc - Vector2(7, 20), Vector2(14, 40)), Style.INK)
+	# légendes (colonne de droite)
+	for k in PAD_LABELS.size():
+		var lab: Array = PAD_LABELS[k]
+		var ly = 186.0 + k * 41.0
+		Style.pad_button(self, Vector2(902, ly), lab[0], 12.0)
+		Style.label(self, Vector2(934, ly + 6), lab[1], 16, Style.PAPER, "bold")

@@ -211,7 +211,8 @@ static func pad_button(ci: CanvasItem, c: Vector2, name: String, size: float = 1
 		var fs := int(size * 1.15)
 		ci.draw_string(font("black"), c + Vector2(-size, fs * 0.36), name, HORIZONTAL_ALIGNMENT_CENTER, size * 2, fs, INK)
 	else:
-		var w := size * 2.6
+		var fs0 := int(size * 0.95)
+		var w := maxf(size * 2.6, font("black").get_string_size(name, HORIZONTAL_ALIGNMENT_LEFT, -1, fs0).x + 10.0)
 		var r := Rect2(c - Vector2(w / 2, size * 0.8), Vector2(w, size * 1.6))
 		ci.draw_rect(Rect2(r.position + Vector2(2, 2), r.size), INK)
 		ci.draw_rect(r, Color("d8d4ea"))
