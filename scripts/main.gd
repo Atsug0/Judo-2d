@@ -18,6 +18,7 @@ const SCREENS := {
 	"results": "res://scripts/screens/results_screen.gd",
 	"options": "res://scripts/screens/options_screen.gd",
 	"online": "res://scripts/screens/online_screen.gd",
+	"art": "res://scripts/screens/art_screen.gd",
 }
 
 const NAV_BUTTONS := {

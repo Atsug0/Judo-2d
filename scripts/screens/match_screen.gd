@@ -368,7 +368,7 @@ func _draw_callout(i: int, xf: Transform2D) -> void:
 	if f.attack.is_empty():
 		return
 	var atk: Dictionary = f.attack
-	var head: Vector2 = xf * Vector2(0, -112)
+	var head: Vector2 = xf * Vector2(0, -124)
 	var nm = sim.tech_name(atk.tech).to_upper()
 	var col: Color = Style.P1 if i == 0 else Style.P2
 	var wdt = Style.text_width(nm, 22) + 40.0

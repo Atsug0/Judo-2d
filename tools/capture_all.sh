@@ -24,7 +24,7 @@ if [ -z "$TARGETS" ] || [[ " $TARGETS " == *" match "* ]]; then
   cp "${files[-1]}" "$OUT/05_combat_fin.png"
   rm -rf "$TMP"
 fi
-for s in title menu customize select tournament results options online pause; do
+for s in title menu customize select tournament results options online pause art; do
   if [ -z "$TARGETS" ] || [[ " $TARGETS " == *" $s "* ]]; then
     case $s in
       title) run --screen=title --capture="$OUT" --name=00_titre --frames=40 ;;
@@ -35,6 +35,7 @@ for s in title menu customize select tournament results options online pause; do
       results) run --screen=results --capture="$OUT" --name=09_resultats --frames=40 ;;
       options) run --screen=options --capture="$OUT" --name=10_options --frames=20 ;;
       online) run --screen=online --capture="$OUT" --name=11_en_ligne --frames=30 ;;
+      art) run --screen=art --capture="$OUT" --name=13_planche_perso --frames=2 ;;
       pause) run --screen=match --capture="$OUT" --name=12_pause --frames=900 --seed=5 --nav=start ;;
     esac
   fi
