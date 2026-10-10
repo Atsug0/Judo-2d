@@ -277,12 +277,24 @@ func _mat_quad(x0: float, x1: float, col: Color) -> void:
 
 func _fighter_xform(i: int) -> Transform2D:
 	var f: Dictionary = sim.state.fighters[i]
-	var lean = clampf(float(f.bal_x) / 10000.0, -1.0, 1.0) * 0.36
+	var lean = clampf(float(f.bal_x) / 10000.0, -1.0, 1.0) * 0.2
 	var crouch = 0.0
 	if not f.attack.is_empty():
 		var atk: Dictionary = f.attack
 		crouch = clampf(float(atk.t) / float(atk.entry), 0.0, 1.0)
-	return Art.stand_xform(Vector2(wx(f.x), FEET_Y), f.facing, lean, K, crouch)
+	return Art.stand_xform(Vector2(_draw_x(i), FEET_Y), f.facing, lean, K, crouch)
+
+
+## Position d'affichage : écart visuel minimum entre les deux judokas (lisibilité du kumikata).
+const VIS_GAP := 118.0
+func _draw_x(i: int) -> float:
+	var fs: Array = sim.state.fighters
+	var x := wx(fs[i].x)
+	var ox := wx(fs[1 - i].x)
+	var d := absf(ox - x)
+	if d < VIS_GAP:
+		x -= signf(ox - x) * (VIS_GAP - d) * 0.5
+	return x
 
 
 func _draw_fighters() -> void:
