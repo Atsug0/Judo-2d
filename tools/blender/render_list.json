@@ -1,0 +1,6 @@
+[
+  {"blend": "scenes/garde.blend", "anim": "idle", "character": "hugo_blanc", "frames": 8, "loop": true},
+  {"blend": "scenes/marche.blend", "anim": "walk_fwd", "character": "hugo_blanc", "frames": 8, "loop": true},
+  {"blend": "scenes/seoi_nage.blend", "anim": "entry/seoi_nage", "character": "hugo_blanc", "start": 1, "end": 30, "frames": 6},
+  {"blend": "scenes/seoi_nage.blend", "anim": "throw/seoi_nage", "character": "hugo_blanc", "uke_character": "kenji_bleu", "start": 30, "end": 110, "frames": 12}
+]
