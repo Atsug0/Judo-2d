@@ -14,6 +14,8 @@ const ITEMS := [
 		"points": ["8 combattants, 3 tours", "IA de plus en plus forte", "Builds typés en face"]},
 	{"id": "select", "label": "VERSUS LOCAL", "accent": "hot", "desc": "Deux manettes, un tatami. Chaque joueur choisit son build et c'est hajime.",
 		"points": ["2 manettes", "Builds personnalisés", "Revanche immédiate"]},
+	{"id": "dojo", "label": "DOJO", "accent": "good", "desc": "Apprends tout le judo du jeu, leçon par leçon, puis entraîne-toi librement contre un partenaire réglable.",
+		"points": ["Tutoriel complet", "Guide de chaque technique", "Entraînement libre"]},
 	{"id": "online", "label": "EN LIGNE", "accent": "cyan", "desc": "Parties rapides, classées et salons privés, avec un netcode rollback pensé dès le premier jour.",
 		"points": ["Netcode rollback", "Matchmaking Steam", "Phase 8 du plan"], "badge": "BIENTÔT"},
 	{"id": "customize", "label": "PERSONNALISATION", "accent": "yellow", "desc": "Construis ton judoka : set de techniques à 15 points, garde, style de kumikata et profil physique.",
@@ -65,6 +67,8 @@ func _accent(name: String) -> Color:
 			return Style.MUTED
 		"danger":
 			return Style.DANGER
+		"good":
+			return Style.GOOD
 	return Style.HOT
 
 

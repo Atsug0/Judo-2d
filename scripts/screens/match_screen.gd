@@ -10,6 +10,7 @@ const Pad := preload("res://scripts/pad_reader.gd")
 const Settings := preload("res://scripts/settings.gd")
 const SpriteLib := preload("res://scripts/view/sprite_library.gd")
 const Anims := preload("res://scripts/view/throw_anims.gd")
+const DojoSession := preload("res://scripts/dojo/dojo_session.gd")
 
 const W := 1280.0
 const H := 720.0
@@ -57,6 +58,7 @@ var ref_face = -1
 var ref_walk = 0.0
 var ref_side = 1.0
 var ref_walking = false
+var dojo = null  # session de dojo (leçon ou entraînement), sinon null
 var knock = [[0, 0], [0, 0]]  # main chassée : images restantes de l'animation, par joueur et par main
 const PAUSE_ITEMS := ["REPRENDRE", "RECOMMENCER", "PERSONNALISATION", "MENU PRINCIPAL"]
 
@@ -90,6 +92,8 @@ func on_enter(p: Dictionary) -> void:
 	for i in 2:
 		if controllers[i] == "ai":
 			ais[i] = Ai.new(i, seed_value + i * 7, level)
+	if p.has("dojo"):
+		dojo = DojoSession.new(self, p.dojo)
 
 
 func tick() -> void:
@@ -136,10 +140,17 @@ func _step_sim() -> void:
 				inputs.append(Pad.read(0))
 			"pad1":
 				inputs.append(Pad.read(1))
+			"dojo":
+				inputs.append(dojo.partner_input(sim))
 			_:
 				inputs.append(ais[i].think(sim))
+	if dojo != null:
+		inputs[0] = dojo.player_input(sim, inputs[0])
+		dojo.pre_step(sim)
 	sim.step(inputs)
 	_consume_events()
+	if dojo != null:
+		dojo.post_step(sim)
 	_sound_frame()
 	for p in popups:
 		p.t += 1
@@ -148,11 +159,15 @@ func _step_sim() -> void:
 		e.t += 1
 	if sim.state.phase == "ended":
 		end_timer += 1
-		if end_timer == 200 and app != null and not app.capture_mode:
+		if end_timer == 200 and app != null and not app.capture_mode and dojo == null:
 			app.goto("results", {"state": sim.get_state(), "names": names, "stats": stats, "match_params": params})
 
 
 func nav(action: String, _player: int = 0) -> void:
+	if dojo != null:
+		if dojo.nav(action):
+			queue_redraw()
+		return
 	if action == "start":
 		paused = not paused
 		pause_index = 0
@@ -475,13 +490,15 @@ func _draw_layer_hud(ci: CanvasItem) -> void:
 	_ci = ci
 	_draw_hud()
 	_draw_announce()
-	if Settings.value("feed"):
+	if Settings.value("feed") and dojo == null:
 		_draw_feed()
 	if Settings.value("hints"):
 		_draw_hints()
+	if dojo != null:
+		dojo.draw(ci)
 	if flash > 0.01:
 		ci.draw_rect(Rect2(0, 0, W, H), Color(1, 1, 1, flash * 0.55))
-	if paused:
+	if paused and dojo == null:
 		_draw_pause()
 
 
@@ -1030,7 +1047,8 @@ func _draw_callout(i: int, xf: Transform2D) -> void:
 func _draw_hud() -> void:
 	for i in 2:
 		_draw_player_hud(i)
-	_draw_timer()
+	if dojo == null:
+		_draw_timer()
 	if sim.state.phase in ["fight", "intro", "matte"]:
 		_draw_dominance()
 	_draw_newaza_hud()

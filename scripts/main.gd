@@ -22,12 +22,13 @@ const SCREENS := {
 	"art": "res://scripts/screens/art_screen.gd",
 	"bake": "res://scripts/screens/bake_screen.gd",
 	"vs": "res://scripts/screens/vs_screen.gd",
+	"dojo": "res://scripts/screens/dojo_screen.gd",
 }
 
 const NAV_BUTTONS := {
 	"accept": JOY_BUTTON_A, "back": JOY_BUTTON_B, "start": JOY_BUTTON_START,
 	"x": JOY_BUTTON_X, "y": JOY_BUTTON_Y, "prev": JOY_BUTTON_LEFT_SHOULDER, "next": JOY_BUTTON_RIGHT_SHOULDER,
-	"up": JOY_BUTTON_DPAD_UP, "down": JOY_BUTTON_DPAD_DOWN, "left": JOY_BUTTON_DPAD_LEFT, "right": JOY_BUTTON_DPAD_RIGHT,
+	"select": JOY_BUTTON_BACK, "up": JOY_BUTTON_DPAD_UP, "down": JOY_BUTTON_DPAD_DOWN, "left": JOY_BUTTON_DPAD_LEFT, "right": JOY_BUTTON_DPAD_RIGHT,
 }
 const REPEAT_DELAY := 18
 const REPEAT_EVERY := 6
@@ -92,6 +93,10 @@ func _ready() -> void:
 	var params := {}
 	if start == "match":
 		params = default_match_params()
+	if args.has("lesson") or args.has("training"):
+		start = "match"
+		var dcfg := {"mode": "training", "partner": String(args.get("partner", "garde"))} if args.has("training") else {"mode": "lesson", "lesson": String(args.lesson)}
+		params = preload("res://scripts/dojo/dojo_session.gd").match_params(dcfg, human_controller())
 	goto(start, params)
 	if capture_mode:
 		_run_capture.call_deferred()
@@ -193,7 +198,7 @@ func _poll_nav() -> void:
 			_edge("%d:%s" % [device, action], down, action, device)
 	# Clavier : confort de développement uniquement (le jeu se joue à la manette).
 	var keys := {"up": KEY_UP, "down": KEY_DOWN, "left": KEY_LEFT, "right": KEY_RIGHT,
-		"accept": KEY_ENTER, "back": KEY_ESCAPE, "start": KEY_P}
+		"accept": KEY_ENTER, "back": KEY_ESCAPE, "start": KEY_P, "select": KEY_R, "x": KEY_X}
 	for action in keys:
 		_edge("k:%s" % action, Input.is_physical_key_pressed(keys[action]), action, 0)
 
