@@ -19,6 +19,9 @@ func nav(action: String, _player: int = 0) -> void:
 func _draw() -> void:
 	Style.menu_background(self, Vector2(1280, 720), Style.HOT)
 	Style.header(self, "PLANCHE PERSO", "Placeholders cel-shading — en attendant le rendu Blender", Style.PAPER)
+	if app != null and app.args.has("zoom"):
+		_draw_zoom()
+		return
 	# grands portraits
 	var poses := [
 		{"x": 230.0, "p": 0, "lean": 0.0, "stance": 0.4, "label": "GARDE"},
@@ -39,3 +42,18 @@ func _draw() -> void:
 		var r := Rect2(po.x - w / 2, 160, w, 30)
 		Style.chip(self, r, Style.INK, pal.accent)
 		Style.label(self, Vector2(r.position.x, r.position.y + 21), po.label, 18, pal.accent, "black", HORIZONTAL_ALIGNMENT_CENTER, w)
+
+
+func _draw_zoom() -> void:
+	# gros plan tête + bras, les deux judokas en kumikata
+	var sc := 5.4
+	var xa := Art.stand_xform(Vector2(520, 960), 1, 0.05, sc, 0.0)
+	var xb := Art.stand_xform(Vector2(780, 960), -1, -0.03, sc, 0.0)
+	var pa := Art.palette(0)
+	var pb := Art.palette(1)
+	Art.draw_arm(self, xb * Art.SHOULDER_BACK, xa * Art.GRIP_POINTS["sleeve"], pb, true, sc)
+	Art.draw_arm(self, xa * Art.SHOULDER_BACK, xb * Art.GRIP_POINTS["sleeve"], pa, true, sc)
+	Art.draw_body(self, xb, pb, 0.4)
+	Art.draw_body(self, xa, pa, 0.4)
+	Art.draw_arm(self, xb * Art.SHOULDER_FRONT, xa * Art.GRIP_POINTS["lapel"], pb, false, sc, 0.3)
+	Art.draw_arm(self, xa * Art.SHOULDER_FRONT, xb * Art.GRIP_POINTS["lapel"], pa, false, sc, 0.6)

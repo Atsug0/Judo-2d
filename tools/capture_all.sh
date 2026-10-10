@@ -29,13 +29,18 @@ for s in title menu customize select tournament results options online pause art
     case $s in
       title) run --screen=title --capture="$OUT" --name=00_titre --frames=40 ;;
       menu) run --screen=menu --capture="$OUT" --name=01_menu --frames=30 ;;
-      customize) run --screen=customize --capture="$OUT" --name=06_personnalisation --frames=20 --nav=down,down,right ;;
+      customize)
+        run --screen=customize --capture="$OUT" --name=06_personnalisation_techniques --frames=20 --nav=down
+        run --screen=customize --capture="$OUT" --name=06b_personnalisation_style --frames=20 --nav=next,down
+        run --screen=customize --capture="$OUT" --name=06c_personnalisation_physique --frames=20 --nav=next,next ;;
       select) run --screen=select --capture="$OUT" --name=07_selection --frames=20 ;;
       tournament) run --screen=tournament --capture="$OUT" --name=08_tournoi --frames=20 ;;
       results) run --screen=results --capture="$OUT" --name=09_resultats --frames=40 ;;
       options) run --screen=options --capture="$OUT" --name=10_options --frames=20 ;;
       online) run --screen=online --capture="$OUT" --name=11_en_ligne --frames=30 ;;
-      art) run --screen=art --capture="$OUT" --name=13_planche_perso --frames=2 ;;
+      art)
+        run --screen=art --capture="$OUT" --name=13_planche_perso --frames=2
+        run --screen=art --capture="$OUT" --name=13b_planche_gros_plan --frames=2 --zoom ;;
       pause) run --screen=match --capture="$OUT" --name=12_pause --frames=900 --seed=5 --nav=start ;;
     esac
   fi
