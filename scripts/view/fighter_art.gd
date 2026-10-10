@@ -300,16 +300,16 @@ static func draw_figure(ci: CanvasItem, xf: Transform2D, pal: Dictionary, j: Dic
 	var u: Vector2 = (j.neck - j.hip).normalized()
 	var n := Vector2(-u.y, u.x)
 	var skirt: Vector2 = j.hip - u * 8.0
-	var torso := [j.neck + n * 16.0, j.neck - n * 16.0, j.hip - n * 13.0, skirt - n * 16.0, skirt + n * 16.0, j.hip + n * 13.0]
+	var torso := [j.neck + n * 12.0, j.neck - n * 12.0, j.hip - n * 10.0, skirt - n * 12.0, skirt + n * 12.0, j.hip + n * 10.0]
 	_poly(ci, torso, pal.gi, 0.0)
 	# ombre propre : moitié du buste
-	_poly(ci, [j.neck + n * 16.0, j.neck + n * 3.0, j.hip + n * 2.0, skirt + n * 2.0, skirt + n * 16.0, j.hip + n * 13.0], pal.gi_shade, 0.0)
+	_poly(ci, [j.neck + n * 12.0, j.neck + n * 2.0, j.hip + n * 1.0, skirt + n * 1.0, skirt + n * 12.0, j.hip + n * 10.0], pal.gi_shade, 0.0)
 	# revers
 	ci.draw_line(j.neck - n * 2.0, j.hip - n * 6.0 + u * 4.0, pal.gi_deep, 3.6)
 	_outline(ci, torso, ow)
 	# ceinture
 	var b0: Vector2 = j.hip + u * 2.0
-	var belt := [b0 + n * 14.0, b0 - n * 14.0, b0 - n * 14.0 - u * 6.0, b0 + n * 14.0 - u * 6.0]
+	var belt := [b0 + n * 11.0, b0 - n * 11.0, b0 - n * 11.0 - u * 6.0, b0 + n * 11.0 - u * 6.0]
 	_poly(ci, belt, Color("17141f"), 0.0)
 	# tête orientée selon l'axe cou → tête
 	var hd: Vector2 = j.head - j.neck
@@ -355,7 +355,7 @@ static func ground_poses(kind: String, t: int, ctrl: float) -> Array:
 				"elbow_b": Vector2(46, -16), "hand_b": Vector2(50, -6), "elbow_f": Vector2(18, -18), "hand_f": Vector2(4, -12)}
 		"kami_shiho_gatame":
 			# au-dessus de la tête d'uke, buste sur son buste, mains à la ceinture
-			tori = {"hip": Vector2(74, -24), "neck": Vector2(46, -27 + w), "head": Vector2(36, -26 + w),
+			tori = {"hip": Vector2(74, -22), "neck": Vector2(48, -30 + w), "head": Vector2(38, -36 + w),
 				"knee_b": Vector2(72, -4), "foot_b": Vector2(90, -2), "knee_f": Vector2(64, -4), "foot_f": Vector2(82, -2),
 				"elbow_b": Vector2(26, -22), "hand_b": Vector2(8, -16), "elbow_f": Vector2(24, -18), "hand_f": Vector2(6, -12), "center": 30.0}
 		"juji_gatame":
