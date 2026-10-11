@@ -173,6 +173,14 @@ func on_enter(p: Dictionary) -> void:
 		for k in int(app.args.skip):
 			tick()
 		Sound.muted = false
+	if app != null and app.args.has("skip_to"):
+		# vidéos : avance rapide muette jusqu'au tick de simulation donné (manche en cours)
+		Sound.muted = true
+		var guard := 0
+		while sim.state.tick < int(app.args.skip_to) and sim.state.phase != "ended" and guard < 100000:
+			tick()
+			guard += 1
+		Sound.muted = false
 
 
 func tick() -> void:
