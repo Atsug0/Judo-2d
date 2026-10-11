@@ -66,6 +66,7 @@ var walk_ph = [0.0, 0.0]         # cycle de marche, avancé à la distance réel
 var walk_amp = [0.0, 0.0]
 var walk_dir = [1.0, 1.0]
 var prev_dx = [-1.0, -1.0]  # main chassée : images restantes de l'animation, par joueur et par main
+var last_reaction_popup = -9999
 var vel = [0.0, 0.0]          # vitesse affichée vers l'avant (px/image), lissée
 var gap_shown = -1.0         # écart affiché entre les deux judokas (px), lissé
 var tug = [[Vector2.ZERO, Vector2.ZERO], [Vector2.ZERO, Vector2.ZERO]]  # main qui tire / pousse
@@ -255,7 +256,7 @@ func _consume_events() -> void:
 		var col: Color = Style.P1 if who == 0 else Style.P2
 		match e.type:
 			"attack":
-				_feed("%s attaque : %s" % [nm, sim.tech_name(e.tech)], col)
+				pass  # le nom de la technique s'affiche déjà au-dessus du judoka : pas de doublon dans le fil
 			"throw":
 				var res = "IPPON" if e.result == "ippon" else "WAZA-ARI"
 				_feed("%s : %s → %s" % [nm, sim.tech_name(e.tech), res], Style.GOLD)
@@ -278,7 +279,8 @@ func _consume_events() -> void:
 				chop_hand[who] = e.get("hand", 0)
 				_impact(_between(0.75), Style.GOOD, 0.8)
 				hitstop = maxi(hitstop, 2)
-				_popup("ARRACHÉE !" if e.get("how", "") != "deux_mains" else "DEUX MAINS !", who, Style.GOOD)
+				if e.get("how", "") == "deux_mains":
+					_popup("DEUX MAINS !", who, Style.GOOD)
 			"break_fail":
 				grip_shake[1 - who][e.get("hand", 0)] = 12
 				chop[who] = 10
@@ -298,7 +300,9 @@ func _consume_events() -> void:
 				if sim.has_grip(sim.state.fighters[who]):
 					shake = maxf(shake, 2.5)
 			"reaction":
-				_popup("ACTION-RÉACTION !", who, Style.GOLD)
+				if frame - last_reaction_popup > 600:
+					_popup("ACTION-RÉACTION !", who, Style.GOLD)  # au plus une fois toutes les 10 s
+					last_reaction_popup = frame
 				_impact(_between(0.6), Style.GOLD, 1.2)
 				excite = maxf(excite, 0.5)
 			"feint":
@@ -505,7 +509,7 @@ func _sound_announce(text: String) -> void:
 
 func _feed(text: String, color: Color) -> void:
 	feed.append({"text": text, "color": color, "t": 0})
-	if feed.size() > 4:
+	if feed.size() > 3:
 		feed.pop_front()
 
 
@@ -1619,7 +1623,7 @@ func _update_referee() -> void:
 	var gap = 0.0
 	if sim.state.throw.is_empty() and sim.state.newaza.is_empty():
 		gap = absf(_draw_x(0) - _draw_x(1))
-	var off = 0.0 if gap > 230.0 else maxf(REF_OFFSET, gap * 0.5 + 150.0)
+	var off = 0.0 if gap > 230.0 else maxf(REF_OFFSET, gap * 0.5 + 200.0)
 	var target_x = center + ref_side * off
 	if target_x < lo or target_x > hi:
 		var other = center - ref_side * off
@@ -1628,7 +1632,7 @@ func _update_referee() -> void:
 			target_x = other
 	target_x = clampf(target_x, maxf(lo, 110.0), minf(hi, W - 110.0))
 	var dx = target_x - ref_x
-	ref_x += clampf(dx * 0.08, -4.0, 4.0)
+	ref_x += clampf(dx * 0.1, -6.5, 6.5)
 	ref_walking = absf(dx) > 6.0
 	if ref_walking:
 		ref_walk += 0.25
