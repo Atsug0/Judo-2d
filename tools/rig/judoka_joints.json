@@ -1,0 +1,32 @@
+{
+ "_doc": "Squelette du judoka 3D (modèle fourni par Hugo) : articulations en mètres, Y vers le haut, personnage tourné vers +Z, sa gauche vers +X. Relevées sur des coupes horizontales du maillage (le modèle est légèrement de trois-quarts : jambe droite en arrière).",
+ "joints": {
+  "bassin": [0.0, 0.02, -0.02], "dos": [0.0, 0.22, -0.03], "poitrine": [0.0, 0.42, -0.04], "cou": [0.0, 0.63, -0.05],
+  "tete": [0.0, 0.73, -0.02], "sommet": [0.0, 0.95, -0.01],
+  "clavicule.L": [0.04, 0.60, -0.03], "epaule.L": [0.19, 0.56, -0.01], "coude.L": [0.29, 0.30, 0.04], "poignet.L": [0.30, 0.07, 0.11], "doigts.L": [0.28, -0.08, 0.17],
+  "clavicule.R": [-0.04, 0.60, -0.06], "epaule.R": [-0.19, 0.56, -0.10], "coude.R": [-0.28, 0.30, -0.16], "poignet.R": [-0.30, 0.07, -0.13], "doigts.R": [-0.32, -0.08, -0.07],
+  "hanche.L": [0.10, -0.03, 0.02], "genou.L": [0.115, -0.46, 0.05], "cheville.L": [0.105, -0.86, 0.04], "orteils.L": [0.12, -0.935, 0.21],
+  "hanche.R": [-0.10, -0.03, -0.05], "genou.R": [-0.13, -0.46, -0.11], "cheville.R": [-0.14, -0.86, -0.11], "orteils.R": [-0.24, -0.935, 0.02]
+ },
+ "bones": [
+  ["hips", "bassin", "dos", "", 0.13],
+  ["spine", "dos", "poitrine", "hips", 0.14],
+  ["chest", "poitrine", "cou", "spine", 0.15],
+  ["neck", "cou", "tete", "chest", 0.06],
+  ["head", "tete", "sommet", "neck", 0.11],
+  ["shoulder.L", "clavicule.L", "epaule.L", "chest", 0.05],
+  ["upper_arm.L", "epaule.L", "coude.L", "shoulder.L", 0.055],
+  ["forearm.L", "coude.L", "poignet.L", "upper_arm.L", 0.05],
+  ["hand.L", "poignet.L", "doigts.L", "forearm.L", 0.045],
+  ["shoulder.R", "clavicule.R", "epaule.R", "chest", 0.05],
+  ["upper_arm.R", "epaule.R", "coude.R", "shoulder.R", 0.055],
+  ["forearm.R", "coude.R", "poignet.R", "upper_arm.R", 0.05],
+  ["hand.R", "poignet.R", "doigts.R", "forearm.R", 0.045],
+  ["thigh.L", "hanche.L", "genou.L", "hips", 0.09],
+  ["shin.L", "genou.L", "cheville.L", "thigh.L", 0.075],
+  ["foot.L", "cheville.L", "orteils.L", "shin.L", 0.06],
+  ["thigh.R", "hanche.R", "genou.R", "hips", 0.09],
+  ["shin.R", "genou.R", "cheville.R", "thigh.R", 0.075],
+  ["foot.R", "cheville.R", "orteils.R", "shin.R", 0.06]
+ ]
+}
