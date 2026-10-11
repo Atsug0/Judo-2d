@@ -61,7 +61,7 @@ func _init() -> void:
 		var ft_min: float = stats.fight_t / 3600.0
 		var gm: float = float(stats.gap_sum) / stats.gap_n
 		var gsd: float = sqrt(maxf(0.0, stats.gap_sq / stats.gap_n - gm * gm))
-		print("Mouvement : couple %.0f px/min, %.1f changements de sens/min, écart moyen %.0f px (écart-type %.0f px)" % [stats.travel / 50.0 / ft_min, stats.get("turns", 0) / ft_min, gm / 50.0, gsd / 50.0])
+		print("Mouvement : couple %.0f px/min, %.1f changements de sens/min, écart moyen %.0f px (écart-type %.0f px), en garde %d %% du temps" % [stats.travel / 50.0 / ft_min, stats.get("turns", 0) / ft_min, gm / 50.0, gsd / 50.0, stats.get("linked_t", 0) * 100 / stats.fight_t])
 	print("Endurance moyenne : %d / 10000" % (stats.get("stam_sum", 0) / maxi(1, stats.get("stam_n", 1))))
 	print("Attaques bloquées : ", stats.get("blocks", 0), " | stoppées : ", stats.get("stuffed", 0))
 	print("Enchaînements : %d fenêtres, %d enchaînés" % [stats.combo_open, stats.combo_attacks])
@@ -99,6 +99,8 @@ func _run_match(cfg: Dictionary, techs: Dictionary, seed_value: int, level: int,
 			stats.gap_sum = stats.get("gap_sum", 0) + gp
 			stats.gap_sq = stats.get("gap_sq", 0.0) + float(gp) * gp
 			stats.fight_t = stats.get("fight_t", 0) + 1
+			if sim.has_grip(fsx[0]) or sim.has_grip(fsx[1]):
+				stats.linked_t = stats.get("linked_t", 0) + 1
 		else:
 			prev_c = -1
 		stats.stam_sum = stats.get("stam_sum", 0) + sim.state.fighters[0].stamina + sim.state.fighters[1].stamina

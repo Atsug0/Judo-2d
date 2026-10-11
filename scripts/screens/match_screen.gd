@@ -514,6 +514,9 @@ func _popup(text: String, who: int, color: Color) -> void:
 		if p.text == text and p.who == who and p.t < 45:
 			return  # pas de doublon empilé
 	popups.append({"text": text, "who": who, "color": color, "t": 0})
+	var mine = popups.filter(func(q): return q.who == who)
+	if mine.size() > 2:
+		popups.erase(mine[0])  # au plus deux bulles par judoka
 
 
 # =============================================================================
@@ -1411,9 +1414,10 @@ func _draw_dominance() -> void:
 func _draw_popups() -> void:
 	var stack = [0, 0]
 	for p in popups:
-		var f: Dictionary = sim.state.fighters[p.who]
-		var x = wx(f.x)
-		var y = FEET_Y - 250.0 - stack[p.who] * 30.0 - minf(p.t, 20) * 1.2
+		# chaque judoka a sa colonne de bulles, décalée vers l'extérieur du couple
+		var out = signf(_draw_x(p.who) - _draw_x(1 - p.who))
+		var x = _draw_x(p.who) + out * 70.0
+		var y = FEET_Y - 250.0 - stack[p.who] * 32.0 - minf(p.t, 20) * 1.2
 		stack[p.who] += 1
 		var a = 1.0 if p.t < 50 else 1.0 - (p.t - 50) / 20.0
 		var col: Color = p.color

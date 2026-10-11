@@ -31,7 +31,9 @@ var parry_cd := 0
 var move_intent := 0
 var move_left := 0
 var strip_cd := 0
-var drive_dir := 1         # en garde : sens dans lequel il emmène le couple
+var drive_dir := 1
+var had_grip := [false, false]
+var regrip_wait := [0, 0]         # en garde : sens dans lequel il emmène le couple
 var osae_pass := -1        # immobilisation : passage du curseur en cours
 var osae_plan := ""        # "hit" (vise), "miss" (appuie à côté), "wait"
 
@@ -154,11 +156,23 @@ func think(sim) -> Array:
 	# --- Kumikata : une main après l'autre ; la garde haute monte au col
 	if dist <= cfg.grip_range + 600 or (gripped and dist <= cfg.grip_range + cfg.grip_hold_margin):
 		var grip := 80 if f.stamina > f.stamina_max * 3 / 10 else 45
-		if f.hands[0].state != Sim.HAND_FREE or grip_delay <= 0:
+		# main perdue (arrachée, lâchée) : on ne la remet pas tout de suite, on se replace
+		for h in 2:
+			if f.hands[h].state == Sim.HAND_GRIP:
+				had_grip[h] = true
+			elif had_grip[h]:
+				had_grip[h] = false
+				regrip_wait[h] = 40 + _rand(70) - 8 * level
+			if regrip_wait[h] > 0:
+				regrip_wait[h] -= 1
+		if (f.hands[0].state != Sim.HAND_FREE or grip_delay <= 0) and regrip_wait[0] <= 0:
 			inp[Sim.LT] = grip
-		if f.hands[1].state != Sim.HAND_FREE or grip_delay <= -10 - _rand(12):
+		if (f.hands[1].state != Sim.HAND_FREE or grip_delay <= -10 - _rand(12)) and regrip_wait[1] <= 0:
 			inp[Sim.RT] = grip
 		grip_delay -= 1
+		if not linked and regrip_wait[0] > 30 and regrip_wait[1] > 30:
+			move_intent = -55  # plus de contact : on sort un instant de la distance
+			move_left = 12
 	else:
 		grip_delay = 50 + _rand(90) - 10 * level  # bataille de mains avant de s'engager
 
