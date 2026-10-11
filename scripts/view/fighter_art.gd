@@ -76,7 +76,84 @@ static func palette(player: int, look: Dictionary = {}) -> Dictionary:
 		pal.accent = Color(tc)
 	else:
 		pal.trim = pal.accent
+	pal.model3d = ("femme" if int(lk.get("body3d", 0)) == 1 else "homme") + ("_blanc" if player == 0 else "_bleu")
 	return pal
+
+
+# =============================================================================
+# Judokas 3D dans les menus : images pré-rendues (tools/rig/render_poses.gd)
+# =============================================================================
+
+const MODELS_DIR := "res://assets/judokas"
+const BODY3D_NAMES := ["Homme", "Femme"]
+static var _on3d := -1
+static var _sprites := {}
+static var next_pose := ""   # pose du prochain draw_body (ex. "victoire"), consommée au dessin
+
+
+## Les judokas sont-ils affichés en 3D ? (modèles présents, écran réel, pas de --dessin)
+static func use_3d() -> bool:
+	if _on3d < 0:
+		_on3d = 0
+		if DisplayServer.get_name() != "headless" and not OS.get_cmdline_user_args().has("--dessin") \
+				and FileAccess.file_exists(MODELS_DIR + "/homme_blanc/poses/garde.png"):
+			_on3d = 1
+	return _on3d == 1
+
+
+## [texture, pivot (pieds), px par unité] d'une pose pré-rendue, ou [] si absente.
+static func pose_sprite(model: String, pose: String) -> Array:
+	var key := model + "/" + pose
+	if not _sprites.has(key):
+		_sprites[key] = []
+		var dir := MODELS_DIR + "/" + model + "/poses/"
+		var path := dir + pose + ".png"
+		if not FileAccess.file_exists(path):
+			path = dir + "garde.png"
+		if FileAccess.file_exists(path) and FileAccess.file_exists(dir + "poses.json"):
+			var tex: Texture2D = null
+			if ResourceLoader.exists(path):
+				tex = load(path)
+			if tex == null:
+				var img := Image.load_from_file(ProjectSettings.globalize_path(path))
+				if img != null:
+					tex = ImageTexture.create_from_image(img)
+			var info = JSON.parse_string(FileAccess.open(dir + "poses.json", FileAccess.READ).get_as_text())
+			if tex != null and info != null:
+				_sprites[key] = [tex, Vector2(info.pivot[0], info.pivot[1]), float(info.px_per_unit)]
+	return _sprites[key]
+
+
+## Buste du judoka 3D (tête et épaules) dans un cadre, pour les vignettes. Renvoie false si indisponible.
+static func draw_model_bust(ci: CanvasItem, rect: Rect2, pal: Dictionary) -> bool:
+	if not use_3d() or not pal.has("model3d"):
+		return false
+	var sp: Array = pose_sprite(String(pal.model3d), "garde")
+	if sp.is_empty():
+		return false
+	var u: float = sp[2]
+	var head: Vector2 = sp[1] + Vector2(4.0, -94.0) * u
+	var w := 44.0 * u
+	var h := w * rect.size.y / rect.size.x
+	var src := Rect2(head.x - w * 0.5, head.y - 13.0 * u, w, h)
+	var dst := rect.grow(-2.0)
+	ci.draw_texture_rect_region(sp[0], dst, src)
+	return true
+
+
+## Dessine le judoka 3D (image pré-rendue) aux pieds du repère xf. Renvoie false si indisponible.
+static func draw_model(ci: CanvasItem, xf: Transform2D, pal: Dictionary, pose: String = "garde") -> bool:
+	if not use_3d() or not pal.has("model3d"):
+		return false
+	var sp: Array = pose_sprite(String(pal.model3d), pose)
+	if sp.is_empty():
+		return false
+	var facing := -1.0 if xf.x.x < 0.0 else 1.0
+	var s: float = absf(xf.get_scale().y) / float(sp[2])
+	ci.draw_set_transform(xf.origin, 0.0, Vector2(facing * s, s))
+	ci.draw_texture(sp[0], -sp[1])
+	ci.draw_set_transform_matrix(Transform2D.IDENTITY)
+	return true
 
 
 ## Arbitre : costume sombre, chemise claire (revers), chaussettes sombres.
@@ -121,6 +198,10 @@ static func throw_xforms(dir: String, big: bool, fc: int, tx: float, ux: float, 
 
 
 static func draw_body(ci: CanvasItem, xf: Transform2D, pal: Dictionary, stance: float = 0.0) -> void:
+	var pose := next_pose if next_pose != "" else "garde"
+	next_pose = ""
+	if draw_model(ci, xf, pal, pose):
+		return
 	ci.draw_set_transform_matrix(xf)
 	var ink := Style.INK
 	var acc: Color = pal.accent
@@ -187,6 +268,8 @@ static func _draw_torso(ci: CanvasItem, pal: Dictionary, ow: float) -> void:
 ## Bras en coordonnées écran : manche large du judogi avec plis et ourlet,
 ## avant-bras musclé, main en poing orientée selon l'avant-bras.
 static func draw_arm(ci: CanvasItem, shoulder: Vector2, hand: Vector2, pal: Dictionary, back: bool, scale: float, grip_strength: float = -1.0, elbow_at: Vector2 = Vector2.INF) -> void:
+	if pal.has("model3d") and use_3d():
+		return  # le judoka 3D a déjà ses bras
 	var elbow := elbow_at
 	if elbow_at == Vector2.INF:
 		# bras à deux segments de longueur fixe (IK) : le coude plie au lieu que le bras s'étire

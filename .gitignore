@@ -12,3 +12,5 @@ export_presets.cfg
 # Sprites placeholder cuits (régénérables : godot --path . -- --screen=bake --capture=/tmp/x)
 /animations/placeholder_*/
 __pycache__/
+# Textures extraites par l import Godot des modèles 3D
+assets/judokas/*/rig_*.png

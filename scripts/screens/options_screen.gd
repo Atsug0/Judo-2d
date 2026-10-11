@@ -9,8 +9,7 @@ const CATS := ["MANETTE", "AUDIO", "AFFICHAGE", "JEU", "COMBAT"]
 const ROWS := {
 	"MANETTE": [["vibrations", "Vibrations", "bool"], ["vibration_force", "Force des vibrations", "range", 1, 5]],
 	"AUDIO": [["volume_master", "Volume général", "range", 0, 10], ["volume_music", "Musique", "range", 0, 10], ["volume_sfx", "Effets sonores", "range", 0, 10]],
-	"AFFICHAGE": [["fullscreen", "Plein écran", "bool"], ["vsync", "Synchronisation verticale", "bool"],
-		["judokas", "Judokas", "choice", ["3d", "dessin"], ["MODÈLES 3D", "DESSINÉS"]]],
+	"AFFICHAGE": [["fullscreen", "Plein écran", "bool"], ["vsync", "Synchronisation verticale", "bool"]],
 	"JEU": [["ai_level", "Niveau de l'IA par défaut", "range", 1, 3], ["radar", "Radar de kuzushi", "bool"], ["hints", "Aide des commandes en combat", "bool"], ["feed", "Fil des événements", "bool"], ["readout", "Lecture des techniques (A/X/Y)", "bool"]],
 	"COMBAT": [["format", "Format", "choice", ["bo3", "single"], ["2 MANCHES GAGNANTES", "UN SEUL COMBAT"]],
 		["match_minutes", "Durée d'une manche", "choice", [2, 3, 4, 5], ["2 MIN", "3 MIN", "4 MIN", "5 MIN"]],

@@ -136,6 +136,7 @@ func _draw() -> void:
 	var pal = Art.palette(w, mbs[w].get("look", {}) if mbs is Array and w >= 0 and mbs.size() > w and mbs[w] is Dictionary else {})
 	Art.shadow(self, feet + Vector2(0, 2), 3.6, 0.45)
 	Art.draw_arm(self, xf * Art.SHOULDER_BACK, xf * Vector2(-14, -126), pal, true, 3.6)
+	Art.next_pose = "victoire"
 	Art.draw_body(self, xf, pal, 0.3)
 	Art.draw_arm(self, xf * Art.SHOULDER_FRONT, xf * Art.REST_HANDS[1], pal, false, 3.6)
 	var tr = Rect2(-20, 40, 680, 120)

@@ -234,6 +234,7 @@ func _draw_champion() -> void:
 	var pal = Art.palette(0, me.get("build", {}).get("look", {}))
 	Art.shadow(self, feet + Vector2(0, 2), 3.4, 0.45)
 	Art.draw_arm(self, xf * Art.SHOULDER_BACK, xf * Vector2(-12, -126), pal, true, 3.4)
+	Art.next_pose = "victoire"
 	Art.draw_body(self, xf, pal, 0.3)
 	Art.draw_arm(self, xf * Art.SHOULDER_FRONT, xf * Vector2(16, -128), pal, false, 3.4)
 	draw_set_transform(Vector2(830, 330), 0.0, Vector2(2.4, 2.4))

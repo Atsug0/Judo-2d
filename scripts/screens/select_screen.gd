@@ -284,6 +284,8 @@ func _draw_grid() -> void:
 ## Portrait : tête et épaules du judoka dans la case.
 func _portrait(cr: Rect2, b: Dictionary) -> void:
 	var pal = Art.palette(0, b.get("look", {}))
+	if Art.draw_model_bust(self, cr, pal):
+		return
 	var sc = 1.05
 	var origin = cr.position + Vector2(cr.size.x * 0.5 - 2 * sc, 2.0 + 113.0 * sc)
 	draw_set_transform(origin, 0.0, Vector2(sc, sc))

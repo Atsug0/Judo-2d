@@ -54,13 +54,36 @@ func setup(dir: String, who: Array, k: float, floor_y: float) -> bool:
 	vp.add_child(cam)
 	for i in 2:
 		var w: String = who[i] if i < who.size() else DEFAULT_WHO[i]
-		var base := dir.path_join(w)
-		var a = RigPose.load_model(base.path_join("rig.glb"), base.path_join("joints.json"), "", true)
+		var f: Array = model_files(dir, w)
+		if f.is_empty():
+			f = model_files(dir, DEFAULT_WHO[i])
+		if f.is_empty():
+			return false
+		var a = RigPose.load_model(f[0], f[1], f[2], true)
 		if a == null:
 			return false
 		vp.add_child(a.node)
 		actors[i] = a
 	return true
+
+
+## Fichiers d'un modèle : [rig.glb, joints.json, texture de remplacement ou ""].
+## Un dossier peut emprunter le rig d'un autre (modele.json : {"rig": "femme_bleu", "texture": "texture.png"}).
+static func model_files(dir: String, w: String) -> Array:
+	var base := dir.path_join(w)
+	if FileAccess.file_exists(base.path_join("rig.glb")):
+		return [base.path_join("rig.glb"), base.path_join("joints.json"), ""]
+	if FileAccess.file_exists(base.path_join("modele.json")):
+		var m = JSON.parse_string(FileAccess.open(base.path_join("modele.json"), FileAccess.READ).get_as_text())
+		var src := dir.path_join(String(m.rig))
+		if FileAccess.file_exists(src.path_join("rig.glb")):
+			return [src.path_join("rig.glb"), src.path_join("joints.json"), base.path_join(String(m.get("texture", "")))]
+	return []
+
+
+## Modèle d'un judoka : homme / femme (look.body3d), judogi blanc pour P1 et bleu pour P2.
+static func who_for(look: Dictionary, player: int) -> String:
+	return ("femme" if int(look.get("body3d", 0)) == 1 else "homme") + ("_blanc" if player == 0 else "_bleu")
 
 
 func texture() -> Texture2D:

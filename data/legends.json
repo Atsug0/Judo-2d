@@ -48,7 +48,8 @@
         "beard": 2,
         "ears": 1,
         "belt": 0,
-        "trim": 2
+        "trim": 2,
+        "body3d": 0
       },
       "bio": "Il prend le col, il ne le lâche plus. Sa garde haute écrase la posture adverse jusqu'à ce que le harai-goshi parte tout seul.",
       "legend": true
@@ -100,7 +101,8 @@
         "beard": 0,
         "ears": 0,
         "belt": 0,
-        "trim": 5
+        "trim": 5,
+        "body3d": 0
       },
       "bio": "Un ko-uchi pour faire reculer, et la jambe monte. Son uchi-mata ne marque pas waza-ari : il marque ippon.",
       "legend": true
@@ -152,7 +154,8 @@
         "beard": 1,
         "ears": 1,
         "belt": 0,
-        "trim": 1
+        "trim": 1,
+        "body3d": 0
       },
       "bio": "Petit gabarit, centre de gravité au ras du tatami. Il passe sous la garde avant qu'on ait compris.",
       "legend": true
@@ -204,7 +207,8 @@
         "beard": 0,
         "ears": 0,
         "belt": 0,
-        "trim": 3
+        "trim": 3,
+        "body3d": 1
       },
       "bio": "Elle ne recule jamais. Attaque, réattaque, enchaîne : au bout de deux minutes, ses adversaires n'ont plus de jambes.",
       "legend": true
@@ -256,7 +260,8 @@
         "beard": 0,
         "ears": 0,
         "belt": 0,
-        "trim": 4
+        "trim": 4,
+        "body3d": 1
       },
       "bio": "Personne n'entre plus vite. Le moindre déséquilibre suffit : elle est déjà dessous.",
       "legend": true
@@ -308,7 +313,8 @@
         "beard": 2,
         "ears": 1,
         "belt": 0,
-        "trim": 0
+        "trim": 0,
+        "body3d": 0
       },
       "bio": "Attaque-le et tu voles. Il attend l'erreur, ceinture en main, et ses ura-nage font trembler la salle.",
       "legend": true
@@ -360,7 +366,8 @@
         "beard": 3,
         "ears": 1,
         "belt": 0,
-        "trim": 2
+        "trim": 2,
+        "body3d": 0
       },
       "bio": "Debout, il cherche juste à t'amener au sol. Une fois là, la clé de bras arrive avant le matte.",
       "legend": true
@@ -412,7 +419,8 @@
         "beard": 0,
         "ears": 0,
         "belt": 0,
-        "trim": 1
+        "trim": 1,
+        "body3d": 1
       },
       "bio": "Un waza-ari, et c'est fini : elle te plaque au sol et tient les vingt secondes.",
       "legend": true
@@ -464,7 +472,8 @@
         "beard": 0,
         "ears": 0,
         "belt": 0,
-        "trim": 3
+        "trim": 3,
+        "body3d": 1
       },
       "bio": "Elle te fait marcher, te tire, attend que tu suives… et balaye le pied pile au moment où il se pose.",
       "legend": true
@@ -516,7 +525,8 @@
         "beard": 3,
         "ears": 1,
         "belt": 1,
-        "trim": 6
+        "trim": 6,
+        "body3d": 0
       },
       "bio": "Rien de spectaculaire, rien d'inutile. Une garde parfaite, un o-soto imparable, et un sol d'une précision chirurgicale.",
       "legend": true

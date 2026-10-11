@@ -90,6 +90,8 @@ static func _normalize(b: Dictionary, k: int) -> void:
 		b.id = "u%d_%s" % [k, String(b.get("name", "J")).to_lower()]
 	if not b.has("look"):
 		b.look = {"skin": [1, 3, 2, 0][k % 4], "hair": [0, 1, 3, 2][k % 4], "hair_color": [1, 0, 0, 2][k % 4]}
+	if not b.look.has("body3d"):
+		b.look.body3d = 1 if String(b.get("name", "")).to_upper() in ["AYA"] else 0
 	if not b.has("nick"):
 		b.nick = ""
 	if not b.has("tag"):

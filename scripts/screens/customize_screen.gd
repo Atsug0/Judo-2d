@@ -11,9 +11,8 @@ const Build := preload("res://scripts/build.gd")
 const TABS := ["PROFIL", "APPARENCE", "TECHNIQUES", "GARDE & STYLE", "PHYSIQUE"]
 const PROFILE_ROWS := ["NOM", "SURNOM", "NOUVEAU JUDOKA", "COPIER UNE LÉGENDE", "SUPPRIMER"]
 ## Apparence : [clé du look, libellé, liste des noms d'options]
-const LOOK_ROWS := [["skin", "PEAU", "SKIN_NAMES"], ["hair", "CHEVEUX", "HAIR_STYLES"], ["hair_color", "COULEUR", "HAIR_COLOR_NAMES"],
-	["build", "CARRURE", "BUILD_NAMES"], ["face", "VISAGE", "FACE_NAMES"], ["brow", "SOURCILS", "BROW_NAMES"],
-	["beard", "BARBE", "BEARD_NAMES"], ["ears", "OREILLES", "EAR_NAMES"], ["belt", "CEINTURE", "BELT_NAMES"], ["trim", "LISERÉ", "TRIM_NAMES"]]
+## Apparence : le modèle 3D (homme / femme) ; le judogi suit le côté (blanc P1, bleu P2).
+const LOOK_ROWS := [["body3d", "MODÈLE", "BODY3D_NAMES"]]
 const KB_ROWS := [["A", "B", "C", "D", "E", "F", "G", "H", "I", "J"], ["K", "L", "M", "N", "O", "P", "Q", "R", "S", "T"],
 	["U", "V", "W", "X", "Y", "Z", "É", "È", "-", "'"], ["ESPACE", "EFFACER", "OK"]]
 const MAX_JUDOKAS := 12
@@ -325,6 +324,8 @@ func _draw_profile(b: Dictionary) -> void:
 
 func _look_names(list_name: String) -> Array:
 	match list_name:
+		"BODY3D_NAMES":
+			return Art.BODY3D_NAMES
 		"SKIN_NAMES":
 			return Art.SKIN_NAMES
 		"HAIR_STYLES":

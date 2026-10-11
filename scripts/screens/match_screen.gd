@@ -120,6 +120,11 @@ func on_enter(p: Dictionary) -> void:
 		m3d = M3d.new()
 		add_child(m3d)
 		var who: Array = Array(String(app.args.get("models3d_who", "")).split(",", false))
+		if who.is_empty():
+			var bl: Array = p.get("builds", [])
+			for i in 2:
+				var b = bl[i] if i < bl.size() else {}
+				who.append(M3d.who_for(b.get("look", {}) if b is Dictionary else {}, i))
 		if m3d.setup(String(app.args.get("models3d", M3d.DEFAULT_DIR)), who, K, FEET_Y):
 			for spec in [["3d", "_draw_layer_3d"], ["fx", "_draw_layer_fx"]]:
 				var n = Node2D.new()
@@ -681,15 +686,15 @@ func _draw_layer_world(ci: CanvasItem) -> void:
 	_draw_popups()
 
 
-## Judokas 3D (modèles riggés) : option d'affichage, sauf dojo, mode sans écran et sprites forcés.
+## Judokas 3D (modèles riggés) : partout, sauf en mode sans écran, avec --dessin ou des sprites forcés.
 func _use_models3d(p: Dictionary) -> bool:
-	if app == null or p.has("dojo") or String(p.get("sprites", "")) != "":
+	if app == null or String(p.get("sprites", "")) != "":
 		return false
 	if app.args.has("models3d"):
 		return true
 	if app.args.has("dessin") or DisplayServer.get_name() == "headless":
 		return false
-	return String(Settings.value("judokas")) == "3d" and FileAccess.file_exists("res://assets/judokas/homme_blanc/rig.glb")
+	return FileAccess.file_exists("res://assets/judokas/homme_blanc/rig.glb")
 
 
 func _draw_layer_3d(ci: CanvasItem) -> void:
