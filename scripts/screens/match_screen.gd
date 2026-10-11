@@ -66,6 +66,7 @@ var walk_ph = [0.0, 0.0]         # cycle de marche, avancé à la distance réel
 var walk_amp = [0.0, 0.0]
 var walk_dir = [1.0, 1.0]
 var prev_dx = [-1.0, -1.0]  # main chassée : images restantes de l'animation, par joueur et par main
+var vel = [0.0, 0.0]          # vitesse affichée vers l'avant (px/image), lissée
 var gap_shown = -1.0         # écart affiché entre les deux judokas (px), lissé
 var tug = [[Vector2.ZERO, Vector2.ZERO], [Vector2.ZERO, Vector2.ZERO]]  # main qui tire / pousse
 var grip_shake = [[0, 0], [0, 0]]  # prise attaquée : la main tremble
@@ -630,7 +631,8 @@ func _update_fx() -> void:
 				prev_dx[i] = x
 			var dx = x - prev_dx[i]
 			prev_dx[i] = x
-			walk_ph[i] += absf(dx) * 0.16
+			walk_ph[i] += absf(dx) * 0.12
+			vel[i] = lerpf(vel[i], dx * sim.state.fighters[i].facing, 0.15)
 			walk_amp[i] = lerpf(walk_amp[i], clampf(absf(dx) / 1.4, 0.0, 1.0), 0.2)
 			if absf(dx) > 0.05:
 				walk_dir[i] = signf(dx * sim.state.fighters[i].facing)
@@ -645,7 +647,7 @@ func _update_fx() -> void:
 			var pull = clampf(float(f.prev[Sim.PX]) * f.facing / 100.0, -1.0, 1.0)  # < 0 : tire vers soi
 			var lift = clampf(float(f.prev[Sim.PY]) / 100.0, -1.0, 1.0)
 			for h in 2:
-				var want = Vector2(pull * 7.0 * f.facing, -lift * 3.0) * K if f.hands[h].state == Sim.HAND_GRIP else Vector2.ZERO
+				var want = Vector2(pull * 10.0 * f.facing, -lift * 4.0) * K if f.hands[h].state == Sim.HAND_GRIP else Vector2.ZERO
 				tug[i][h] = tug[i][h].lerp(want, 0.22)
 				if grip_shake[i][h] > 0:
 					grip_shake[i][h] -= 1
@@ -884,9 +886,9 @@ func _standing_pose(i: int) -> Dictionary:
 		var ph = walk_ph[i]
 		var am = walk_amp[i]
 		var dir = walk_dir[i]
-		pose.fb += Vector2(sin(ph) * 6.0 * dir * am, -maxf(0.0, cos(ph)) * 3.0 * am)
-		pose.ff += Vector2(sin(ph + PI) * 6.0 * dir * am, -maxf(0.0, -cos(ph)) * 3.0 * am)
-		pose.hip += Vector2(0, -absf(sin(ph)) * 1.2 * am)
+		pose.fb += Vector2(sin(ph) * 9.0 * dir * am, -maxf(0.0, cos(ph)) * 4.5 * am)
+		pose.ff += Vector2(sin(ph + PI) * 9.0 * dir * am, -maxf(0.0, -cos(ph)) * 4.5 * am)
+		pose.hip += Vector2(dir * 2.0 * am, -absf(sin(ph)) * 2.2 * am)
 		free_legs = true
 	# déséquilibre subi : bal_x > 0 = tiré vers l'avant (vers l'adversaire)
 	var bx = clampf(float(f.bal_x + f.react) / 10000.0, -1.0, 1.0)
@@ -906,6 +908,10 @@ func _standing_pose(i: int) -> Dictionary:
 		# on se pousse, le poids passe d'un pied sur l'autre
 		var pull = clampf(float(f.prev[Sim.PX]) * f.facing / 100.0, -1.0, 1.0)
 		var sway = sin(frame * 0.045 + i * 2.0)
+		# il pousse (le couple avance vers l'autre) : buste en avant ; il recule en tirant : hanches en arrière
+		var drive = clampf(vel[i] / 1.4, -1.0, 1.0)
+		pose.bow += drive * (0.14 if drive > 0.0 else 0.08)
+		pose.hip += Vector2(drive * 3.0, absf(drive) * 2.0)
 		# à distance (bras tendus), le buste se penche pour aller chercher la prise
 		var ext = clampf((gap_shown / K - 46.0) / 18.0, -0.6, 1.0) if gap_shown > 0.0 else 0.0
 		pose.bow += 0.12 + ext * 0.2 + pull * 0.12 + sway * 0.03
