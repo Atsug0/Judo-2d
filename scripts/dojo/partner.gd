@@ -13,6 +13,7 @@ const NAMES := {"static": "Immobile", "garde": "Tient sa garde", "reach": "Batai
 	"sol_passif": "Sol : passif", "sol_resiste": "Sol : se débat", "sol_dessus": "Sol : contrôle"}
 
 var mode = "garde"
+var osae_ai = null
 var t = 0
 var ai = null
 var ai_level = 0
@@ -103,6 +104,11 @@ func _ground(sim, inp: Array) -> Array:
 	if nw.is_empty():
 		return inp
 	var top: bool = nw.top == 1
+	if nw.osae and nw.sub.is_empty() and nw.has("ct"):
+		# immobilisation : le partenaire joue les curseurs, en débutant (niveau 1)
+		if osae_ai == null:
+			osae_ai = Ai.new(1, 5, 1)
+		return osae_ai._think_osae(sim, nw, sim.state.fighters[1], inp)
 	match mode:
 		"sol_dessus":
 			if top:

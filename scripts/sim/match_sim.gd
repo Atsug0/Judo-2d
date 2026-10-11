@@ -311,7 +311,9 @@ func _update_grips(i: int, inp: Array) -> void:
 			hand.state = HAND_FREE
 			hand.t = 0
 			continue
-		if trig < cfg.grip_min_trigger or not in_range:
+		# une prise tenue résiste à un bras tendu ; une main qui cherche doit être à portée
+		var reach_ok: bool = in_range if hand.state != HAND_GRIP else absi(o.x - f.x) <= cfg.grip_range + cfg.grip_hold_margin
+		if trig < cfg.grip_min_trigger or not reach_ok:
 			if hand.state == HAND_GRIP:
 				events.append({"type": "release", "who": i, "hand": h})
 			hand.state = HAND_FREE
@@ -329,19 +331,21 @@ func _update_grips(i: int, inp: Array) -> void:
 				events.append({"type": "grip", "who": i, "hand": h})
 		if hand.state == HAND_GRIP:
 			hand.t += 1
-			# qualité : serrer fort l'approfondit, une main molle glisse
-			if trig > cfg.grip_q_hard_trigger:
-				hand.q = mini(10000, hand.q + q_gain * (trig - cfg.grip_q_hard_trigger) / (100 - cfg.grip_q_hard_trigger))
+			# qualité : serrer fort l'approfondit (et chauffe l'avant-bras) ; tenir à moitié
+			# garde une prise moyenne ; une main molle glisse mais se repose
+			if trig >= cfg.grip_hard:
+				hand.q = mini(10000, hand.q + q_gain * (trig - cfg.grip_hard + 10) / (110 - cfg.grip_hard))
+				hand.fat = mini(10000, hand.fat + cfg.fat_gain * trig / 100)
+			elif trig >= cfg.grip_soft:
+				if hand.q > cfg.grip_soft_cap:
+					hand.q = maxi(cfg.grip_soft_cap, hand.q - cfg.grip_q_slack)
+				hand.fat = mini(10000, hand.fat + cfg.fat_gain * trig / 300)
 			else:
 				hand.q = maxi(500, hand.q - cfg.grip_q_slack)
-			# fatigue d'avant-bras : tenir fort use, desserrer repose
-			if trig >= 50:
-				hand.fat = mini(10000, hand.fat + cfg.fat_gain * trig / 100)
-			else:
 				hand.fat = maxi(0, hand.fat - cfg.fat_rest)
 			if hand.fat > cfg.fat_decay_from:
 				hand.q = maxi(0, hand.q - cfg.fat_q_decay * (hand.fat - cfg.fat_decay_from) / (10000 - cfg.fat_decay_from))
-			if hand.fat >= 10000:
+			if hand.fat >= 10000 or hand.q <= 0:
 				hand.state = HAND_FREE
 				hand.t = 0
 				hand.lock = cfg.fat_release_lock
@@ -384,12 +388,34 @@ func _update_movement(inputs: Array) -> void:
 		f.last_move = dxs[i]
 	var linked: bool = has_grip(fs[0]) or has_grip(fs[1])
 	if linked:
-		# le couple se déplace d'un bloc
-		var pair: int = (dxs[0] + dxs[1]) * cfg.pair_move_pct / 100
+		# le couple se déplace d'un bloc ; quand les deux tirent en sens contraire,
+		# celui qui domine le kumikata l'emporte (il emmène l'autre)
+		# celui qui pousse ou tire le plus fort (pondéré par la domination) mène le couple ;
+		# l'autre suit (le couple accélère) ou résiste (il ralentit, et s'appuie : action-réaction)
+		var drv: int = 0
+		var sc0: int = absi(dxs[0]) * (10000 + dom_of(0)) / 100
+		var sc1: int = absi(dxs[1]) * (10000 + dom_of(1)) / 100
+		if sc1 > sc0:
+			drv = 1
+		var lead: int = dxs[drv]
+		var other: int = dxs[1 - drv]
+		var pair: int = lead * cfg.pair_move_pct / 100
+		if lead != 0 and other != 0:
+			if (lead > 0) == (other > 0):
+				pair = pair * (100 + cfg.pair_follow_pct) / 100
+			else:
+				pair = pair * (100 - cfg.pair_resist_pct) / 100
 		fs[0].x += pair
 		fs[1].x += pair
-		# la distance se règle sur la saisie la plus proche (bras tendus)
+		# la distance respire : pousser au stick droit tend les bras, tirer rapproche
 		var target: int = garde_distance()
+		for i in 2:
+			var px: int = clampi(int(inputs[i][PX]), -100, 100) * fs[i].facing
+			if px > 0:
+				target += px * cfg.arm_push_ext / 100
+			else:
+				target += px * cfg.arm_pull_close / 100
+		target = maxi(cfg.min_gap + 600, target)
 		var d: int = absi(fs[1].x - fs[0].x)
 		var delta: int = clampi(target - d, -cfg.gap_relax, cfg.gap_relax)
 		var sgn: int = 1 if fs[1].x >= fs[0].x else -1
@@ -472,7 +498,7 @@ func _update_dominance() -> void:
 		for hand in f.hands:
 			if hand.state == HAND_GRIP:
 				var tname: String = cfg.grip_targets[hand.target]
-				var settle: int = 15 + 85 * hand.q / 10000
+				var settle: int = 40 + 60 * hand.q / 10000
 				r[i] += int(cfg.dom_gain[tname]) * settle / 100 * (40 + hand.trig * 60 / 100) / 100
 		r[i] = r[i] * f.mods.dom_pct / 100
 	var d: int = state.dom
@@ -640,6 +666,11 @@ func _update_defense(i: int, inp: Array) -> void:
 		oh.lock = cfg.strip_lock
 		_push_dom(i, cfg.dom_break)
 		events.append({"type": "break", "who": i, "hand": best, "how": how})
+		if not has_grip(o) and not has_grip(f):
+			# plus aucun contact : chacun recule d'un pas, la bataille de mains repart
+			var sgn: int = 1 if o.x > f.x else -1
+			f.x -= sgn * cfg.strip_separation
+			o.x += sgn * cfg.strip_separation
 	else:
 		oh.q -= dmg
 		oh.fat = mini(10000, oh.fat + cfg.strip_fail_fatigue)
@@ -1029,18 +1060,26 @@ func _newaza_tick(inputs: Array) -> void:
 			events.append({"type": "sub_escape", "who": bot})
 		_newaza_end_checks(nw)
 		return
-	# --- jauge de contrôle
+	# --- immobilisation en cours : mini-jeu des curseurs (tenir / sortir)
+	if nw.osae:
+		if _osae_cursor_tick(nw, ft, fb, it, ib):
+			return
+	# --- jauge de contrôle (avant l'osaekomi : la lutte pour prendre le contrôle)
 	var c: int = nw.control
-	if it[BA] != 0:
-		c += cfg.newaza_hold_gain * (80 + sol_t * 4) / 100
-		ft.stamina = maxi(0, ft.stamina - 3)
-	if _pressed(fb, ib, BB) and fb.stamina > 60:
-		c -= cfg.newaza_escape_burst * (80 + sol_b * 4) / 100 * (50 + fb.stamina * 50 / fb.stamina_max) / 100
-		fb.stamina -= 60
-	if ib[MX] != 0:
-		c -= cfg.newaza_stick_escape
-	c -= cfg.newaza_drift
-	nw.control = clampi(c, 0, 10000)
+	if nw.osae:
+		c -= cfg.osae_drift
+		nw.control = clampi(c, cfg.toketa_below, 10000)
+	else:
+		if it[BA] != 0:
+			c += cfg.newaza_hold_gain * (80 + sol_t * 4) / 100
+			ft.stamina = maxi(0, ft.stamina - 3)
+		if _pressed(fb, ib, BB) and fb.stamina > 60:
+			c -= cfg.newaza_escape_burst * (80 + sol_b * 4) / 100 * (50 + fb.stamina * 50 / fb.stamina_max) / 100
+			fb.stamina -= 60
+		if ib[MX] != 0:
+			c -= cfg.newaza_stick_escape
+		c -= cfg.newaza_drift
+		nw.control = clampi(c, 0, 10000)
 	# tentative de clé / étranglement (si équipé)
 	if nw.control >= cfg.sub_control:
 		for pair in [[BX, "kansetsu"], [BY, "shime"]]:
@@ -1062,6 +1101,7 @@ func _newaza_tick(inputs: Array) -> void:
 				hold = id
 				break
 		nw.hold = hold
+		_osae_cursor_start(nw, ft, fb)
 		events.append({"type": "osaekomi", "who": top, "tech": hold})
 		_announce("OSAEKOMI")
 	if nw.osae:
@@ -1074,13 +1114,113 @@ func _newaza_tick(inputs: Array) -> void:
 			_end(top, "Ippon — " + tech_name(nw.hold))
 			_announce("IPPON !")
 			return
-		if nw.control < cfg.toketa_below:
+		if nw.control < cfg.toketa_below and not nw.has("ct"):
 			events.append({"type": "toketa", "who": bot})
 			_announce("TOKETA")
 			nw.osae = false
 			_matte_after(40)
 			return
 	_newaza_end_checks(nw)
+
+
+## Mini-jeu d'immobilisation : chaque joueur a une barre (0..10000), un curseur qui fait
+## des allers-retours et une zone. Celui du dessus vise la sienne avec A pour maintenir,
+## celui du dessous avec B pour sortir. Centre de zone = coup parfait. Rater bloque un instant.
+func _osae_cursor_start(nw: Dictionary, ft: Dictionary, fb: Dictionary) -> void:
+	nw.rng = (state.tick * 1103515245 + nw.control + 77) & 0x7fffffff
+	nw.prog = 0
+	nw.ct = {"w": maxi(cfg.osae_zone_min, cfg.osae_zone_top + (ft.mods.sol - 5) * cfg.osae_zone_per_sol), "c": 5000, "lock": 0, "t0": 0}
+	nw.cb = {"w": maxi(cfg.osae_zone_min, cfg.osae_zone_bot + (fb.mods.sol - 5) * cfg.osae_zone_per_sol), "c": 5000, "lock": 0, "t0": 0}
+	_osae_move_zone(nw, nw.ct)
+	_osae_move_zone(nw, nw.cb)
+
+
+func _osae_rand(nw: Dictionary, n: int) -> int:
+	nw.rng = (int(nw.rng) * 1103515245 + 12345) & 0x7fffffff
+	return (int(nw.rng) >> 8) % n
+
+
+func _osae_move_zone(nw: Dictionary, z: Dictionary) -> void:
+	var half: int = z.w / 2 + 400
+	z.c = half + _osae_rand(nw, maxi(1, 10000 - 2 * half))
+
+
+## Période d'aller-retour du curseur (ticks) : celui du dessous accélère quand il fatigue.
+func osae_period(role: String, f: Dictionary) -> int:
+	if role == "top":
+		return cfg.osae_period_top
+	return cfg.osae_period_bot_tired + (cfg.osae_period_bot - cfg.osae_period_bot_tired) * f.stamina / f.stamina_max
+
+
+## Position du curseur (0..10000) : onde triangle à partir du temps d'osaekomi.
+func osae_cursor(role: String) -> int:
+	var nw: Dictionary = state.newaza
+	if nw.is_empty() or not nw.has("ct"):
+		return 0
+	var f: Dictionary = state.fighters[nw.top if role == "top" else nw.bottom]
+	var z: Dictionary = nw.ct if role == "top" else nw.cb
+	var per: int = osae_period(role, f)
+	var u: int = ((int(nw.osae_t) - int(z.t0)) * 20000 / per) % 20000
+	return u if u <= 10000 else 20000 - u
+
+
+## 0 = raté, 1 = dans la zone, 2 = parfait (centre).
+func osae_quality(role: String) -> int:
+	var nw: Dictionary = state.newaza
+	var z: Dictionary = nw.ct if role == "top" else nw.cb
+	var d: int = absi(osae_cursor(role) - int(z.c))
+	if d * 6 <= int(z.w):
+		return 2
+	if d * 2 <= int(z.w):
+		return 1
+	return 0
+
+
+## Renvoie true si l'immobilisation s'est terminée (sortie).
+func _osae_cursor_tick(nw: Dictionary, ft: Dictionary, fb: Dictionary, it: Array, ib: Array) -> bool:
+	if not nw.has("ct"):
+		_osae_cursor_start(nw, ft, fb)
+	var top: int = nw.top
+	var bot: int = nw.bottom
+	for role in ["top", "bot"]:
+		var z: Dictionary = nw.ct if role == "top" else nw.cb
+		var other: Dictionary = nw.cb if role == "top" else nw.ct
+		var f: Dictionary = ft if role == "top" else fb
+		var inp: Array = it if role == "top" else ib
+		var btn: int = BA if role == "top" else BB
+		var who: int = top if role == "top" else bot
+		if z.lock > 0:
+			z.lock -= 1
+			continue
+		if not _pressed(f, inp, btn):
+			continue
+		var q := osae_quality(role)
+		if q == 0:
+			z.lock = cfg.osae_miss_lock
+			if role == "bot":
+				nw.prog = maxi(0, nw.prog - cfg.osae_miss_progress)
+			events.append({"type": "osae_miss", "who": who, "role": role})
+			continue
+		var mult: int = cfg.osae_perfect_mult if q == 2 else 1
+		if role == "top":
+			nw.control = mini(10000, nw.control + cfg.osae_hit_control * mult)
+			nw.prog = maxi(0, nw.prog - cfg.osae_top_progress_cut * mult)
+			ft.stamina = maxi(0, ft.stamina - 40)
+		else:
+			nw.control = maxi(cfg.toketa_below, nw.control - cfg.osae_hit_escape_control * mult)
+			nw.prog = mini(100, nw.prog + cfg.osae_hit_progress * mult)
+			fb.stamina = maxi(0, fb.stamina - 60)
+		other.w = maxi(cfg.osae_zone_min, other.w - cfg.osae_zone_shrink * mult)
+		_osae_move_zone(nw, z)
+		events.append({"type": "osae_hit", "who": who, "role": role, "perfect": q == 2})
+	if nw.prog >= 100:
+		events.append({"type": "toketa", "who": bot})
+		events.append({"type": "escape", "who": bot})
+		_announce("TOKETA")
+		nw.osae = false
+		_matte_after(40)
+		return true
+	return false
 
 
 func _newaza_end_checks(nw: Dictionary) -> void:

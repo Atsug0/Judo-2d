@@ -31,6 +31,9 @@ var parry_cd := 0
 var move_intent := 0
 var move_left := 0
 var strip_cd := 0
+var drive_dir := 1         # en garde : sens dans lequel il emmène le couple
+var osae_pass := -1        # immobilisation : passage du curseur en cours
+var osae_plan := ""        # "hit" (vise), "miss" (appuie à côté), "wait"
 
 
 func _init(index: int, seed_value: int, lvl: int = 2) -> void:
@@ -68,24 +71,45 @@ func think(sim) -> Array:
 	# (jamais plus de 80 hors dash : une pichenette à fond depuis le neutre = dash)
 	# Intention de déplacement tenue quelques dixièmes de seconde (pas de tremblement).
 	var back_room: int = (f.x - cfg.mat_left) if facing == 1 else (cfg.mat_right - f.x)
+	var front_room: int = (cfg.mat_right - f.x) if facing == 1 else (f.x - cfg.mat_left)
 	move_left -= 1
-	if dist > cfg.free_gap + 400 and not linked:
-		move_intent = 80  # venir à portée
-		move_left = 0
-	elif back_room < 6000:
-		move_intent = 70
+	if back_room < 5000:
+		move_intent = 75  # dos au bord : on repousse vers le centre
 		move_left = 0
 	elif move_left <= 0:
 		var roll := _rand(100)
-		if linked and plan_dir.begins_with("avant") and roll < 45 + 10 * level:
-			move_intent = -60  # tsukuri : recule en tirant
-		elif linked and plan_dir.begins_with("arriere") and roll < 40 + 10 * level:
-			move_intent = 50  # tsukuri : avance en poussant
-		elif not linked and roll < 50:
-			move_intent = 45 if _rand(2) == 0 else -45  # jeu de jambes en bataille de mains
+		if linked:
+			if me_dom > 800 or (me_dom > -800 and roll < 50):
+				# il mène la danse : pousse, puis tire en reculant, en rythme ;
+				# la direction du plan de kuzushi décide du sens au moment d'attaquer
+				drive_dir = -drive_dir if _rand(100) < 45 else drive_dir
+				if plan_dir.begins_with("avant") and _rand(100) < 35 + 10 * level:
+					drive_dir = -1  # tsukuri : recule en tirant
+				elif plan_dir.begins_with("arriere") and _rand(100) < 35 + 10 * level:
+					drive_dir = 1   # tsukuri : avance en poussant
+				if front_room < 9000:
+					drive_dir = -1
+				move_intent = drive_dir * (60 + _rand(21))
+				move_left = 60 + _rand(80)
+			else:
+				# dominé : suit le mouvement (garde l'équilibre) ou lutte contre
+				var follow := roll < 55 + 5 * level
+				move_intent = 0 if roll > 90 else ((50 + _rand(30)) if follow else -(25 + _rand(20))) * _lead_sign(sim, f, o)
+				move_left = 20 + _rand(30)
 		else:
-			move_intent = 0
-		move_left = 18 + _rand(30)
+			# bataille de mains : on entre et on sort de la distance de saisie, en rythme
+			if dist > cfg.grip_range + 1500:
+				move_intent = 75
+				move_left = 8
+			elif roll < 45:
+				move_intent = 50 + _rand(30)       # entrer
+				move_left = 14 + _rand(22)
+			elif roll < 80:
+				move_intent = -(45 + _rand(30))    # sortir
+				move_left = 12 + _rand(20)
+			else:
+				move_intent = 0
+				move_left = 8 + _rand(14)
 	inp[Sim.MX] = move_intent * facing
 
 	# --- Réaction au kuzushi adverse : suivre, résister, ou subir (un choix par épisode)
@@ -128,7 +152,7 @@ func think(sim) -> Array:
 			_start_dash(-facing if plan_dir.begins_with("avant") else facing)
 
 	# --- Kumikata : une main après l'autre ; la garde haute monte au col
-	if dist <= cfg.grip_range + 600:
+	if dist <= cfg.grip_range + 600 or (gripped and dist <= cfg.grip_range + cfg.grip_hold_margin):
 		var grip := 80 if f.stamina > f.stamina_max * 3 / 10 else 45
 		if f.hands[0].state != Sim.HAND_FREE or grip_delay <= 0:
 			inp[Sim.LT] = grip
@@ -136,14 +160,14 @@ func think(sim) -> Array:
 			inp[Sim.RT] = grip
 		grip_delay -= 1
 	else:
-		grip_delay = 6 + _rand(20)
+		grip_delay = 50 + _rand(90) - 10 * level  # bataille de mains avant de s'engager
 
 	# --- Bataille de mains : chasser la main qui arrive
 	if parry_cd > 0:
 		parry_cd -= 1
 	for h in 2:
 		if o.hands[h].state == Sim.HAND_REACH and o.hands[h].t == 5 + _rand(4) and parry_cd == 0:
-			if _rand(100) < 12 + 13 * level:
+			if _rand(100) < 22 + 14 * level:
 				inp[Sim.BB] = 1
 				parry_cd = 20
 
@@ -203,12 +227,13 @@ func think(sim) -> Array:
 			dmg = dmg * cfg.strip_two_hands_pct / 100
 		dmg = dmg * maxi(30, 100 - otrig * cfg.strip_hold_resist / 100 - o.mods.grip_resist) / 100
 		var chance := 0
-		if threat >= 7000 - 1000 * level:
-			chance = 20 + 30 * level if threat <= dmg else 3 * level
+		if threat >= [0, 6000, 4500, 4000][level]:
+			chance = 60 if threat <= dmg else 15
 		if chance > 0 and _rand(1000) < chance:
 			strip = true
 			want_b = true
-			strip_cd = 18 - 3 * level + _rand(12)
+			# rythme humain : pas plus d'un arrachage toutes les quelques secondes
+			strip_cd = [0, 600, 420, 320][level] + _rand(180)
 	if want_b and b_cooldown == 0:
 		inp[Sim.BB] = 1
 		b_cooldown = 10
@@ -344,6 +369,8 @@ func _think_newaza(sim, inp: Array) -> Array:
 	var f: Dictionary = sim.state.fighters[me]
 	if nw.is_empty():
 		return inp
+	if nw.osae and nw.sub.is_empty() and nw.has("ct"):
+		return _think_osae(sim, nw, f, inp)
 	if nw.top == me:
 		inp[Sim.BA] = 1
 		if not nw.sub.is_empty():
@@ -361,3 +388,43 @@ func _think_newaza(sim, inp: Array) -> Array:
 			inp[Sim.BB] = 1
 		inp[Sim.MX] = 100 if _rand(2) == 0 else -100
 	return inp
+
+
+## Immobilisation : viser la zone colorée au bon moment (réussite selon le niveau).
+func _think_osae(sim, nw: Dictionary, f: Dictionary, inp: Array) -> Array:
+	var role := "top" if nw.top == me else "bot"
+	var z: Dictionary = nw.ct if role == "top" else nw.cb
+	var btn: int = Sim.BA if role == "top" else Sim.BB
+	if role == "top" and nw.control >= sim.cfg.sub_control and _rand(1000) < 4 * level:
+		for id in f.set.ground:
+			var kind: String = sim.techs._newaza[id].kind
+			if kind != "osaekomi" and f.prev[Sim.BX] == 0 and f.prev[Sim.BY] == 0:
+				inp[Sim.BX if kind == "kansetsu" else Sim.BY] = 1
+				return inp
+	var per: int = sim.osae_period(role, f)
+	var pass_id: int = (int(nw.osae_t) - int(z.t0)) * 2 / per
+	if pass_id != osae_pass:
+		osae_pass = pass_id
+		var roll := _rand(100)
+		var hit_pct: int = [0, 60, 75, 90][level]
+		osae_plan = "hit" if roll < hit_pct else ("miss" if roll < hit_pct + 10 else "wait")
+	if z.lock > 0 or f.prev[btn] != 0 or osae_plan == "wait":
+		return inp
+	var d: int = absi(sim.osae_cursor(role) - int(z.c))
+	var half: int = int(z.w) / 2
+	if osae_plan == "hit":
+		var aim: int = half * [0, 9, 6, 3][level] / 10
+		if d <= aim:
+			inp[btn] = 1
+			osae_plan = "wait"
+	elif d > half and d <= half + 1200:
+		inp[btn] = 1
+		osae_plan = "wait"
+	return inp
+
+
+## Sens (dans son propre repère, 1 = vers l'avant) dans lequel l'adversaire entraîne le couple.
+func _lead_sign(sim, f: Dictionary, o: Dictionary) -> int:
+	var v: int = o.last_move * f.facing
+	return 1 if v >= 0 else -1  # il s'éloigne : le suivre = avancer ; il pousse vers moi : reculer
+

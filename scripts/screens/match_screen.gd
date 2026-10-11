@@ -2,6 +2,7 @@ extends Node2D
 ## Écran de combat : fait tourner la simulation et dessine l'arène, les judokas et le HUD.
 
 const Style := preload("res://scripts/ui/style.gd")
+const Rich := preload("res://scripts/ui/rich.gd")
 const Art := preload("res://scripts/view/fighter_art.gd")
 const GameData := preload("res://scripts/game_data.gd")
 const Sim := preload("res://scripts/sim/match_sim.gd")
@@ -70,6 +71,7 @@ var tug = [[Vector2.ZERO, Vector2.ZERO], [Vector2.ZERO, Vector2.ZERO]]  # main q
 var grip_shake = [[0, 0], [0, 0]]  # prise attaquée : la main tremble
 var chop = [0, 0]                  # combat de mains : coup sur la prise adverse (images restantes)
 var chop_hand = [0, 0]             # main adverse visée
+var osae_fx = {"top": 0, "bot": 0, "top_perfect": false, "bot_perfect": false, "top_miss": 0, "bot_miss": 0}
 const PAUSE_ITEMS := ["REPRENDRE", "RECOMMENCER", "PERSONNALISATION", "MENU PRINCIPAL"]
 
 
@@ -315,6 +317,15 @@ func _consume_events() -> void:
 				capture_flag = true
 			"toketa":
 				_popup("TOKETA", who, Style.PAPER)
+			"osae_hit":
+				osae_fx[e.role] = 12
+				osae_fx[e.role + "_perfect"] = e.perfect
+				if e.perfect:
+					_popup("PARFAIT !", who, Style.GOLD)
+					shake = maxf(shake, 2.0)
+				_impact(_ground_center(), Style.P1 if who == 0 else Style.P2, 0.6)
+			"osae_miss":
+				osae_fx[e.role + "_miss"] = 16
 			"escape":
 				_popup("SORTIE !", who, Style.GOOD)
 			"sub_start":
@@ -369,6 +380,13 @@ func _sound_event(e: Dictionary) -> void:
 			Sound.play("grip", -6.0, 1.0, 0.08)
 		"break":
 			Sound.play("grip_break", -3.0)
+		"break_fail":
+			Sound.play("slap", -6.0, 1.1, 0.1)
+		"osae_hit":
+			Sound.play("taiko_small", -4.0 if e.perfect else -8.0, 1.15 if e.role == "top" else 0.9)
+			Sound.play("rustle", -6.0, 1.0, 0.1)
+		"osae_miss":
+			Sound.play("ui_error", -12.0)
 		"parry":
 			Sound.play("slap", -2.0, 1.0, 0.08)
 		"whiff":
@@ -553,8 +571,16 @@ func _camera_target() -> Array:
 			var x0 = _draw_x(0)
 			var x1 = _draw_x(1)
 			var d = absf(x1 - x0)
-			z = clampf(remap(d, 330.0, 110.0, 1.0, 1.22), 1.0, 1.22)
-			c = Vector2((x0 + x1) * 0.5, 430.0)
+			z = clampf(remap(d, 330.0, 110.0, 1.0, 1.1), 1.0, 1.1)
+			# zone morte : la caméra ne suit le couple que s'il s'éloigne du centre de l'image,
+			# pour qu'on voie les judokas traverser le tapis
+			var mid = (x0 + x1) * 0.5
+			var cx = cam_c.x
+			if mid - cx > CAM_DEADZONE:
+				cx = mid - CAM_DEADZONE
+			elif cx - mid > CAM_DEADZONE:
+				cx = mid + CAM_DEADZONE
+			c = Vector2(cx, 430.0)
 		"throw", "score":
 			var th: Dictionary = st.throw
 			if not th.is_empty():
@@ -625,6 +651,9 @@ func _update_fx() -> void:
 					grip_shake[i][h] -= 1
 			if chop[i] > 0:
 				chop[i] -= 1
+		for k in ["top", "bot", "top_miss", "bot_miss"]:
+			if osae_fx[k] > 0:
+				osae_fx[k] -= 1
 	for im in impacts:
 		im.t += 1
 	impacts = impacts.filter(func(im): return im.t < 12)
@@ -792,7 +821,9 @@ func _fighter_xform(i: int) -> Transform2D:
 
 ## Position d'affichage : écart visuel minimum entre les deux judokas (lisibilité du kumikata).
 const VIS_GAP := 110.0
-const LINK_GAP := 76.0
+const LINK_GAP := 92.0
+const GAP_SCALE := 0.76  # écart affiché / écart simulé (bras de longueur réaliste)
+const CAM_DEADZONE := 150.0
 func _draw_x(i: int) -> float:
 	var fs: Array = sim.state.fighters
 	var x = wx(fs[i].x)
@@ -808,9 +839,7 @@ func _draw_x(i: int) -> float:
 func _gap_target() -> float:
 	var fs: Array = sim.state.fighters
 	var d = absf(wx(fs[1].x) - wx(fs[0].x))
-	if sim.state.phase == "fight" and (sim.has_grip(fs[0]) or sim.has_grip(fs[1])):
-		return clampf(d * 0.5, LINK_GAP, maxf(d, LINK_GAP))
-	return maxf(d, VIS_GAP)
+	return maxf(d * GAP_SCALE, LINK_GAP)
 
 
 func _draw_fighters() -> void:
@@ -877,8 +906,10 @@ func _standing_pose(i: int) -> Dictionary:
 		# on se pousse, le poids passe d'un pied sur l'autre
 		var pull = clampf(float(f.prev[Sim.PX]) * f.facing / 100.0, -1.0, 1.0)
 		var sway = sin(frame * 0.045 + i * 2.0)
-		pose.bow += 0.14 + pull * 0.12 + sway * 0.03
-		pose.hip += Vector2(-3 + pull * 4.0 + sway * 1.6, 2 + absf(pull) * 1.5)
+		# à distance (bras tendus), le buste se penche pour aller chercher la prise
+		var ext = clampf((gap_shown / K - 46.0) / 18.0, -0.6, 1.0) if gap_shown > 0.0 else 0.0
+		pose.bow += 0.12 + ext * 0.2 + pull * 0.12 + sway * 0.03
+		pose.hip += Vector2(-3 - ext * 5.0 + pull * 4.0 + sway * 1.6, 2 + absf(pull) * 1.5 + maxf(0.0, ext) * 3.0)
 		pose.ff += Vector2(sway * 1.2, 0)
 		free_legs = true
 		var shook = maxi(grip_shake[i][0], grip_shake[i][1])
@@ -1127,6 +1158,9 @@ func _draw_newaza_hud() -> void:
 	for mark in [cfg.toketa_below, cfg.osaekomi_on]:
 		var mx = gr.position.x + 4 + (gr.size.x - 8) * float(mark) / 10000.0
 		_ci.draw_line(Vector2(mx, gr.position.y - 4), Vector2(mx, gr.end.y + 4), Style.PAPER, 2.0)
+	if nw.osae and nw.has("ct"):
+		_draw_osae_bar("top", nw, Rect2(370, 214, 540, 58))
+		_draw_osae_bar("bot", nw, Rect2(370, 584, 540, 58))
 	if nw.osae:
 		var secs: int = nw.osae_t / 60
 		var c = Vector2(r.position.x - 50, r.get_center().y)
@@ -1144,6 +1178,48 @@ func _draw_newaza_hud() -> void:
 		_ci.draw_rect(Rect2(tr.position.x + 6, tr.position.y + 6, split - tr.position.x - 6, tr.size.y - 12), col)
 		_ci.draw_rect(Rect2(split, tr.position.y + 6, tr.end.x - 6 - split, tr.size.y - 12), Style.P2 if top == 0 else Style.P1)
 		Style.label(_ci, Vector2(tr.position.x, tr.position.y + 24), sim.tech_name(sub.tech).to_upper(), 16, Style.INK, "black", HORIZONTAL_ALIGNMENT_CENTER, tr.size.x)
+
+
+## Barre du mini-jeu d'immobilisation : zone à viser, centre parfait, curseur qui va et vient.
+func _draw_osae_bar(role: String, nw: Dictionary, r: Rect2) -> void:
+	var who: int = nw.top if role == "top" else nw.bottom
+	var col: Color = Style.P1 if who == 0 else Style.P2
+	var z: Dictionary = nw.ct if role == "top" else nw.cb
+	var locked: bool = z.lock > 0
+	var hit = float(osae_fx[role]) / 12.0
+	var rr = r.grow(hit * 4.0)
+	Style.panel(_ci, rr, Style.INK, Style.GOLD if hit > 0.0 and osae_fx[role + "_perfect"] else col, 3.0 + hit * 2.0, 5.0)
+	var btn = "{A}" if role == "top" else "{B}"
+	var title = "%s · %s %s" % [names[who], "TENIR" if role == "top" else "SORTIR", btn]
+	Rich.draw(_ci, Vector2(r.position.x + 26, r.position.y + 22), title.to_upper(), r.size.x - 200, 13, col)
+	if role == "bot":
+		var pr = Rect2(r.end.x - 170, r.position.y + 10, 120, 12)
+		_ci.draw_rect(pr, Style.NIGHT)
+		_ci.draw_rect(Rect2(pr.position, Vector2(pr.size.x * float(nw.prog) / 100.0, pr.size.y)), col)
+		Style.label(_ci, Vector2(pr.position.x - 66, pr.end.y), "SORTIE", 11, Style.MUTED, "black")
+	# barre
+	var b = Rect2(r.position.x + 26, r.position.y + 30, r.size.x - 64, 18)
+	_ci.draw_rect(b, Style.NIGHT if not locked else Style.NIGHT_2)
+	var zx0 = b.position.x + b.size.x * float(int(z.c) - int(z.w) / 2) / 10000.0
+	var zw = b.size.x * float(z.w) / 10000.0
+	var zcol = col if not locked else Style.MUTED
+	_ci.draw_rect(Rect2(zx0, b.position.y, zw, b.size.y), Color(zcol, 0.85))
+	_ci.draw_rect(Rect2(zx0 + zw / 3.0, b.position.y, zw / 3.0, b.size.y), Style.GOLD if not locked else Style.MUTED.lightened(0.2))
+	_ci.draw_rect(b, Style.INK, false, 2.0)
+	# curseur
+	var cx = b.position.x + b.size.x * float(sim.osae_cursor(role)) / 10000.0
+	var miss = float(osae_fx[role + "_miss"]) / 16.0
+	var ccol = Style.DANGER if miss > 0.0 else Style.PAPER
+	_ci.draw_line(Vector2(cx, b.position.y - 6), Vector2(cx, b.end.y + 6), Style.INK, 7.0)
+	_ci.draw_line(Vector2(cx, b.position.y - 5), Vector2(cx, b.end.y + 5), ccol, 3.0)
+	_ci.draw_colored_polygon(PackedVector2Array([Vector2(cx - 6, b.position.y - 10), Vector2(cx + 6, b.position.y - 10), Vector2(cx, b.position.y - 3)]), ccol)
+	if locked:
+		Style.label(_ci, Vector2(b.position.x, b.end.y - 3), "RATÉ — BLOQUÉ", 13, Style.DANGER, "black", HORIZONTAL_ALIGNMENT_CENTER, b.size.x)
+
+
+func _ground_center() -> Vector2:
+	var nw: Dictionary = sim.state.newaza
+	return Vector2(_newaza_center_x(nw), FEET_Y - 30.0) if not nw.is_empty() else _between(0.5)
 
 
 ## Transforms des deux judokas pendant une projection (p de 0 à 1).
@@ -1400,6 +1476,9 @@ func _draw_hints() -> void:
 	var x = 28.0
 	if sim.state.phase == "newaza":
 		var nitems = [["A", "Contrôler"], ["X", "Clé de bras"], ["Y", "Étranglement"], ["B", "Se dégager"], ["R", "Stick gauche : gigoter (dessous)"]]
+		var nwh: Dictionary = sim.state.newaza
+		if not nwh.is_empty() and nwh.osae and nwh.has("ct"):
+			nitems = [["A", "Dessus : tenir, quand ton curseur est dans ta zone"], ["B", "Dessous : sortir, même principe"], ["X", "Clé"], ["Y", "Étranglement"], ["R", "Centre doré = parfait · raté = bloqué"]]
 		for it in nitems:
 			if it[0] == "R":
 				Style.label(_ci, Vector2(x, y + 6), it[1], 15, Style.MUTED, "bold")

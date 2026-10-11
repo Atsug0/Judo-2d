@@ -190,9 +190,10 @@ static func _fundamentals() -> Array:
 		"intro": "Après un waza-ari, le combat continue au sol. Dessus, tu contrôles ; dessous, tu te dégages.",
 		"steps": [
 			_s("Contrôle", "Dessus : maintiens {A} pour monter la jauge de contrôle jusqu'à l'osaekomi.", {"type": "osaekomi"}, "sol_passif", 1, "newaza_top"),
-			_s("Tiens 10 secondes", "Garde {A} enfoncé : 10 s d'osaekomi = waza-ari, 20 s = ippon.", {"type": "osae_time", "ticks": 600}, "sol_resiste", 1, "newaza_top"),
-			_s("Dessous : sors", "Dessous : {B} en rafale et {LS} pour gigoter, jusqu'à sortir.", {"type": "escape"}, "sol_dessus", 1, "newaza_bottom",
-				"Chaque {B} coûte de l'endurance : ne t'épuise pas pour rien."),
+			_s("Tiens 10 secondes", "Osaekomi ! Appuie sur {A} quand ton curseur passe dans ta zone colorée. 10 s = waza-ari, 20 s = ippon.", {"type": "osae_time", "ticks": 600}, "sol_resiste", 1, "newaza_top",
+				"Centre doré = coup parfait. Un raté bloque ta main un instant. Chaque coup réussi rétrécit sa zone à lui."),
+			_s("Dessous : sors", "Dessous : {B} en rafale fait baisser son contrôle. S'il immobilise, vise ta zone avec {B} pour remplir la jauge de sortie.", {"type": "escape"}, "sol_dessus", 1, "newaza_bottom",
+				"Fatigué, ton curseur va plus vite : garde de l'endurance pour le sol."),
 		]})
 	L.append({"id": "b11_regles", "cat": "base", "title": "Les règles", "player": P, "partner_build": U,
 		"intro": "Combat de 4 minutes. Ippon = victoire. Deux waza-ari = ippon. Égalité à la fin : golden score, le premier qui marque gagne.",
@@ -289,8 +290,8 @@ static func _ground_lessons() -> Array:
 		match g.kind:
 			"osaekomi":
 				steps.append(_s("Contrôle", "Dessus, maintiens {A} : la jauge de contrôle monte jusqu'à %s." % g.name, {"type": "osaekomi"}, "sol_passif", 1, "newaza_top"))
-				steps.append(_s("Tiens", "Garde le contrôle 10 secondes malgré ses efforts.", {"type": "osae_time", "ticks": 600}, "sol_resiste", 1, "newaza_top"))
-				steps.append(_s("Ippon", "Tiens 20 secondes : ippon.", {"type": "osae_time", "ticks": 1200}, "sol_resiste", 1, "newaza_top"))
+				steps.append(_s("Tiens", "Vise ta zone avec {A} à chaque passage du curseur : tiens 10 secondes malgré ses efforts.", {"type": "osae_time", "ticks": 600}, "sol_resiste", 1, "newaza_top"))
+				steps.append(_s("Ippon", "Tiens 20 secondes : ippon. Vise le centre doré pour l'étouffer.", {"type": "osae_time", "ticks": 1200}, "sol_resiste", 1, "newaza_top"))
 			"kansetsu":
 				steps.append(_s("Contrôle", "Maintiens {A} pour monter le contrôle au-dessus de la ligne.", {"type": "control", "min": 7600}, "sol_passif", 1, "newaza_top"))
 				steps.append(_s("La clé", "Contrôle haut, appuie sur {X} : %s. Puis garde {X} enfoncé pendant le bras de fer." % g.name,
@@ -303,8 +304,9 @@ static func _ground_lessons() -> Array:
 			"intro": "%s (%s). Au sol, ta caractéristique « sol » compte : contrôle plus rapide, bras de fer plus solide." % [g.name,
 				{"osaekomi": "immobilisation", "kansetsu": "clé de bras", "shime": "étranglement"}[g.kind]], "steps": steps})
 	L.append({"id": "n_sortie", "cat": "sol", "title": "Sortir par-dessous", "player": player_default(), "partner_build": partner_default(),
-		"intro": "Dessous, chaque {B} fait baisser son contrôle ; gigoter avec {LS} aussi. Sous la ligne de toketa, l'osaekomi est annulé.",
+		"intro": "Avant l'osaekomi, chaque {B} fait baisser son contrôle. Pendant l'osaekomi, vise ta zone avec {B} : jauge de sortie pleine = toketa.",
 		"steps": [
-			_s("Toketa ou sortie", "Dessous : {B} en rafale et {LS} jusqu'à toketa ou sortie.", {"type": "escape"}, "sol_dessus", 2, "newaza_bottom"),
+			_s("Toketa ou sortie", "Dessous : sors avant l'osaekomi, ou vise ta zone avec {B} jusqu'à toketa.", {"type": "escape"}, "sol_dessus", 2, "newaza_bottom",
+				"Un raté te bloque un instant et fait reculer ta jauge de sortie : vise juste plutôt que vite."),
 		]})
 	return L

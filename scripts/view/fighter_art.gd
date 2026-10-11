@@ -16,8 +16,8 @@ const GRIP_POINTS := {
 	"belt": Vector2(15, -45),
 }
 const REST_HANDS := [Vector2(22, -57), Vector2(29, -65)]
-const ARM_UPPER := 19.0   # longueur du bras (épaule → coude)
-const ARM_FORE := 20.0    # avant-bras + main (coude → poing)
+const ARM_UPPER := 20.0   # longueur du bras (épaule → coude)
+const ARM_FORE := 21.5    # avant-bras + main (coude → poing)
 const ARM_MAX_STRETCH := 1.03
 
 
