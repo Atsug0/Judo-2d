@@ -17,6 +17,7 @@ const DEFAULTS := {
 	"radar": true,             # radar de kuzushi dans le HUD
 	"hints": true,             # barre d'aide des commandes en combat
 	"feed": true,              # fil des événements en combat
+	"readout": true,           # lecture des boutons A/X/Y et alerte de contre (joueurs humains)
 }
 
 

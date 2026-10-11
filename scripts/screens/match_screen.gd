@@ -3,6 +3,7 @@ extends Node2D
 
 const Style := preload("res://scripts/ui/style.gd")
 const Rich := preload("res://scripts/ui/rich.gd")
+const Readout := preload("res://scripts/view/readout.gd")
 const Art := preload("res://scripts/view/fighter_art.gd")
 const GameData := preload("res://scripts/game_data.gd")
 const Sim := preload("res://scripts/sim/match_sim.gd")
@@ -1269,11 +1270,51 @@ func _draw_callout(i: int, xf: Transform2D) -> void:
 func _draw_hud() -> void:
 	for i in 2:
 		_draw_player_hud(i)
+		if sim.state.phase == "fight" and dojo == null and Settings.value("readout") \
+				and (String(controllers[i]).begins_with("pad") or app != null and app.args.has("readout")):
+			_draw_readout(i)
 	if dojo == null:
 		_draw_timer()
 	if sim.state.phase in ["fight", "intro", "matte"]:
 		_draw_dominance()
 	_draw_newaza_hud()
+
+
+## Lecture des boutons pour un joueur humain : technique de A / X / Y et issue prévisible,
+## plus une alerte quand l'attaque adverse peut être contrée (B).
+func _draw_readout(i: int) -> void:
+	var f: Dictionary = sim.state.fighters[i]
+	var o: Dictionary = sim.state.fighters[1 - i]
+	var flip = i == 1
+	if not sim.has_grip(f) and o.attack.is_empty():
+		return
+	for k in Readout.BUTTONS.size():
+		var pr: Dictionary = Readout.predict(sim, i, Readout.BUTTONS[k][1])
+		var r = _mirror(Rect2(30, 170 + k * 26, 250, 22), i)
+		_ci.draw_rect(r, Color(Style.INK, 0.72))
+		var bar = Rect2(r.position.x + 30, r.end.y - 4, (r.size.x - 34) * Readout.ratio(sim, pr.score), 3)
+		if flip:
+			bar.position.x = r.end.x - 4 - bar.size.x
+		_ci.draw_rect(bar, Readout.outcome_color(pr.outcome))
+		var bx = r.position.x + 15 if not flip else r.end.x - 15
+		Style.pad_button(_ci, Vector2(bx, r.position.y + 10), Readout.BUTTONS[k][0], 9.0)
+		var nm = String(pr.name).to_upper()
+		var lab = Readout.outcome_label(pr.outcome)
+		if pr.counter_risk and pr.outcome in ["stoppe", "expose"]:
+			lab = "CONTRE !"
+		var tx = r.position.x + 30 if not flip else r.position.x + 4
+		Style.label(_ci, Vector2(tx, r.position.y + 15), nm, 12, Style.PAPER, "black", HORIZONTAL_ALIGNMENT_LEFT if not flip else HORIZONTAL_ALIGNMENT_RIGHT, r.size.x - 34 - 80)
+		var lx = r.end.x - 84 if not flip else r.position.x + 4
+		Style.label(_ci, Vector2(lx, r.position.y + 15), lab, 11, Style.DANGER if lab == "CONTRE !" else Readout.outcome_color(pr.outcome), "black",
+			HORIZONTAL_ALIGNMENT_RIGHT if not flip else HORIZONTAL_ALIGNMENT_LEFT, 80)
+	# alerte : son attaque est mal préparée et tu as le contre équipé
+	if not o.attack.is_empty() and o.attack.committed:
+		var tech: Dictionary = sim.techs[o.attack.tech]
+		if tech.counter != "" and f.set.counters.has(tech.counter) and sim.dir_value(i, tech.dir) < cfg.counter_threshold:
+			var pulse = 0.6 + 0.4 * sin(frame * 0.5)
+			var ar = _mirror(Rect2(30, 252, 250, 34), i)
+			Style.panel(_ci, ar, Color(Style.DANGER, pulse), Style.INK, 3.0, 4.0)
+			Rich.draw(_ci, Vector2(ar.position.x + 18, ar.position.y + 23), "{B} CONTRE : %s" % sim.tech_name(tech.counter).to_upper(), ar.size.x - 30, 15, Style.INK)
 
 
 func _mirror(r: Rect2, i: int) -> Rect2:
