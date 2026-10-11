@@ -142,6 +142,9 @@ func on_enter(p: Dictionary) -> void:
 func tick() -> void:
 	frame += 1
 	if round_banner > 0 and not paused:
+		if round_banner == 100:
+			Sound.play("round_drum", -2.0, 1.0, 0.0)
+			Sound.play("crowd_cheer_small", -8.0, 1.0, 0.0)
 		round_banner -= 1
 	if paused:
 		_redraw_all()
@@ -462,8 +465,13 @@ func _sound_event(e: Dictionary) -> void:
 			Sound.play("grip", -6.0, 1.0, 0.08)
 		"break":
 			Sound.play("grip_break", -3.0)
+			Sound.play("gi_tug", -5.0, 1.0, 0.08)
+			Sound.play("breath", -10.0, 1.05 if who == 0 else 0.92, 0.05)
 		"break_fail":
 			Sound.play("slap", -6.0, 1.1, 0.1)
+			Sound.play("gi_tug", -11.0, 1.1, 0.1)
+		"grip_tired":
+			Sound.play("breath", -8.0, 0.9, 0.05)
 		"osae_hit":
 			Sound.play("taiko_small", -4.0 if e.perfect else -8.0, 1.15 if e.role == "top" else 0.9)
 			Sound.play("rustle", -6.0, 1.0, 0.1)
@@ -475,6 +483,8 @@ func _sound_event(e: Dictionary) -> void:
 			Sound.play("whoosh_0", -8.0, 1.2)
 		"dash":
 			Sound.play("dash", -5.0, 1.0, 0.06)
+			if who >= 0 and sim.has_grip(sim.state.fighters[who]):
+				Sound.play("gi_tug", -4.0, 0.95, 0.08)  # coup sec en saisie
 		"reaction":
 			Sound.play("reaction", -4.0, 1.0, 0.0)
 		"break_fail":
@@ -488,6 +498,7 @@ func _sound_event(e: Dictionary) -> void:
 			Sound.play("block", -2.0)
 		"stuffed":
 			Sound.play("block", -4.0, 0.85)
+			Sound.play("breath", -9.0, 1.0, 0.08)
 		"counter":
 			Sound.play("counter", -2.0)
 			Sound.play("crowd_ooh", -8.0)

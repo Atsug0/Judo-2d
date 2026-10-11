@@ -727,6 +727,30 @@ def save_music(name, st, peak_db=-4.0):
     return st.shape[1] / SR
 
 
+def sfx_extra():
+    """Ajouts (générés en dernier pour ne pas changer les sons existants)."""
+    # traction sèche sur le judogi (coup sec en saisie, arrachage)
+    for v in range(3):
+        d = 0.24
+        n = int(d * SR)
+        snap = bandpass(noise(d), 900 + 200 * v, 5200) * exp_decay(n, 0.018 + 0.006 * v)
+        cloth = bandpass(pink(d), 300, 2500) * env(n, 0.003, d * 0.7, 0, 0, 4) * 0.7
+        thump = pitch_sine(120 + 15 * v, 70, d, 0.03) * exp_decay(n, 0.04) * 0.5
+        save_sfx("gi_tug_%d" % v, mix(snap, cloth, thump), -6)
+    # souffle d'effort (expiration courte)
+    for v in range(3):
+        d = 0.28 + 0.04 * v
+        n = int(d * SR)
+        x = formant(noise(d), [700 + 80 * v, 1250, 2600], [300, 400, 600], [1.0, 0.6, 0.3])
+        x = x * env(n, 0.012, d * 0.75, 0, 0, 3)
+        save_sfx("breath_%d" % v, x, -12)
+    # coup de taiko pour annoncer une manche
+    d = 1.2
+    n = int(d * SR)
+    hit = pitch_sine(95, 52, d, 0.12) * exp_decay(n, 0.35) + lowpass(noise(d), 700) * exp_decay(n, 0.06) * 0.7
+    save_sfx("round_drum", hit, -2, (1.6, 0.3, 3000))
+
+
 def main():
     what = sys.argv[1:] or ["sfx", "music"]
     os.makedirs(SFX_DIR, exist_ok=True)
@@ -737,6 +761,7 @@ def main():
         sfx_voices()
         sfx_arena()
         sfx_crowd()
+        sfx_extra()
         print("bruitages :", len([f for f in os.listdir(SFX_DIR) if f.endswith(".wav")]))
     if "music" in what:
         for name, fn in [("match", music_match), ("menu", music_menu), ("dojo", music_dojo), ("victory", music_victory)]:
