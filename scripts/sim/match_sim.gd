@@ -292,7 +292,8 @@ func _update_grips(i: int, inp: Array) -> void:
 	var reach: int = cfg.grip_reach_ticks + f.mods.reach_extra
 	if f.fast_reach_t > 0:
 		reach -= cfg.fast_reach_cut
-	var settle_max: int = cfg.grip_settle_ticks + f.mods.settle_extra
+	# style haut : la prise met plus longtemps à s'installer
+	var q_gain: int = cfg.grip_q_gain * cfg.grip_settle_ticks / (cfg.grip_settle_ticks + f.mods.settle_extra)
 	for h in 2:
 		var hand: Dictionary = f.hands[h]
 		var cyc := LB if h == 0 else RB
@@ -303,12 +304,16 @@ func _update_grips(i: int, inp: Array) -> void:
 				hand.t = 0
 		var trig: int = mini(inp[LT] if h == 0 else inp[RT], trig_cap)
 		hand.trig = trig
+		if hand.state != HAND_GRIP:
+			hand.fat = maxi(0, hand.fat - cfg.fat_recover)
 		if hand.lock > 0:
 			hand.lock -= 1
 			hand.state = HAND_FREE
 			hand.t = 0
 			continue
 		if trig < cfg.grip_min_trigger or not in_range:
+			if hand.state == HAND_GRIP:
+				events.append({"type": "release", "who": i, "hand": h})
 			hand.state = HAND_FREE
 			hand.t = 0
 			continue
@@ -320,13 +325,36 @@ func _update_grips(i: int, inp: Array) -> void:
 			if hand.t >= reach:
 				hand.state = HAND_GRIP
 				hand.t = 0
+				hand.q = cfg.grip_q_start
 				events.append({"type": "grip", "who": i, "hand": h})
 		if hand.state == HAND_GRIP:
-			if hand.t < settle_max:
-				hand.t += 1  # installation de la garde
+			hand.t += 1
+			# qualité : serrer fort l'approfondit, une main molle glisse
+			if trig > cfg.grip_q_hard_trigger:
+				hand.q = mini(10000, hand.q + q_gain * (trig - cfg.grip_q_hard_trigger) / (100 - cfg.grip_q_hard_trigger))
+			else:
+				hand.q = maxi(500, hand.q - cfg.grip_q_slack)
+			# fatigue d'avant-bras : tenir fort use, desserrer repose
+			if trig >= 50:
+				hand.fat = mini(10000, hand.fat + cfg.fat_gain * trig / 100)
+			else:
+				hand.fat = maxi(0, hand.fat - cfg.fat_rest)
+			if hand.fat > cfg.fat_decay_from:
+				hand.q = maxi(0, hand.q - cfg.fat_q_decay * (hand.fat - cfg.fat_decay_from) / (10000 - cfg.fat_decay_from))
+			if hand.fat >= 10000:
+				hand.state = HAND_FREE
+				hand.t = 0
+				hand.lock = cfg.fat_release_lock
+				events.append({"type": "grip_tired", "who": i, "hand": h})
+				continue
 			var tname: String = cfg.grip_targets[hand.target]
 			var cost: int = trig * cfg.stamina_grip_cost * cfg.grip_cost_mult[tname] / 10000 * f.mods.grip_cost_pct / 100
 			f.stamina = maxi(0, f.stamina - cost)
+
+
+## Qualité d'une prise de 0 à 100 (pour l'affichage et les calculs en pourcentage).
+static func grip_pct(hand: Dictionary) -> int:
+	return int(hand.q) / 100 if hand.state == HAND_GRIP else 0
 
 
 # ---------------------------------------------------------------------------
@@ -441,11 +469,10 @@ func _update_dominance() -> void:
 	var r := [0, 0]
 	for i in 2:
 		var f: Dictionary = fs[i]
-		var settle_max: int = cfg.grip_settle_ticks + f.mods.settle_extra
 		for hand in f.hands:
 			if hand.state == HAND_GRIP:
 				var tname: String = cfg.grip_targets[hand.target]
-				var settle: int = 30 + 70 * mini(hand.t, settle_max) / settle_max
+				var settle: int = 15 + 85 * hand.q / 10000
 				r[i] += int(cfg.dom_gain[tname]) * settle / 100 * (40 + hand.trig * 60 / 100) / 100
 		r[i] = r[i] * f.mods.dom_pct / 100
 	var d: int = state.dom
@@ -475,11 +502,10 @@ func _apply_pull(i: int, inp: Array) -> void:
 	if px == 0 and py == 0:
 		return
 	var force := 0
-	var settle_max: int = cfg.grip_settle_ticks + f.mods.settle_extra
 	for hand in f.hands:
 		if hand.state == HAND_GRIP:
 			var tname: String = cfg.grip_targets[hand.target]
-			var settle: int = cfg.grip_settle_min + (100 - cfg.grip_settle_min) * mini(hand.t, settle_max) / settle_max
+			var settle: int = cfg.grip_settle_min + (100 - cfg.grip_settle_min) * hand.q / 10000
 			force += cfg.pull_force_per_hand * hand.trig / 100 * cfg.grip_pull_mult[tname] / 100 * settle / 100
 	if force == 0:
 		return
@@ -586,25 +612,39 @@ func _update_defense(i: int, inp: Array) -> void:
 			return
 	if f.break_cd > 0 or f.stamina < cfg.break_cost:
 		return
+	# arracher la prise adverse la plus profonde
 	var best := -1
-	var best_trig := -1
+	var best_q := -1
 	for h in 2:
-		if o.hands[h].state == HAND_GRIP and o.hands[h].trig > best_trig:
+		if o.hands[h].state == HAND_GRIP and o.hands[h].q > best_q:
 			best = h
-			best_trig = o.hands[h].trig
+			best_q = o.hands[h].q
 	if best < 0:
 		return
 	f.stamina -= cfg.break_cost
 	f.break_cd = cfg.break_cooldown
-	if best_trig + o.mods.grip_resist < cfg.break_threshold:
-		o.hands[best].state = HAND_FREE
-		o.hands[best].t = 0
-		o.hands[best].lock = 30
+	var oh: Dictionary = o.hands[best]
+	var dmg: int = cfg.strip_base
+	var how := "main"
+	if clampi(inp[PX], -100, 100) * f.facing <= -60:
+		dmg += cfg.strip_pull_bonus  # on arrache en tirant le bras vers soi
+		how = "arrache"
+	if not has_grip(f):
+		dmg = dmg * cfg.strip_two_hands_pct / 100  # les deux mains sur sa prise
+		how = "deux_mains"
+	dmg = dmg * maxi(30, 100 - oh.trig * cfg.strip_hold_resist / 100 - o.mods.grip_resist) / 100
+	if oh.q <= dmg:
+		oh.state = HAND_FREE
+		oh.t = 0
+		oh.q = 0
+		oh.lock = cfg.strip_lock
 		_push_dom(i, cfg.dom_break)
-		events.append({"type": "break", "who": i, "hand": best})
+		events.append({"type": "break", "who": i, "hand": best, "how": how})
 	else:
+		oh.q -= dmg
+		oh.fat = mini(10000, oh.fat + cfg.strip_fail_fatigue)
 		o.stamina = maxi(0, o.stamina - cfg.break_fail_drain)
-		events.append({"type": "break_fail", "who": i})
+		events.append({"type": "break_fail", "who": i, "hand": best, "how": how})
 
 
 # ---------------------------------------------------------------------------
@@ -1170,7 +1210,7 @@ func _reset_positions() -> void:
 
 
 func _new_hand(target: int) -> Dictionary:
-	return {"target": target, "state": HAND_FREE, "t": 0, "trig": 0, "lock": 0}
+	return {"target": target, "state": HAND_FREE, "t": 0, "trig": 0, "lock": 0, "q": 0, "fat": 0}
 
 
 func _pressed(f: Dictionary, inp: Array, idx: int) -> bool:

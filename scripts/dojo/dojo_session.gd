@@ -205,6 +205,8 @@ func _set_grips(sim) -> void:
 		hand.target = tg.find(targets[h])
 		hand.state = Sim.HAND_GRIP
 		hand.t = sim.cfg.grip_settle_ticks
+		hand.q = 10000
+		hand.fat = 0
 		hand.lock = 0
 
 
@@ -355,7 +357,7 @@ func _check_goal(sim, goal: Dictionary) -> int:
 		"settled":
 			ok = true
 			for hand in me.hands:
-				if hand.state != Sim.HAND_GRIP or hand.t < cfg.grip_settle_ticks + me.mods.settle_extra:
+				if hand.state != Sim.HAND_GRIP or hand.q < 9000:
 					ok = false
 		"dom":
 			ok = sim.dom_of(0) >= int(goal.min)

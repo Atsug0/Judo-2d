@@ -65,6 +65,11 @@ var walk_ph = [0.0, 0.0]         # cycle de marche, avancé à la distance réel
 var walk_amp = [0.0, 0.0]
 var walk_dir = [1.0, 1.0]
 var prev_dx = [-1.0, -1.0]  # main chassée : images restantes de l'animation, par joueur et par main
+var gap_shown = -1.0         # écart affiché entre les deux judokas (px), lissé
+var tug = [[Vector2.ZERO, Vector2.ZERO], [Vector2.ZERO, Vector2.ZERO]]  # main qui tire / pousse
+var grip_shake = [[0, 0], [0, 0]]  # prise attaquée : la main tremble
+var chop = [0, 0]                  # combat de mains : coup sur la prise adverse (images restantes)
+var chop_hand = [0, 0]             # main adverse visée
 const PAUSE_ITEMS := ["REPRENDRE", "RECOMMENCER", "PERSONNALISATION", "MENU PRINCIPAL"]
 
 
@@ -266,7 +271,19 @@ func _consume_events() -> void:
 				shake = maxf(shake, 3.0)
 			"break":
 				knock[1 - who][e.get("hand", 0)] = 14
+				chop[who] = 12
+				chop_hand[who] = e.get("hand", 0)
 				_impact(_between(0.75), Style.GOOD, 0.8)
+				hitstop = maxi(hitstop, 2)
+				_popup("ARRACHÉE !" if e.get("how", "") != "deux_mains" else "DEUX MAINS !", who, Style.GOOD)
+			"break_fail":
+				grip_shake[1 - who][e.get("hand", 0)] = 12
+				chop[who] = 10
+				chop_hand[who] = e.get("hand", 0)
+				_impact(_between(0.74), Style.PAPER, 0.5)
+			"grip_tired":
+				knock[who][e.get("hand", 0)] = 14
+				_popup("AVANT-BRAS CUIT", who, Style.MUTED)
 			"parry":
 				knock[1 - who][e.hand] = 14
 				_impact(_between(0.72), Style.P1 if who == 0 else Style.P2, 0.7)
@@ -594,6 +611,20 @@ func _update_fx() -> void:
 	else:
 		prev_dx = [-1.0, -1.0]
 		walk_amp = [walk_amp[0] * 0.8, walk_amp[1] * 0.8]
+	if sim != null:
+		var gt = _gap_target()
+		gap_shown = gt if gap_shown < 0.0 else lerpf(gap_shown, gt, 0.14)
+		for i in 2:
+			var f: Dictionary = sim.state.fighters[i]
+			var pull = clampf(float(f.prev[Sim.PX]) * f.facing / 100.0, -1.0, 1.0)  # < 0 : tire vers soi
+			var lift = clampf(float(f.prev[Sim.PY]) / 100.0, -1.0, 1.0)
+			for h in 2:
+				var want = Vector2(pull * 7.0 * f.facing, -lift * 3.0) * K if f.hands[h].state == Sim.HAND_GRIP else Vector2.ZERO
+				tug[i][h] = tug[i][h].lerp(want, 0.22)
+				if grip_shake[i][h] > 0:
+					grip_shake[i][h] -= 1
+			if chop[i] > 0:
+				chop[i] -= 1
 	for im in impacts:
 		im.t += 1
 	impacts = impacts.filter(func(im): return im.t < 12)
@@ -761,14 +792,25 @@ func _fighter_xform(i: int) -> Transform2D:
 
 ## Position d'affichage : écart visuel minimum entre les deux judokas (lisibilité du kumikata).
 const VIS_GAP := 110.0
+const LINK_GAP := 76.0
 func _draw_x(i: int) -> float:
 	var fs: Array = sim.state.fighters
 	var x = wx(fs[i].x)
 	var ox = wx(fs[1 - i].x)
 	var d = absf(ox - x)
-	if d < VIS_GAP:
-		x -= signf(ox - x) * (VIS_GAP - d) * 0.5
-	return x
+	var g = gap_shown if gap_shown > 0.0 else maxf(d, VIS_GAP)
+	var sgn = signf(ox - x) if d > 0.01 else float(fs[i].facing)
+	return (x + ox) * 0.5 - sgn * g * 0.5
+
+
+## Écart d'affichage voulu : à distance, l'écart réel ; en garde, assez près pour que
+## les bras restent pliés (la distance de simulation sert au jeu, pas à l'image).
+func _gap_target() -> float:
+	var fs: Array = sim.state.fighters
+	var d = absf(wx(fs[1].x) - wx(fs[0].x))
+	if sim.state.phase == "fight" and (sim.has_grip(fs[0]) or sim.has_grip(fs[1])):
+		return clampf(d * 0.5, LINK_GAP, maxf(d, LINK_GAP))
+	return maxf(d, VIS_GAP)
 
 
 func _draw_fighters() -> void:
@@ -830,11 +872,18 @@ func _standing_pose(i: int) -> Dictionary:
 	if absf(bx) > 0.05 or absf(by) > 0.05:
 		free_legs = true
 	# kumikata : légère inclinaison vers l'adversaire quand on le tient
-	if sim.has_grip(f):
-		# posture de kumikata : buste vers l'avant, hanches en retrait, bras tendus
-		pose.bow += 0.14
-		pose.hip += Vector2(-3, 2)
+	if sim.has_grip(f) or sim.has_grip(sim.state.fighters[1 - i]):
+		# posture de kumikata : buste vers l'avant, hanches en retrait ; on se tire,
+		# on se pousse, le poids passe d'un pied sur l'autre
+		var pull = clampf(float(f.prev[Sim.PX]) * f.facing / 100.0, -1.0, 1.0)
+		var sway = sin(frame * 0.045 + i * 2.0)
+		pose.bow += 0.14 + pull * 0.12 + sway * 0.03
+		pose.hip += Vector2(-3 + pull * 4.0 + sway * 1.6, 2 + absf(pull) * 1.5)
+		pose.ff += Vector2(sway * 1.2, 0)
 		free_legs = true
+		var shook = maxi(grip_shake[i][0], grip_shake[i][1])
+		if shook > 0:
+			pose.bow += sin(frame * 1.7) * 0.04 * float(shook) / 12.0
 	# domination : le dominé se fait courber, le dominant se tient droit
 	var dm = float(sim.dom_of(i)) / 10000.0
 	if dm < -0.2:
@@ -963,7 +1012,17 @@ func _hands_world(i: int, rigs: Array, th: Dictionary, throwing: bool) -> Array:
 		var target = Art.torso_point(orig.xf, orig.pose, Art.GRIP_POINTS[cfg.grip_targets[hand.target]])
 		var rest = Art.torso_point(me.xf, me.pose, Art.REST_HANDS[h])
 		if hand.state == Sim.HAND_GRIP:
-			hands[h] = target
+			# prise vivante : la main tire ou pousse le judogi, glisse si la prise est faible,
+			# tremble quand on l'attaque ou que l'avant-bras est cuit
+			var slip = (1.0 - float(hand.q) / 10000.0) * 3.0 * K
+			hands[h] = target + tug[i][h] + Vector2(-f.facing * slip, slip * 0.3)
+			var jit = 0.0
+			if grip_shake[i][h] > 0:
+				jit = float(grip_shake[i][h]) / 12.0 * 3.0 * K
+			elif hand.fat > 7000:
+				jit = float(hand.fat - 7000) / 3000.0 * 0.9 * K
+			if jit > 0.0:
+				hands[h] += Vector2(sin(frame * 2.3 + h * 1.7), cos(frame * 1.9 + h)) * jit
 			strength[h] = float(hand.trig) / 100.0
 		elif hand.state == Sim.HAND_REACH:
 			var reach = float(cfg.grip_reach_ticks - (cfg.fast_reach_cut if f.fast_reach_t > 0 else 0))
@@ -974,6 +1033,13 @@ func _hands_world(i: int, rigs: Array, th: Dictionary, throwing: bool) -> Array:
 			# bataille de mains : les mains cherchent, avancent, se retirent
 			var paw = 0.28 + 0.16 * sin(frame * 0.14 + h * 2.1 + i * 1.3) + 0.06 * sin(frame * 0.37 + h)
 			hands[h] = rest.lerp(target, paw)
+		if chop[i] > 0 and hand.state != Sim.HAND_GRIP:
+			# combat de mains : la main libre frappe et arrache la prise adverse sur soi
+			var oh: Dictionary = sim.state.fighters[o].hands[chop_hand[i]]
+			var on_me = Art.torso_point(me.xf, me.pose, Art.GRIP_POINTS[cfg.grip_targets[oh.target]])
+			var cq = float(chop[i]) / 12.0
+			var reach_t = sin(cq * PI)
+			hands[h] = rest.lerp(on_me + Vector2(f.facing * 4.0 * K, -4.0 * K), reach_t) + Vector2(0, (1.0 - cq) * 6.0 * K * reach_t)
 		if knock[i][h] > 0:
 			# main chassée : projetée vers le bas et en arrière, puis revient en garde
 			var kq = float(knock[i][h]) / 14.0
@@ -1176,6 +1242,15 @@ func _draw_player_hud(i: int) -> void:
 		Style.panel(_ci, cr, fill, Style.INK, 3.0, 3.0, Style.SLANT, flip)
 		var side = "G" if h == 0 else "D"
 		Style.label(_ci, Vector2(cr.position.x, cr.position.y + 20), "%s · %s" % [side, GRIP_LABELS[hand.target]], 14, tcol, "black", HORIZONTAL_ALIGNMENT_CENTER, cr.size.x)
+		# profondeur de la prise (barre sous la puce) et avant-bras qui chauffe
+		if st == Sim.HAND_GRIP:
+			var qr = Rect2(cr.position.x + 8, cr.end.y + 3, (cr.size.x - 16) * float(hand.q) / 10000.0, 5)
+			_ci.draw_rect(Rect2(cr.position.x + 8, cr.end.y + 3, cr.size.x - 16, 5), Style.INK)
+			_ci.draw_rect(qr, Style.GOOD if hand.q >= 7000 else (col if hand.q >= 4000 else Style.DANGER))
+			if hand.fat > 6500:
+				var hot = float(hand.fat - 6500) / 3500.0
+				var pulse = 0.5 + 0.5 * sin(frame * 0.3)
+				Style.panel(_ci, cr, Color(Style.DANGER, 0.25 + 0.35 * hot * pulse), Style.DANGER, 2.0, 0.0, Style.SLANT, flip)
 	# radar de kuzushi
 	var rc = Vector2(430.0 if i == 0 else W - 430.0, 152.0)
 	if Settings.value("radar") and sim.state.phase != "newaza":

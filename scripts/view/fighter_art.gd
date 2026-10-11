@@ -16,6 +16,9 @@ const GRIP_POINTS := {
 	"belt": Vector2(15, -45),
 }
 const REST_HANDS := [Vector2(22, -57), Vector2(29, -65)]
+const ARM_UPPER := 19.0   # longueur du bras (épaule → coude)
+const ARM_FORE := 20.0    # avant-bras + main (coude → poing)
+const ARM_MAX_STRETCH := 1.03
 
 
 ## Apparence (cosmétique) : teinte de peau, coupe et couleur de cheveux.
@@ -140,14 +143,24 @@ static func _draw_torso(ci: CanvasItem, pal: Dictionary, ow: float) -> void:
 ## Bras en coordonnées écran : manche large du judogi avec plis et ourlet,
 ## avant-bras musclé, main en poing orientée selon l'avant-bras.
 static func draw_arm(ci: CanvasItem, shoulder: Vector2, hand: Vector2, pal: Dictionary, back: bool, scale: float, grip_strength: float = -1.0, elbow_at: Vector2 = Vector2.INF) -> void:
-	var d := hand - shoulder
-	var bendn := Vector2(-d.y, d.x).normalized()
-	if bendn.y < 0:
-		bendn = -bendn
-	var reach := 36.0 * scale
-	var elbow := (shoulder + hand) * 0.5 + bendn * clampf((reach - d.length()) * 0.45, 0.0, 15.0 * scale)
-	if elbow_at != Vector2.INF:
-		elbow = elbow_at
+	var elbow := elbow_at
+	if elbow_at == Vector2.INF:
+		# bras à deux segments de longueur fixe (IK) : le coude plie au lieu que le bras s'étire
+		var l1 := ARM_UPPER * scale
+		var l2 := ARM_FORE * scale
+		var d := hand - shoulder
+		var dl := d.length()
+		var lmax := (l1 + l2) * ARM_MAX_STRETCH
+		if dl > lmax:
+			hand = shoulder + d / dl * lmax  # trop loin : la main s'arrête (pas de bras élastique)
+			d = hand - shoulder
+			dl = lmax
+		var dirv := d / maxf(dl, 0.001)
+		var c := clampf((l1 * l1 + dl * dl - l2 * l2) / (2.0 * l1 * maxf(dl, 0.001)), -1.0, 1.0)
+		var ang := acos(c)
+		var e1 := shoulder + dirv.rotated(ang) * l1
+		var e2 := shoulder + dirv.rotated(-ang) * l1
+		elbow = e1 if e1.y > e2.y else e2  # coude vers le bas
 	var u1 := (elbow - shoulder).normalized()
 	var u2 := (hand - elbow).normalized()
 	var n1 := Vector2(-u1.y, u1.x)

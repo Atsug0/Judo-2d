@@ -120,22 +120,22 @@ static func _fundamentals() -> Array:
 			_s("Dash arrière", "Pichenette de {LS} vers l'arrière : tu sors de portée d'un coup.", {"type": "dash", "dir": "out"}, "static", 2),
 		]})
 	L.append({"id": "b2_saisir", "cat": "base", "title": "Kumikata : saisir", "player": P, "partner_build": U,
-		"intro": "Chaque gâchette commande une main. Une main tend vers sa cible, puis saisit, puis s'installe : une garde bien installée tire plus fort.",
+		"intro": "Chaque gâchette commande une main. Une main tend vers sa cible, puis saisit, puis s'enfonce : une prise profonde tire plus fort et domine.",
 		"steps": [
 			_s("Main gauche", "À portée, maintiens {LT} : ta main gauche saisit la manche.", {"type": "grip", "hand": 0}, "static"),
 			_s("Main droite", "Maintiens aussi {RT} : ta main droite saisit le revers.", {"type": "grip_pair"}, "static"),
-			_s("Installe ta garde", "Garde les deux mains serrées : la garde s'installe en 1 à 2 secondes.", {"type": "settled"}, "static", 1, "",
-				"Lâcher une gâchette, c'est lâcher la main. Serrer fort coûte de l'endurance."),
+			_s("Prise profonde", "Serre fort les deux gâchettes : la barre sous chaque main se remplit, ta prise devient profonde.", {"type": "settled"}, "static", 1, "",
+				"Serrer à fond chauffe l'avant-bras (la main clignote en rouge). Desserre un peu pour récupérer, sinon ta main finit par lâcher."),
 			_s("Change de cible", "Appuie sur {RB} : ta main droite monte au col haut. Le col domine, mais fatigue vite.", {"type": "grip", "target": "collar"}, "static"),
 		]})
 	L.append({"id": "b3_mains", "cat": "base", "title": "Bataille de mains", "player": P, "partner_build": U,
-		"intro": "Avant de saisir, il faut gagner la bataille de mains. Une main qui arrive peut être chassée, une saisie installée peut être cassée.",
+		"intro": "La bataille de mains ne s'arrête jamais : une main qui arrive se chasse, une prise posée s'arrache, et il faut la reprendre aussitôt.",
 		"steps": [
 			_s("Chasse sa main", "Il tend la main vers toi : appuie sur {B} pendant qu'elle arrive pour la chasser.", {"type": "parry"}, "reach", 3, "",
 				"Une main chassée est bloquée un instant : profites-en pour saisir le premier."),
 			_s("Esquive", "Quand sa main arrive, dash arrière ({LS} en pichenette) : elle part dans le vide.", {"type": "whiff"}, "reach", 1),
-			_s("Casse sa garde", "Il te tient : {B} casse sa saisie la plus forte.", {"type": "break"}, "garde", 2, "",
-				"Contre une main qui serre à fond, la casse échoue et te fatigue."),
+			_s("Arrache sa prise", "Il te tient : {B} en tirant {RS} vers toi arrache sa prise la plus profonde. Insiste si elle tient.", {"type": "break"}, "garde", 2, "",
+				"Une prise fraîche part du premier coup, une prise profonde en demande plusieurs. Sans saisie, tes deux mains attaquent la sienne : bien plus fort."),
 			_s("Prends le dessus", "Saisis le premier et installe ta garde : remplis la jauge de domination de ton côté.", {"type": "dom", "min": 5000}, "reach", 1, "",
 				"Le dominant déséquilibre plus fort et ses techniques passent mieux. Le dominé se fait courber."),
 		]})

@@ -32,7 +32,7 @@ func _init() -> void:
 
 	var stats := {"wins": [0, 0], "reasons": {}, "throws": {}, "attacks": {}, "exposed": 0,
 		"counters": 0, "feints": 0, "breaks": 0, "shidos": {}, "ticks": 0, "golden": 0,
-		"combo_open": 0, "combo_attacks": 0, "newaza": 0, "osaekomi": 0, "submissions": 0, "toketa": 0, "escape": 0, "kumi": {}}
+		"combo_open": 0, "combo_attacks": 0, "newaza": 0, "osaekomi": 0, "submissions": 0, "toketa": 0, "escape": 0, "kumi": {}, "grip_runs": []}
 	var t0 := Time.get_ticks_msec()
 	for m in matches:
 		var res := _run_match(cfg, techs, 1000 + m, level, stats)
@@ -48,6 +48,14 @@ func _init() -> void:
 	print("Attaques exposées : ", stats.exposed, " | contres : ", stats.counters, " | feintes : ", stats.feints, " | prises cassées : ", stats.breaks)
 	print("Shidos : ", JSON.stringify(stats.shidos))
 	print("Kumikata : ", JSON.stringify(stats.kumi))
+	var gr: Array = stats.grip_runs
+	gr.sort()
+	if not gr.is_empty():
+		var long := gr.filter(func(v): return v > 600).size()
+		var minutes: float = stats.ticks / 3600.0
+		print("Prises : %d (%.1f/min), durée médiane %.1f s, p90 %.1f s, > 10 s : %d %% | arrachées/min : %.1f" % [gr.size(), gr.size() / minutes,
+			gr[gr.size() / 2] / 60.0, gr[gr.size() * 9 / 10] / 60.0, long * 100 / gr.size(), stats.breaks / minutes])
+	print("Endurance moyenne : %d / 10000" % (stats.get("stam_sum", 0) / maxi(1, stats.get("stam_n", 1))))
 	print("Attaques bloquées : ", stats.get("blocks", 0), " | stoppées : ", stats.get("stuffed", 0))
 	print("Enchaînements : %d fenêtres, %d enchaînés" % [stats.combo_open, stats.combo_attacks])
 	print("Ne-waza : %d phases, %d osaekomi, %d toketa, %d dégagements, %d soumissions" % [stats.newaza, stats.osaekomi, stats.toketa, stats.escape, stats.submissions])
@@ -58,13 +66,24 @@ func _run_match(cfg: Dictionary, techs: Dictionary, seed_value: int, level: int,
 	var sim := Sim.new(cfg, techs, ["J1", "J2"], builds)
 	var ais := [Ai.new(0, seed_value, level), Ai.new(1, seed_value + 7, level)]
 	var golden_seen := false
+	var runs := [[0, 0], [0, 0]]
 	while sim.state.phase != "ended" and sim.state.tick < 60 * 60 * 10:
 		sim.step([ais[0].think(sim), ais[1].think(sim)])
 		if sim.state.golden and not golden_seen:
 			golden_seen = true
 			stats.golden += 1
+		stats.stam_sum = stats.get("stam_sum", 0) + sim.state.fighters[0].stamina + sim.state.fighters[1].stamina
+		stats.stam_n = stats.get("stam_n", 0) + 2
+		# durée de chaque prise (de l'installation à la perte)
+		for i in 2:
+			for h in 2:
+				if sim.state.fighters[i].hands[h].state == Sim.HAND_GRIP:
+					runs[i][h] += 1
+				elif runs[i][h] > 0:
+					stats.grip_runs.append(runs[i][h])
+					runs[i][h] = 0
 		for e in sim.events:
-			if e.type in ["dash", "whiff", "parry", "resist", "follow", "grip"]:
+			if e.type in ["dash", "whiff", "parry", "resist", "follow", "grip", "break_fail", "grip_tired", "release"]:
 				var key: String = e.type + ("_" + e.dir if e.type == "dash" else "")
 				stats.kumi[key] = stats.kumi.get(key, 0) + 1
 			match e.type:
@@ -99,6 +118,8 @@ func _run_match(cfg: Dictionary, techs: Dictionary, seed_value: int, level: int,
 					stats.feints += 1
 				"break":
 					stats.breaks += 1
+					var hk: String = "break_" + String(e.get("how", ""))
+					stats.kumi[hk] = stats.kumi.get(hk, 0) + 1
 				"shido":
 					stats.shidos[e.reason] = stats.shidos.get(e.reason, 0) + 1
 	if sim.state.winner >= 0:

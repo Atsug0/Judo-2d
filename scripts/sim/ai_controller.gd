@@ -30,6 +30,7 @@ var grip_delay := 10
 var parry_cd := 0
 var move_intent := 0
 var move_left := 0
+var strip_cd := 0
 
 
 func _init(index: int, seed_value: int, lvl: int = 2) -> void:
@@ -134,8 +135,6 @@ func think(sim) -> Array:
 		if f.hands[1].state != Sim.HAND_FREE or grip_delay <= -10 - _rand(12):
 			inp[Sim.RT] = grip
 		grip_delay -= 1
-		if f.style == "haute" and f.hands[1].target == 1 and f.prev[Sim.RB] == 0 and _rand(100) < 10:
-			inp[Sim.RB] = 1  # main droite : du revers au col
 	else:
 		grip_delay = 6 + _rand(20)
 
@@ -187,11 +186,34 @@ func think(sim) -> Array:
 				want_b = true
 		elif o.exposed_counter != "" and o.exposed_depth < 0 and f.set.counters.has(o.exposed_counter) and react_roll < 25 * level:
 			want_b = true
-	elif sim.has_grip(o) and f.stamina > 3500 and _rand(1000) < 6 * level:
-		want_b = true  # casser la garde adverse
+	# --- Combat de mains : arracher la prise adverse dès qu'elle devient dangereuse
+	if strip_cd > 0:
+		strip_cd -= 1
+	var strip := false
+	if opportunity == "" and f.break_cd == 0 and strip_cd == 0 and f.stamina > cfg.break_cost + 150:
+		var threat := 0
+		var otrig := 0
+		for hand in o.hands:
+			if hand.state == Sim.HAND_GRIP and hand.q > threat:
+				threat = hand.q
+				otrig = hand.trig
+		# dégâts attendus de l'arrachage : on tente surtout quand ça doit passer
+		var dmg: int = cfg.strip_base + cfg.strip_pull_bonus
+		if not gripped:
+			dmg = dmg * cfg.strip_two_hands_pct / 100
+		dmg = dmg * maxi(30, 100 - otrig * cfg.strip_hold_resist / 100 - o.mods.grip_resist) / 100
+		var chance := 0
+		if threat >= 7000 - 1000 * level:
+			chance = 20 + 30 * level if threat <= dmg else 3 * level
+		if chance > 0 and _rand(1000) < chance:
+			strip = true
+			want_b = true
+			strip_cd = 18 - 3 * level + _rand(12)
 	if want_b and b_cooldown == 0:
 		inp[Sim.BB] = 1
 		b_cooldown = 10
+		if strip and (level >= 2 or _rand(2) == 0):
+			inp[Sim.PX] = -100 * facing  # arracher en tirant le bras vers soi
 
 	# --- Attaque en cours : maintenir le bouton
 	if hold_btn >= 0:
