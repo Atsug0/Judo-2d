@@ -73,8 +73,8 @@ func think(sim) -> Array:
 	var back_room: int = (f.x - cfg.mat_left) if facing == 1 else (cfg.mat_right - f.x)
 	var front_room: int = (cfg.mat_right - f.x) if facing == 1 else (f.x - cfg.mat_left)
 	move_left -= 1
-	if back_room < 5000:
-		move_intent = 75  # dos au bord : on repousse vers le centre
+	if back_room < 9000:
+		move_intent = 80  # dos au bord : on repousse vers le centre
 		move_left = 0
 	elif move_left <= 0:
 		var roll := _rand(100)
@@ -87,8 +87,8 @@ func think(sim) -> Array:
 					drive_dir = -1  # tsukuri : recule en tirant
 				elif plan_dir.begins_with("arriere") and _rand(100) < 35 + 10 * level:
 					drive_dir = 1   # tsukuri : avance en poussant
-				if front_room < 9000:
-					drive_dir = -1
+				if front_room < 15000:
+					drive_dir = -1  # ne pas pousser l'autre hors du tapis (shido)
 				move_intent = drive_dir * (60 + _rand(21))
 				move_left = 60 + _rand(80)
 			else:
@@ -272,7 +272,7 @@ func think(sim) -> Array:
 			best_score = sc
 			best_btn = b
 			best_dir = sim.techs[id].dir
-	var thr := threshold - 700 + _rand(1400) + level * 250
+	var thr := threshold - 1200 + _rand(1400) + level * 250
 	# Pression de la passivité : plus le shido approche, moins on est exigeant.
 	var urgency: int = f.passive_t - (cfg.passivity_ticks - 900)
 	if urgency > 0:
