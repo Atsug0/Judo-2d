@@ -303,10 +303,10 @@
         ]
       },
       "physique": {
-        "explosivite": 3,
-        "endurance": 4,
-        "poigne": 4,
-        "sol": 9
+        "explosivite": 5,
+        "endurance": 6,
+        "poigne": 5,
+        "sol": 7
       },
       "look": {
         "skin": 0,

@@ -383,6 +383,13 @@ func _think_newaza(sim, inp: Array) -> Array:
 				elif kind == "shime":
 					inp[Sim.BY] = 1
 	else:
+		# en garde : soumission par-dessous quand son contrôle est faible
+		if nw.control <= sim.cfg.guard_sub_control and _rand(1000) < 10 * level:
+			for id in f.set.ground:
+				var kind: String = sim.techs._newaza[id].kind
+				if kind != "osaekomi" and f.prev[Sim.BX] == 0 and f.prev[Sim.BY] == 0:
+					inp[Sim.BX if kind == "kansetsu" else Sim.BY] = 1
+					return inp
 		var every: int = 14 - level * 3
 		if f.prev[Sim.BB] == 0 and _rand(every) == 0:
 			inp[Sim.BB] = 1

@@ -184,5 +184,6 @@
   "grip_hold_margin": 2200,
   "strip_separation": 700,
   "pair_follow_pct": 25,
-  "pair_resist_pct": 45
+  "pair_resist_pct": 45,
+  "guard_sub_control": 5200
 }

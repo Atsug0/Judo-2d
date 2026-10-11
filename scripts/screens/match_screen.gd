@@ -327,6 +327,10 @@ func _consume_events() -> void:
 				_impact(_ground_center(), Style.P1 if who == 0 else Style.P2, 0.6)
 			"osae_miss":
 				osae_fx[e.role + "_miss"] = 16
+			"reversal":
+				_popup("RETOURNEMENT !", who, Style.HOT)
+				_feed("%s attaque depuis la garde" % nm, col)
+				excite = maxf(excite, 0.5)
 			"escape":
 				_popup("SORTIE !", who, Style.GOOD)
 			"sub_start":

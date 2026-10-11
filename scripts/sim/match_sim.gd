@@ -1060,6 +1060,22 @@ func _newaza_tick(inputs: Array) -> void:
 			events.append({"type": "sub_escape", "who": bot})
 		_newaza_end_checks(nw)
 		return
+	# --- garde : celui du dessous, s'il a une clé ou un étranglement et que le contrôle
+	# adverse est faible, retourne la situation et part directement sur la soumission
+	if not nw.osae and nw.control <= cfg.guard_sub_control:
+		for pair in [[BX, "kansetsu"], [BY, "shime"]]:
+			if _pressed(fb, ib, pair[0]):
+				for id in fb.set.ground:
+					if techs._newaza[id].kind == pair[1]:
+						nw.top = bot
+						nw.bottom = top
+						nw.facing = fb.facing
+						nw.control = cfg.sub_control
+						nw.sub = {"kind": pair[1], "tech": id, "t": 0, "tp": 0, "bp": 0, "guard": true}
+						events.append({"type": "reversal", "who": bot})
+						events.append({"type": "sub_start", "who": bot, "tech": id})
+						_announce(tech_name(id).to_upper())
+						return
 	# --- immobilisation en cours : mini-jeu des curseurs (tenir / sortir)
 	if nw.osae:
 		if _osae_cursor_tick(nw, ft, fb, it, ib):
