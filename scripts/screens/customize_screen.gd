@@ -8,8 +8,12 @@ const Rich := preload("res://scripts/ui/rich.gd")
 const Art := preload("res://scripts/view/fighter_art.gd")
 const Build := preload("res://scripts/build.gd")
 
-const TABS := ["PROFIL", "TECHNIQUES", "GARDE & STYLE", "PHYSIQUE"]
-const PROFILE_ROWS := ["NOM", "SURNOM", "PEAU", "CHEVEUX", "COULEUR", "NOUVEAU JUDOKA", "COPIER UNE LÉGENDE", "SUPPRIMER"]
+const TABS := ["PROFIL", "APPARENCE", "TECHNIQUES", "GARDE & STYLE", "PHYSIQUE"]
+const PROFILE_ROWS := ["NOM", "SURNOM", "NOUVEAU JUDOKA", "COPIER UNE LÉGENDE", "SUPPRIMER"]
+## Apparence : [clé du look, libellé, liste des noms d'options]
+const LOOK_ROWS := [["skin", "PEAU", "SKIN_NAMES"], ["hair", "CHEVEUX", "HAIR_STYLES"], ["hair_color", "COULEUR", "HAIR_COLOR_NAMES"],
+	["build", "CARRURE", "BUILD_NAMES"], ["face", "VISAGE", "FACE_NAMES"], ["brow", "SOURCILS", "BROW_NAMES"],
+	["beard", "BARBE", "BEARD_NAMES"], ["ears", "OREILLES", "EAR_NAMES"], ["belt", "CEINTURE", "BELT_NAMES"], ["trim", "LISERÉ", "TRIM_NAMES"]]
 const KB_ROWS := [["A", "B", "C", "D", "E", "F", "G", "H", "I", "J"], ["K", "L", "M", "N", "O", "P", "Q", "R", "S", "T"],
 	["U", "V", "W", "X", "Y", "Z", "É", "È", "-", "'"], ["ESPACE", "EFFACER", "OK"]]
 const MAX_JUDOKAS := 12
@@ -93,8 +97,10 @@ func _row_count() -> int:
 		0:
 			return PROFILE_ROWS.size()
 		1:
-			return rows.size()
+			return LOOK_ROWS.size()
 		2:
+			return rows.size()
+		3:
 			return 2
 	return cat.physique.stats.size()
 
@@ -174,18 +180,15 @@ func _change(delta: int) -> void:
 	var b = _b()
 	match tab:
 		0:
-			var lk: Dictionary = b.look
-			match PROFILE_ROWS[row]:
-				"PEAU":
-					lk.skin = (int(lk.skin) + delta + Art.SKINS.size()) % Art.SKINS.size()
-				"CHEVEUX":
-					lk.hair = (int(lk.hair) + delta + Art.HAIR_STYLES.size()) % Art.HAIR_STYLES.size()
-				"COULEUR":
-					lk.hair_color = (int(lk.hair_color) + delta + Art.HAIR_COLORS.size()) % Art.HAIR_COLORS.size()
-				"COPIER UNE LÉGENDE":
-					var n: int = Build.legends().size()
-					legend_i = (legend_i + delta + n) % n
+			if PROFILE_ROWS[row] == "COPIER UNE LÉGENDE":
+				var n: int = Build.legends().size()
+				legend_i = (legend_i + delta + n) % n
 		1:
+			var lk: Dictionary = b.look
+			var lr: Array = LOOK_ROWS[row]
+			var names: Array = _look_names(lr[2])
+			lk[lr[0]] = (int(lk.get(lr[0], 0)) + delta + names.size()) % names.size()
+		2:
 			var slot_id: String = rows[row][0]
 			var k: int = rows[row][1]
 			var kind = Build.kind_of(slot_id)
@@ -200,13 +203,13 @@ func _change(delta: int) -> void:
 				if cand == "" or not _used_elsewhere(cand, kind, slot_id, k):
 					b.slots[slot_id][k] = cand
 					break
-		2:
+		3:
 			if row == 0:
 				b.garde = "gaucher" if b.garde == "droitier" else "droitier"
 			else:
 				var keys: Array = cat.styles.keys()
 				b.style = keys[(keys.find(b.style) + delta + keys.size()) % keys.size()]
-		3:
+		4:
 			var st: Dictionary = cat.physique.stats[row]
 			var v: int = b.physique[st.id]
 			if delta > 0 and v < cat.physique.max:
@@ -240,10 +243,12 @@ func _draw() -> void:
 		0:
 			_draw_profile(b)
 		1:
-			_draw_techniques(b)
+			_draw_look(b)
 		2:
-			_draw_style(b)
+			_draw_techniques(b)
 		3:
+			_draw_style(b)
+		4:
 			_draw_physique(b)
 	if flash > 0:
 		var r = Rect2(500, 300, 280, 70)
@@ -291,7 +296,6 @@ func _draw_profile(b: Dictionary) -> void:
 	var lk: Dictionary = b.look
 	var vals := {
 		"NOM": String(b.name), "SURNOM": String(b.get("nick", "")) if String(b.get("nick", "")) != "" else "—",
-		"PEAU": Art.SKIN_NAMES[int(lk.skin)], "CHEVEUX": Art.HAIR_STYLES[int(lk.hair)], "COULEUR": Art.HAIR_COLOR_NAMES[int(lk.hair_color)],
 		"NOUVEAU JUDOKA": "%d / %d" % [builds.size(), MAX_JUDOKAS], "COPIER UNE LÉGENDE": String(Build.legends()[legend_i].name) + " « " + String(Build.legends()[legend_i].nick) + " »",
 		"SUPPRIMER": "" if builds.size() > 1 else "(dernier judoka)",
 	}
@@ -312,10 +316,59 @@ func _draw_profile(b: Dictionary) -> void:
 		if sel:
 			if key in ["NOM", "SURNOM"] or action_row:
 				Style.pad_button(self, Vector2(r.end.x - 30, r.position.y + 21), "A", 11.0)
-			if key in ["PEAU", "CHEVEUX", "COULEUR", "COPIER UNE LÉGENDE"]:
+			if key == "COPIER UNE LÉGENDE":
 				_arrow(Vector2(r.position.x + 214, r.position.y + 21), -1)
 				_arrow(Vector2(r.end.x - 60, r.position.y + 21), 1)
 		y += 48.0
+	_draw_preview(b)
+
+
+func _look_names(list_name: String) -> Array:
+	match list_name:
+		"SKIN_NAMES":
+			return Art.SKIN_NAMES
+		"HAIR_STYLES":
+			return Art.HAIR_STYLES
+		"HAIR_COLOR_NAMES":
+			return Art.HAIR_COLOR_NAMES
+		"BUILD_NAMES":
+			return Art.BUILD_NAMES
+		"FACE_NAMES":
+			return Art.FACE_NAMES
+		"BROW_NAMES":
+			return Art.BROW_NAMES
+		"BEARD_NAMES":
+			return Art.BEARD_NAMES
+		"EAR_NAMES":
+			return Art.EAR_NAMES
+		"BELT_NAMES":
+			return Art.BELT_NAMES
+	return Art.TRIM_NAMES
+
+
+## Onglet apparence : visage, cheveux, carrure, barbe, ceinture, liseré.
+func _draw_look(b: Dictionary) -> void:
+	var lk: Dictionary = b.look
+	var y = 204.0
+	for k in LOOK_ROWS.size():
+		var lr: Array = LOOK_ROWS[k]
+		var sel = k == row
+		var r = Rect2(60 + (12.0 if sel else 0.0), y, 600, 38)
+		Style.panel(self, r, Style.NIGHT_3 if sel else Style.NIGHT_2, Style.P1 if sel else Style.INK, 3.0, 4.0)
+		Style.label(self, Vector2(r.position.x + 22, r.position.y + 25), lr[1], 14, Style.P1 if sel else Style.MUTED, "black")
+		var names: Array = _look_names(lr[2])
+		var v = clampi(int(lk.get(lr[0], 0)), 0, names.size() - 1)
+		Style.label(self, Vector2(r.position.x + 230, r.position.y + 26), String(names[v]).to_upper(), 18, Style.PAPER, "black", HORIZONTAL_ALIGNMENT_LEFT, 300)
+		Style.label(self, Vector2(r.end.x - 70, r.position.y + 25), "%d/%d" % [v + 1, names.size()], 12, Style.MUTED, "black", HORIZONTAL_ALIGNMENT_RIGHT, 50)
+		if sel:
+			_arrow(Vector2(r.position.x + 214, r.position.y + 19), -1)
+			_arrow(Vector2(r.end.x - 86, r.position.y + 19), 1)
+		y += 43.0
+	_draw_preview(b)
+
+
+func _draw_preview(b: Dictionary) -> void:
+	var lk: Dictionary = b.look
 	# aperçu du judoka
 	var pr = Rect2(700, 206, 550, 436)
 	Style.panel(self, pr, Style.NIGHT_2, Style.INK, 4.0, 10.0, 0.06)

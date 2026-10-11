@@ -20,6 +20,7 @@ const SCREENS := {
 	"options": "res://scripts/screens/options_screen.gd",
 	"online": "res://scripts/screens/online_screen.gd",
 	"art": "res://scripts/screens/art_screen.gd",
+	"lineup": "res://scripts/screens/lineup_screen.gd",
 	"bake": "res://scripts/screens/bake_screen.gd",
 	"vs": "res://scripts/screens/vs_screen.gd",
 	"dojo": "res://scripts/screens/dojo_screen.gd",

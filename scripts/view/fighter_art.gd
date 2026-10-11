@@ -25,7 +25,18 @@ const ARM_MAX_STRETCH := 1.03
 ## Le judogi reste fixé par le côté (blanc pour le joueur 1, bleu pour le joueur 2), comme en compétition.
 const SKINS := [["f2cba8", "cc9d78"], ["e7b78f", "c08a63"], ["c98b5e", "9e6640"], ["9a6440", "744528"], ["5e3a24", "40261a"]]
 const HAIR_COLORS := ["120c0a", "3a2416", "6b3f1d", "c9a050", "b8b4ad", "8f3a1c"]
-const HAIR_STYLES := ["Plaqués", "Dégradé", "Rasé", "Chignon"]
+const HAIR_STYLES := ["Plaqués", "Dégradé", "Rasé", "Chignon", "Queue de cheval", "Bouclés", "Dégarni"]
+## Apparence étendue (personnalisation) : listes d'options affichées dans le menu.
+const BUILD_NAMES := ["Léger", "Moyen", "Lourd"]
+const BUILD_WIDTH := [0.84, 1.0, 1.24]
+const FACE_NAMES := ["Ovale", "Carré", "Fin"]
+const BROW_NAMES := ["Droits", "Épais", "Fins"]
+const BEARD_NAMES := ["Aucune", "Trois jours", "Courte", "Moustache", "Bouc"]
+const EAR_NAMES := ["Normales", "En chou-fleur"]
+const BELT_NAMES := ["Noire", "Rouge et blanche", "Rouge", "Marron"]
+const BELT_COLORS := [["17141f", "17141f"], ["c42330", "f1ece0"], ["c42330", "c42330"], ["5a3418", "5a3418"]]
+const TRIM_NAMES := ["Couleur du joueur", "Or", "Rouge", "Vert", "Violet", "Blanc", "Aucun"]
+const TRIM_COLORS := ["", "ffc21a", "ff3b3b", "6be04a", "a36bff", "f6f1e3", "none"]
 const SKIN_NAMES := ["Très claire", "Claire", "Mate", "Brune", "Foncée"]
 const HAIR_COLOR_NAMES := ["Noirs", "Bruns", "Châtains", "Blonds", "Gris", "Roux"]
 
@@ -49,6 +60,22 @@ static func palette(player: int, look: Dictionary = {}) -> Dictionary:
 	pal.skin_shade = Color(sk[1])
 	pal.hair = hc
 	pal.hair_style = int(lk.hair)
+	pal.bw = BUILD_WIDTH[clampi(int(lk.get("build", 1)), 0, 2)]
+	pal.face = int(lk.get("face", 0))
+	pal.brow = int(lk.get("brow", 0))
+	pal.beard = int(lk.get("beard", 0))
+	pal.ears = int(lk.get("ears", 0))
+	var bc: Array = BELT_COLORS[clampi(int(lk.get("belt", 0)), 0, BELT_COLORS.size() - 1)]
+	pal.belt = Color(bc[0])
+	pal.belt2 = Color(bc[1])
+	var tc: String = TRIM_COLORS[clampi(int(lk.get("trim", 0)), 0, TRIM_COLORS.size() - 1)]
+	if tc == "none":
+		pal.trim = Color(0, 0, 0, 0)
+	elif tc != "":
+		pal.trim = Color(tc)
+		pal.accent = Color(tc)
+	else:
+		pal.trim = pal.accent
 	return pal
 
 
@@ -56,7 +83,8 @@ static func palette(player: int, look: Dictionary = {}) -> Dictionary:
 static func referee_palette() -> Dictionary:
 	return {"gi": Color("34334a"), "gi_shade": Color("24233a"), "gi_deep": Color("f1ece0"),
 		"skin": Color("d9a37c"), "skin_shade": Color("b07a55"), "hair": Color("b9b6c8"), "hair_style": 1,
-		"accent": Color("8d88b8"), "feet": Color("1b1a28"), "feet_shade": Color("121120")}
+		"accent": Color("8d88b8"), "feet": Color("1b1a28"), "feet_shade": Color("121120"),
+		"bw": 1.0, "face": 0, "brow": 0, "beard": 0, "ears": 0, "belt": Color("1b1a28"), "belt2": Color("1b1a28"), "trim": Color(0, 0, 0, 0)}
 
 
 static func stand_xform(feet: Vector2, facing: int, lean: float, scale: float, crouch: float = 0.0) -> Transform2D:
@@ -102,13 +130,17 @@ static func draw_body(ci: CanvasItem, xf: Transform2D, pal: Dictionary, stance: 
 	var spread := 2.0 + stance * 5.0
 	var bend := 3.0 + stance * 3.0
 	# --- Jambes (cuisse + tibia, genou fléchi), arrière puis avant
-	_limb(ci, [Vector2(-6, -47), Vector2(-11 - spread * 0.4, -24 - bend * 0.2), Vector2(-15 - spread, -4)], 12.0, pal.gi_shade, ow)
+	var bw: float = pal.get("bw", 1.0)
+	_limb(ci, [Vector2(-6, -47), Vector2(-11 - spread * 0.4, -24 - bend * 0.2), Vector2(-15 - spread, -4)], 12.0 * bw, pal.gi_shade, ow)
 	_foot(ci, Vector2(-15 - spread, -1.4), -1.0, pal.skin_shade, dw * 1.3)
-	_limb(ci, [Vector2(6, -47), Vector2(13 + spread * 0.4 + bend, -25), Vector2(15 + spread, -4)], 12.5, pal.gi, ow)
+	_limb(ci, [Vector2(6, -47), Vector2(13 + spread * 0.4 + bend, -25), Vector2(15 + spread, -4)], 12.5 * bw, pal.gi, ow)
 	_foot(ci, Vector2(15 + spread, -1.4), 1.0, pal.skin, dw * 1.3)
 	# pli du pantalon (genou avant)
 	ci.draw_line(Vector2(11 + spread * 0.4 + bend, -28), Vector2(15 + spread * 0.4 + bend, -23), pal.gi_shade, 1.6)
+	# carrure : le buste s'élargit (lourd) ou s'affine (léger) autour de l'axe du corps
+	ci.draw_set_transform_matrix(xf * Transform2D(0.0, Vector2(bw, 1.0), 0.0, Vector2.ZERO))
 	_draw_torso(ci, pal, ow)
+	ci.draw_set_transform_matrix(xf)
 	_draw_head(ci, pal, ow, dw)
 	ci.draw_set_transform_matrix(Transform2D.IDENTITY)
 
@@ -116,6 +148,7 @@ static func draw_body(ci: CanvasItem, xf: Transform2D, pal: Dictionary, stance: 
 ## Buste en coordonnées « debout » : veste en V, revers, plis, liseré, ceinture et nœud.
 static func _draw_torso(ci: CanvasItem, pal: Dictionary, ow: float) -> void:
 	var acc: Color = pal.accent
+
 	# --- Veste : silhouette en V (épaules larges, taille serrée, jupe évasée)
 	var jacket := [Vector2(-15, -82), Vector2(-3, -86), Vector2(6, -86), Vector2(15, -81), Vector2(17, -68),
 		Vector2(13, -49), Vector2(17, -33), Vector2(-16, -33), Vector2(-13, -49), Vector2(-17, -68)]
@@ -126,6 +159,10 @@ static func _draw_torso(ci: CanvasItem, pal: Dictionary, ow: float) -> void:
 	# revers : bande épaisse en diagonale + col
 	_poly(ci, [Vector2(-1, -86), Vector2(4, -86), Vector2(13, -50), Vector2(8, -50)], pal.gi_deep, 0.0)
 	_poly(ci, [Vector2(4, -86), Vector2(8, -85), Vector2(4, -70), Vector2(2, -74)], pal.gi_deep, 0.0)
+	# liseré du revers (personnalisable)
+	var trim: Color = pal.get("trim", Color(0, 0, 0, 0))
+	if trim.a > 0.0:
+		ci.draw_line(Vector2(4, -86), Vector2(13, -50), trim, 1.4, true)
 	# plis de la jupe
 	ci.draw_line(Vector2(3, -40), Vector2(5, -33), pal.gi_shade, 1.6)
 	ci.draw_line(Vector2(-9, -40), Vector2(-10, -33), pal.gi_deep, 1.4)
@@ -133,11 +170,18 @@ static func _draw_torso(ci: CanvasItem, pal: Dictionary, ow: float) -> void:
 	# liseré de lumière coloré (côté dos)
 	ci.draw_polyline(PackedVector2Array([Vector2(-14, -81), Vector2(-16, -68), Vector2(-12.5, -50), Vector2(-15, -35)]), Color(acc, 0.9), 2.0, true)
 	# --- Ceinture noire : nœud et pans qui flottent
-	_poly(ci, [Vector2(-14, -49), Vector2(14, -49), Vector2(14.5, -43), Vector2(-14.5, -43)], Color("17141f"), 0.0)
+	var bc: Color = pal.get("belt", Color("17141f"))
+	var bc2: Color = pal.get("belt2", bc)
+	_poly(ci, [Vector2(-14, -49), Vector2(14, -49), Vector2(14.5, -43), Vector2(-14.5, -43)], bc, 0.0)
+	if bc2 != bc:
+		# ceinture rouge et blanche : segments alternés
+		for k in 4:
+			var x0 := -14.0 + k * 7.0
+			_poly(ci, [Vector2(x0 + 3.5, -49), Vector2(x0 + 7, -49), Vector2(x0 + 7, -43), Vector2(x0 + 3.5, -43)], bc2, 0.0)
 	ci.draw_line(Vector2(-14, -48), Vector2(14, -48), Color(1, 1, 1, 0.12), 1.0)
-	_poly(ci, [Vector2(10, -48), Vector2(15, -48), Vector2(15, -43), Vector2(10, -43)], Color("26222f"), 0.0)
-	ci.draw_line(Vector2(13, -44), Vector2(19, -32), Color("17141f"), 3.2)
-	ci.draw_line(Vector2(12, -44), Vector2(13, -31), Color("17141f"), 3.2)
+	_poly(ci, [Vector2(10, -48), Vector2(15, -48), Vector2(15, -43), Vector2(10, -43)], bc.lightened(0.08), 0.0)
+	ci.draw_line(Vector2(13, -44), Vector2(19, -32), bc, 3.2)
+	ci.draw_line(Vector2(12, -44), Vector2(13, -31), bc2, 3.2)
 
 
 ## Bras en coordonnées écran : manche large du judogi avec plis et ourlet,
@@ -170,7 +214,7 @@ static func draw_arm(ci: CanvasItem, shoulder: Vector2, hand: Vector2, pal: Dict
 	var gi_sh: Color = pal.gi_deep if back else pal.gi_shade
 	var skin: Color = pal.skin_shade if back else pal.skin
 	var skin_sh: Color = pal.skin_shade.darkened(0.15) if back else pal.skin_shade
-	var k := scale
+	var k := scale * (1.0 + (float(pal.get("bw", 1.0)) - 1.0) * 0.6)  # bras plus épais chez les lourds
 	var wrist := hand - u2 * 3.4 * k
 	var cuff := elbow.lerp(wrist, 0.5)
 	var ink_w := 4.0
@@ -231,6 +275,19 @@ static func _draw_head(ci: CanvasItem, pal: Dictionary, ow: float, dw: float) ->
 		Vector2(9.3, -101.5), Vector2(11.8, -97.6), Vector2(9.8, -96.4), Vector2(10.3, -94.8), Vector2(9.6, -93.8),
 		Vector2(10, -92.6), Vector2(9.2, -90.2), Vector2(6, -88.4), Vector2(0.5, -89.4), Vector2(-3.5, -92.5),
 		Vector2(-7.5, -96.5), Vector2(-8.5, -100.5)]
+	var face: int = int(pal.get("face", 0))
+	if face == 1:
+		# mâchoire carrée, menton large
+		head[11] = Vector2(10.0, -89.4)
+		head[12] = Vector2(6.0, -87.4)
+		head[13] = Vector2(-0.5, -88.4)
+		head[14] = Vector2(-4.5, -91.4)
+	elif face == 2:
+		# visage fin, menton pointu
+		head[11] = Vector2(8.8, -90.8)
+		head[12] = Vector2(6.4, -89.0)
+		head[13] = Vector2(1.5, -90.4)
+		head[14] = Vector2(-2.8, -93.4)
 	_poly(ci, head, pal.skin, 0.0)
 	# ombre propre : arrière du crâne, sous la pommette, sous la mâchoire
 	_poly(ci, [Vector2(-7.5, -104), Vector2(-4, -109.5), Vector2(-1, -110), Vector2(-1.5, -99), Vector2(1.5, -91),
@@ -239,10 +296,23 @@ static func _draw_head(ci: CanvasItem, pal: Dictionary, ow: float, dw: float) ->
 	_outline(ci, head, ow * 0.85)
 	# oreille
 	var ear := [Vector2(-2.6, -100.6), Vector2(0.2, -100.8), Vector2(0.6, -97.4), Vector2(-0.6, -95), Vector2(-2.8, -96)]
-	_poly(ci, ear, pal.skin, dw)
-	ci.draw_arc(Vector2(-1.2, -98.2), 1.1, -PI * 0.6, PI * 0.6, 8, pal.skin_shade, dw, true)
+	if int(pal.get("ears", 0)) == 1:
+		# oreille en chou-fleur : épaissie, bosselée (marque des combattants)
+		ear = [Vector2(-3.4, -101.4), Vector2(0.4, -101.6), Vector2(1.4, -99.4), Vector2(0.8, -96.6), Vector2(-0.8, -94.6), Vector2(-3.6, -95.4), Vector2(-4.0, -98.4)]
+		_poly(ci, ear, pal.skin, dw)
+		ci.draw_circle(Vector2(-1.4, -99.2), 1.2, pal.skin_shade)
+		ci.draw_circle(Vector2(-0.6, -96.8), 0.9, pal.skin_shade)
+	else:
+		_poly(ci, ear, pal.skin, dw)
+		ci.draw_arc(Vector2(-1.2, -98.2), 1.1, -PI * 0.6, PI * 0.6, 8, pal.skin_shade, dw, true)
 	# sourcil épais (regard déterminé, incliné vers le nez)
-	_poly(ci, [Vector2(3.2, -104.4), Vector2(9.2, -103.2), Vector2(9.0, -101.8), Vector2(3.6, -102.8)], ink, 0.0)
+	match int(pal.get("brow", 0)):
+		1:
+			_poly(ci, [Vector2(2.8, -105.2), Vector2(9.6, -103.4), Vector2(9.2, -101.4), Vector2(3.2, -102.4)], ink, 0.0)
+		2:
+			ci.draw_line(Vector2(3.6, -103.6), Vector2(9.0, -102.6), ink, dw * 0.9, true)
+		_:
+			_poly(ci, [Vector2(3.2, -104.4), Vector2(9.2, -103.2), Vector2(9.0, -101.8), Vector2(3.6, -102.8)], ink, 0.0)
 	# œil en amande : blanc, iris, paupière
 	_poly(ci, [Vector2(4.4, -101.0), Vector2(8.4, -101.4), Vector2(8.8, -99.8), Vector2(5.0, -99.6)], Color("fbf7ee"), 0.0)
 	ci.draw_circle(Vector2(7.3, -100.5), 0.95, ink)
@@ -251,6 +321,19 @@ static func _draw_head(ci: CanvasItem, pal: Dictionary, ow: float, dw: float) ->
 	ci.draw_line(Vector2(9.8, -97.2), Vector2(10.6, -96.9), pal.skin_shade, dw * 0.8, true)
 	ci.draw_line(Vector2(7.2, -93.6), Vector2(9.6, -93.8), ink, dw * 0.8, true)
 	ci.draw_line(Vector2(6.6, -90.2), Vector2(8.6, -90.4), pal.skin_shade, dw * 0.8, true)
+	# barbe
+	var jaw: Array = [head[10], head[11], head[12], head[13], head[14]]
+	match int(pal.get("beard", 0)):
+		1:
+			_poly(ci, [Vector2(-1.5, -96.5), Vector2(4, -95.5), jaw[0], jaw[1], jaw[2], jaw[3], jaw[4]], Color(pal.hair, 0.28), 0.0)
+		2:
+			_poly(ci, [Vector2(-1.5, -97), Vector2(3.5, -95.6), Vector2(7, -94.4), jaw[0] + Vector2(0.4, 0.2), jaw[1] + Vector2(0.4, 0.8), jaw[2] + Vector2(0, 1.2), jaw[3] + Vector2(0, 0.6), jaw[4]], pal.hair, dw * 0.8)
+			ci.draw_line(Vector2(6.4, -90.6), Vector2(8.8, -90.8), pal.skin_shade, dw * 0.7, true)
+		3:
+			_poly(ci, [Vector2(6.6, -93.2), Vector2(10.0, -93.4), Vector2(10.4, -91.6), Vector2(8.6, -92.0), Vector2(6.2, -91.4)], pal.hair, dw * 0.6)
+		4:
+			_poly(ci, [Vector2(5.6, -90.0), Vector2(9.4, -90.4), jaw[1] + Vector2(0.4, 1.2), jaw[2] + Vector2(0, 1.4), Vector2(4.6, -88.6)], pal.hair, dw * 0.6)
+			_poly(ci, [Vector2(6.6, -93.2), Vector2(9.8, -93.4), Vector2(9.6, -92.2), Vector2(6.8, -92.2)], pal.hair, 0.0)
 	# cheveux
 	if pal.hair_style == 0:
 		# volume plaqué vers l'arrière, mèches en pointes vers l'arrière
@@ -260,6 +343,31 @@ static func _draw_head(ci: CanvasItem, pal: Dictionary, ow: float, dw: float) ->
 			Vector2(-4.8, -100.2)]
 		_poly(ci, hair, pal.hair, ow * 0.8)
 		ci.draw_polyline(PackedVector2Array([Vector2(-9, -108.2), Vector2(-3, -110.6), Vector2(4, -111.4)]), pal.hair.lightened(0.28), dw, true)
+	elif pal.hair_style == 4:
+		# queue de cheval : dessus tiré vers l'arrière, queue qui tombe dans la nuque
+		var top4 := [Vector2(-8.4, -101), Vector2(-7.4, -106.5), Vector2(-5, -111.4), Vector2(0.5, -113), Vector2(6.4, -111.6),
+			Vector2(9.8, -108), Vector2(9.2, -105.4), Vector2(4.6, -106.6), Vector2(-0.4, -105.6), Vector2(-4.4, -103.2), Vector2(-5.6, -99.6)]
+		_poly(ci, top4, pal.hair, ow * 0.8)
+		var tail := [Vector2(-8.0, -108.6), Vector2(-12.4, -108.0), Vector2(-15.6, -103.0), Vector2(-16.0, -96.0), Vector2(-13.2, -91.4),
+			Vector2(-12.4, -96.0), Vector2(-10.8, -101.6), Vector2(-7.6, -104.4)]
+		_poly(ci, tail, pal.hair, ow * 0.8)
+		ci.draw_line(Vector2(-8.6, -109.4), Vector2(-7.8, -104.6), pal.accent, dw * 1.4, true)
+		ci.draw_polyline(PackedVector2Array([Vector2(-13.6, -104), Vector2(-14.2, -97.6)]), pal.hair.lightened(0.25), dw * 0.7, true)
+	elif pal.hair_style == 5:
+		# bouclés : volume en boucles serrées autour du crâne
+		var base5 := [Vector2(-8.8, -100), Vector2(-8.6, -106), Vector2(-5.6, -112), Vector2(0.5, -114.4), Vector2(6.8, -112.6),
+			Vector2(10.4, -108.4), Vector2(9.6, -105.2), Vector2(4.8, -106.6), Vector2(-0.4, -105.6), Vector2(-4.2, -103.0), Vector2(-5.4, -99.4)]
+		_poly(ci, base5, pal.hair, ow * 0.8)
+		for c5 in [Vector2(-7.4, -107.6), Vector2(-4.2, -111.4), Vector2(0.6, -113.0), Vector2(5.4, -111.8), Vector2(8.8, -108.6), Vector2(-8.4, -102.8)]:
+			ci.draw_circle(c5, 2.6, Style.INK)
+			ci.draw_circle(c5, 1.9, pal.hair)
+			ci.draw_arc(c5, 1.1, PI, PI * 1.8, 6, pal.hair.lightened(0.3), dw * 0.6, true)
+	elif pal.hair_style == 6:
+		# dégarni : couronne de cheveux courts à l'arrière et sur les côtés, crâne qui brille
+		var crown := [Vector2(-8.6, -98.8), Vector2(-8.4, -105.6), Vector2(-5.4, -109.2), Vector2(-2.8, -108.4), Vector2(-4.6, -104.4),
+			Vector2(-3.0, -101.6), Vector2(-4.8, -98.6)]
+		_poly(ci, crown, pal.hair, ow * 0.7)
+		ci.draw_arc(Vector2(2.4, -106.4), 4.0, -PI * 0.9, -PI * 0.45, 8, Color(1, 1, 1, 0.45), dw, true)
 	elif pal.hair_style == 2:
 		# rasé : simple ombre de repousse sur le crâne
 		var cap := [Vector2(-7.6, -103.5), Vector2(-4, -109.5), Vector2(2, -111), Vector2(7, -108.5), Vector2(8.6, -105.5),
@@ -363,6 +471,8 @@ static func draw_figure(ci: CanvasItem, xf: Transform2D, pal: Dictionary, j: Dic
 	var u: Vector2 = (j.neck - j.hip).normalized()
 	var n := Vector2(-u.y, u.x)
 	var skirt: Vector2 = j.hip - u * 8.0
+	var gw: float = float(pal.get("bw", 1.0))
+	n *= gw
 	var torso := [j.neck + n * 12.0, j.neck - n * 12.0, j.hip - n * 10.0, skirt - n * 12.0, skirt + n * 12.0, j.hip + n * 10.0]
 	_poly(ci, torso, pal.gi, 0.0)
 	# ombre propre : moitié du buste
@@ -373,7 +483,9 @@ static func draw_figure(ci: CanvasItem, xf: Transform2D, pal: Dictionary, j: Dic
 	# ceinture
 	var b0: Vector2 = j.hip + u * 2.0
 	var belt := [b0 + n * 11.0, b0 - n * 11.0, b0 - n * 11.0 - u * 6.0, b0 + n * 11.0 - u * 6.0]
-	_poly(ci, belt, Color("17141f"), 0.0)
+	_poly(ci, belt, pal.get("belt", Color("17141f")), 0.0)
+	if pal.get("belt2", pal.get("belt", Color.BLACK)) != pal.get("belt", Color.BLACK):
+		_poly(ci, [b0 + n * 3.0, b0 - n * 3.0, b0 - n * 3.0 - u * 6.0, b0 + n * 3.0 - u * 6.0], pal.belt2, 0.0)
 	# tête orientée selon l'axe cou → tête
 	var hd: Vector2 = j.head - j.neck
 	var ang := hd.angle() + PI * 0.5
@@ -542,8 +654,9 @@ static func draw_fighter(ci: CanvasItem, xf: Transform2D, pal: Dictionary, pose:
 	draw_arm(ci, xf * sh_b, hb, pal, true, k, grip[0])
 	# --- jambes (arrière puis avant) et pieds orientés selon le tibia
 	ci.draw_set_transform_matrix(xf)
-	_limb(ci, [att_b, kb, fb], 12.0, pal.gi_shade, ow)
-	_limb(ci, [att_f, kf, ff], 12.5, pal.gi, ow)
+	var bw: float = pal.get("bw", 1.0)
+	_limb(ci, [att_b, kb, fb], 12.0 * bw, pal.gi_shade, ow)
+	_limb(ci, [att_f, kf, ff], 12.5 * bw, pal.gi, ow)
 	ci.draw_set_transform_matrix(xf)
 	for leg in [[kb, fb, SHIN_ANGLE_B, -1.0, pal.get("feet_shade", pal.skin_shade)], [kf, ff, SHIN_ANGLE_F, 1.0, pal.get("feet", pal.skin)]]:
 		var dev: float = (leg[1] - leg[0]).angle() - leg[2]
@@ -553,7 +666,7 @@ static func draw_fighter(ci: CanvasItem, xf: Transform2D, pal: Dictionary, pose:
 	ci.draw_set_transform_matrix(xf)
 	ci.draw_line(kf + Vector2(-2, -3), kf + Vector2(2, 2), pal.gi_shade, 1.6)
 	# --- buste puis tête
-	ci.draw_set_transform_matrix(xf * tl)
+	ci.draw_set_transform_matrix(xf * tl * Transform2D(0.0, Vector2(float(pal.get("bw", 1.0)), 1.0), 0.0, Vector2.ZERO))
 	_draw_torso(ci, pal, ow)
 	var neck := tl * NECK0
 	var tilt := float(pose.get("tilt", 0.0))

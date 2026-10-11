@@ -41,7 +41,14 @@
       "look": {
         "skin": 4,
         "hair": 2,
-        "hair_color": 0
+        "hair_color": 0,
+        "build": 2,
+        "face": 1,
+        "brow": 1,
+        "beard": 2,
+        "ears": 1,
+        "belt": 0,
+        "trim": 2
       },
       "bio": "Il prend le col, il ne le lâche plus. Sa garde haute écrase la posture adverse jusqu'à ce que le harai-goshi parte tout seul.",
       "legend": true
@@ -86,7 +93,14 @@
       "look": {
         "skin": 0,
         "hair": 1,
-        "hair_color": 0
+        "hair_color": 0,
+        "build": 0,
+        "face": 2,
+        "brow": 2,
+        "beard": 0,
+        "ears": 0,
+        "belt": 0,
+        "trim": 5
       },
       "bio": "Un ko-uchi pour faire reculer, et la jambe monte. Son uchi-mata ne marque pas waza-ari : il marque ippon.",
       "legend": true
@@ -131,7 +145,14 @@
       "look": {
         "skin": 1,
         "hair": 0,
-        "hair_color": 0
+        "hair_color": 0,
+        "build": 0,
+        "face": 0,
+        "brow": 1,
+        "beard": 1,
+        "ears": 1,
+        "belt": 0,
+        "trim": 1
       },
       "bio": "Petit gabarit, centre de gravité au ras du tatami. Il passe sous la garde avant qu'on ait compris.",
       "legend": true
@@ -175,8 +196,15 @@
       },
       "look": {
         "skin": 3,
-        "hair": 3,
-        "hair_color": 0
+        "hair": 5,
+        "hair_color": 0,
+        "build": 1,
+        "face": 0,
+        "brow": 0,
+        "beard": 0,
+        "ears": 0,
+        "belt": 0,
+        "trim": 3
       },
       "bio": "Elle ne recule jamais. Attaque, réattaque, enchaîne : au bout de deux minutes, ses adversaires n'ont plus de jambes.",
       "legend": true
@@ -220,8 +248,15 @@
       },
       "look": {
         "skin": 0,
-        "hair": 3,
-        "hair_color": 0
+        "hair": 4,
+        "hair_color": 0,
+        "build": 0,
+        "face": 2,
+        "brow": 2,
+        "beard": 0,
+        "ears": 0,
+        "belt": 0,
+        "trim": 4
       },
       "bio": "Personne n'entre plus vite. Le moindre déséquilibre suffit : elle est déjà dessous.",
       "legend": true
@@ -264,9 +299,16 @@
         "sol": 4
       },
       "look": {
-        "skin": 1,
-        "hair": 1,
-        "hair_color": 0
+        "skin": 2,
+        "hair": 6,
+        "hair_color": 1,
+        "build": 2,
+        "face": 1,
+        "brow": 1,
+        "beard": 2,
+        "ears": 1,
+        "belt": 0,
+        "trim": 0
       },
       "bio": "Attaque-le et tu voles. Il attend l'erreur, ceinture en main, et ses ura-nage font trembler la salle.",
       "legend": true
@@ -311,7 +353,14 @@
       "look": {
         "skin": 0,
         "hair": 2,
-        "hair_color": 4
+        "hair_color": 4,
+        "build": 1,
+        "face": 1,
+        "brow": 1,
+        "beard": 3,
+        "ears": 1,
+        "belt": 0,
+        "trim": 2
       },
       "bio": "Debout, il cherche juste à t'amener au sol. Une fois là, la clé de bras arrive avant le matte.",
       "legend": true
@@ -356,7 +405,14 @@
       "look": {
         "skin": 4,
         "hair": 3,
-        "hair_color": 0
+        "hair_color": 0,
+        "build": 2,
+        "face": 0,
+        "brow": 0,
+        "beard": 0,
+        "ears": 0,
+        "belt": 0,
+        "trim": 1
       },
       "bio": "Un waza-ari, et c'est fini : elle te plaque au sol et tient les vingt secondes.",
       "legend": true
@@ -400,8 +456,15 @@
       },
       "look": {
         "skin": 1,
-        "hair": 3,
-        "hair_color": 5
+        "hair": 4,
+        "hair_color": 5,
+        "build": 0,
+        "face": 2,
+        "brow": 2,
+        "beard": 0,
+        "ears": 0,
+        "belt": 0,
+        "trim": 3
       },
       "bio": "Elle te fait marcher, te tire, attend que tu suives… et balaye le pied pile au moment où il se pose.",
       "legend": true
@@ -445,8 +508,15 @@
       },
       "look": {
         "skin": 1,
-        "hair": 0,
-        "hair_color": 4
+        "hair": 6,
+        "hair_color": 4,
+        "build": 1,
+        "face": 0,
+        "brow": 1,
+        "beard": 3,
+        "ears": 1,
+        "belt": 1,
+        "trim": 6
       },
       "bio": "Rien de spectaculaire, rien d'inutile. Une garde parfaite, un o-soto imparable, et un sol d'une précision chirurgicale.",
       "legend": true
