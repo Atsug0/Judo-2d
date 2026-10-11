@@ -102,7 +102,7 @@ func _new_fighter(id: int, fname: String, loadout) -> Dictionary:
 		"defend_t": 0, "break_cd": 0,
 		"combo_t": 0, "combo_next": "",
 		"waza": 0, "ippon": 0, "shidos": 0, "passive_t": 0, "feints": [],
-		"last_move": 0, "last_score": 0, "nogrip_t": 0, "attacks_n": 0,
+		"last_move": 0, "last_score": 0, "nogrip_t": 0, "attacks_n": 0, "reaction_t": -9999,
 		"react": 0, "resist_t": 0, "follow_t": 0,
 		"stick_t": 0, "dash_t": 0, "dash_dir": 0, "dash_cd": 0, "fast_reach_t": 0,
 		"mods": {},
@@ -574,6 +574,7 @@ func _kuzushi_on(i: int, kx: int, ky: int) -> void:
 		kx = kx * (100 + absi(o.react) * cfg.react_amp / 10000) / 100
 		if o.resist_t > 0 and absi(o.react) >= 2000:
 			events.append({"type": "reaction", "who": i})
+			state.fighters[i].reaction_t = state.tick
 			o.resist_t = 0
 			o.react /= 2  # son appui est « consommé »
 	elif kx > 0 and om > 0 or kx < 0 and om < 0:
@@ -876,7 +877,15 @@ func _resolve(i: int) -> void:
 	var score := attack_score(i, atk.tech, atk.blocked, atk.combo)
 	f.attack = {}
 	f.last_score = score
-	if score >= cfg.score_ippon + f.mods.ippon_extra:
+	# timing parfait : enchaînement, action-réaction, feinte récente ou balayage sur le pas.
+	# Une technique bien préparée qui passe devient ippon bien plus facilement.
+	var timing: bool = atk.combo or state.tick - int(f.reaction_t) <= cfg.timing_window \
+		or (not f.feints.is_empty() and state.tick - int(f.feints[-1]) <= cfg.timing_window + 30) \
+		or (is_sweep(atk.tech) and (o.follow_t > 0 or o.dash_t > 0))
+	var ippon_at: int = cfg.score_ippon + f.mods.ippon_extra
+	if timing and not atk.blocked:
+		ippon_at = mini(ippon_at, cfg.score_waza + cfg.timing_ippon_margin + f.mods.ippon_extra / 2)
+	if score >= ippon_at:
 		_start_throw(i, atk.tech, "ippon")
 	elif score >= cfg.score_waza:
 		_start_throw(i, atk.tech, "waza")
@@ -987,15 +996,16 @@ func _throw_tick() -> void:
 	th.t += 1
 	if th.t < cfg.throw_ticks:
 		return
-	if _award(th.tori, th.result, tech_name(th.tech)):
+	if _award(th.tori, th.result, tech_name(th.tech), "throw", th.tech):
 		return
 	# waza-ari : on enchaîne au sol, tori au-dessus
 	_start_newaza(th.tori)
 
 
 ## Attribue un score. Renvoie true si le combat est terminé.
-func _award(who: int, result: String, label: String) -> bool:
+func _award(who: int, result: String, label: String, src: String = "osae", tech: String = "") -> bool:
 	var f: Dictionary = state.fighters[who]
+	events.append({"type": "score", "who": who, "result": result, "src": src, "tech": tech, "golden": state.golden})
 	if result == "ippon":
 		f.ippon = 1
 		_end(who, "Ippon — " + label)
@@ -1077,6 +1087,7 @@ func _newaza_tick(inputs: Array) -> void:
 				sub.bp = mini(100, sub.bp + gain + cfg.sub_def_bonus + (sol_b - 5))
 		if sub.tp >= 100:
 			events.append({"type": "submission", "who": top, "tech": sub.tech})
+			events.append({"type": "score", "who": top, "result": "ippon", "src": "sub", "tech": sub.tech, "golden": state.golden})
 			ft.ippon = 1
 			_end(top, "Ippon (maitta) — " + tech_name(sub.tech))
 			_announce("IPPON !")
@@ -1154,9 +1165,10 @@ func _newaza_tick(inputs: Array) -> void:
 	if nw.osae:
 		nw.osae_t += 1
 		if nw.osae_t == cfg.osaekomi_waza:
-			if _award(top, "waza", tech_name(nw.hold)):
+			if _award(top, "waza", tech_name(nw.hold), "osae", nw.hold):
 				return
 		if nw.osae_t >= cfg.osaekomi_ippon:
+			events.append({"type": "score", "who": top, "result": "ippon", "src": "osae", "tech": nw.hold, "golden": state.golden})
 			ft.ippon = 1
 			_end(top, "Ippon — " + tech_name(nw.hold))
 			_announce("IPPON !")

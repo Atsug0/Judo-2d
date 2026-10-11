@@ -3,6 +3,7 @@ extends Node2D
 
 const Style := preload("res://scripts/ui/style.gd")
 const Rich := preload("res://scripts/ui/rich.gd")
+const Challenges := preload("res://scripts/challenges.gd")
 const Readout := preload("res://scripts/view/readout.gd")
 const Art := preload("res://scripts/view/fighter_art.gd")
 const GameData := preload("res://scripts/game_data.gd")
@@ -68,6 +69,7 @@ var walk_amp = [0.0, 0.0]
 var walk_dir = [1.0, 1.0]
 var prev_dx = [-1.0, -1.0]  # main chassée : images restantes de l'animation, par joueur et par main
 var last_reaction_popup = -9999
+var ch_tracker = null   # défi en cours : suivi des actions du joueur
 var pause_tab = 0       # 0 = commandes, 1 = set du joueur 1, 2 = set du joueur 2
 var pause_player = 0
 ## Format en manches (deux manches gagnantes, façon jeu de combat)
@@ -130,7 +132,9 @@ func on_enter(p: Dictionary) -> void:
 			ais[i] = Ai.new(i, seed_value + i * 7, level)
 	if p.has("dojo"):
 		dojo = DojoSession.new(self, p.dojo)
-	elif app != null and (not app.capture_mode or app.args.has("bo3")) and Settings.value("format") == "bo3":
+	if p.get("mode", "") == "challenge":
+		ch_tracker = Challenges.new_tracker()
+	elif dojo == null and app != null and (not app.capture_mode or app.args.has("bo3")) and Settings.value("format") == "bo3":
 		rounds_to_win = 2
 		round_banner = 100
 
@@ -204,6 +208,9 @@ func _step_sim() -> void:
 		elif sim.state.phase == "matte":
 			replay_buf.clear()
 	sim.step(inputs)
+	if ch_tracker != null:
+		for e in sim.events:
+			Challenges.track(ch_tracker, sim, e)
 	_consume_events()
 	if dojo != null:
 		dojo.post_step(sim)
@@ -227,7 +234,11 @@ func _step_sim() -> void:
 			if rounds_to_win > 1:
 				fin.rounds = round_wins.duplicate()
 				fin.round_log = round_log.duplicate()
-			app.goto("results", {"state": fin, "names": names, "stats": stats, "match_params": params})
+			var rp := {"state": fin, "names": names, "stats": stats, "match_params": params}
+			if ch_tracker != null:
+				var ch: Dictionary = Challenges.by_id(String(params.get("challenge", "")))
+				rp.challenge = {"id": ch.get("id", ""), "title": ch.get("title", ""), "success": Challenges.check(ch, ch_tracker, fin)}
+			app.goto("results", rp)
 
 
 func nav(action: String, _player: int = 0) -> void:

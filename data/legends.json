@@ -190,8 +190,8 @@
       },
       "physique": {
         "explosivite": 6,
-        "endurance": 8,
-        "poigne": 4,
+        "endurance": 7,
+        "poigne": 6,
         "sol": 3
       },
       "look": {

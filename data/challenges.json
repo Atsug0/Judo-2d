@@ -1,0 +1,140 @@
+{
+  "_doc": "Défis : un combat contre une légende avec un objectif. cond = condition à remplir ; win = il faut aussi gagner le combat.",
+  "challenges": [
+    {
+      "id": "premier_ippon",
+      "title": "Premier ippon",
+      "desc": "Gagne par ippon sur projection.",
+      "opp": "kesa",
+      "level": 1,
+      "cond": "ippon_throw",
+      "win": true
+    },
+    {
+      "id": "tokui",
+      "title": "Ta technique",
+      "desc": "Marque avec ton tokui-waza, et gagne.",
+      "opp": "professeur",
+      "level": 1,
+      "cond": "tokui",
+      "win": true
+    },
+    {
+      "id": "combo",
+      "title": "Enchaînement",
+      "desc": "Marque sur la deuxième technique d'un enchaînement. Il faut un enchaînement dans ton set.",
+      "opp": "tempete",
+      "level": 1,
+      "cond": "combo",
+      "win": false
+    },
+    {
+      "id": "balayage",
+      "title": "Sur le pas",
+      "desc": "Marque avec un balayage pendant qu'il déplace ses pieds.",
+      "opp": "eclair",
+      "level": 2,
+      "cond": "sweep",
+      "win": false
+    },
+    {
+      "id": "feinte",
+      "title": "Feinte",
+      "desc": "Marque dans les 2 secondes qui suivent une feinte (tap court sur A, X ou Y).",
+      "opp": "mur",
+      "level": 2,
+      "cond": "feint",
+      "win": false
+    },
+    {
+      "id": "reaction",
+      "title": "Action-réaction",
+      "desc": "Fais-le résister, puis emmène-le de l'autre côté : marque dans les 2 secondes après une action-réaction.",
+      "opp": "sambiste",
+      "level": 2,
+      "cond": "reaction",
+      "win": false
+    },
+    {
+      "id": "contre",
+      "title": "Contre-attaque",
+      "desc": "Marque avec un contre : B pendant son attaque mal préparée. REN vit du seoi-nage : ura-nage ou tsubame-gaeshi dans ton set feront l'affaire.",
+      "opp": "seoi",
+      "level": 2,
+      "cond": "counter",
+      "win": false
+    },
+    {
+      "id": "arracheur",
+      "title": "Arracheur",
+      "desc": "Arrache 6 de ses prises (B + stick droit vers toi) et gagne.",
+      "opp": "mur",
+      "level": 2,
+      "cond": "strips6",
+      "win": true
+    },
+    {
+      "id": "immobilise",
+      "title": "Immobilisé",
+      "desc": "Marque par immobilisation : tiens l'osaekomi aux curseurs.",
+      "opp": "seoi",
+      "level": 2,
+      "cond": "osae",
+      "win": false
+    },
+    {
+      "id": "toketa",
+      "title": "Toketa",
+      "desc": "Sors d'une immobilisation, puis gagne.",
+      "opp": "kesa",
+      "level": 2,
+      "cond": "toketa",
+      "win": true
+    },
+    {
+      "id": "soumission",
+      "title": "Abandon",
+      "desc": "Gagne par clé de bras ou étranglement. Il faut une clé ou un étranglement dans ton set.",
+      "opp": "ours",
+      "level": 1,
+      "cond": "sub",
+      "win": true
+    },
+    {
+      "id": "eclair",
+      "title": "Éclair",
+      "desc": "Gagne en moins de 45 secondes.",
+      "opp": "tempete",
+      "level": 2,
+      "cond": "fast45",
+      "win": true
+    },
+    {
+      "id": "propre",
+      "title": "Judo propre",
+      "desc": "Gagne sans prendre un seul shido.",
+      "opp": "tacticienne",
+      "level": 3,
+      "cond": "no_shido",
+      "win": true
+    },
+    {
+      "id": "golden",
+      "title": "Golden score",
+      "desc": "Gagne pendant le golden score.",
+      "opp": "professeur",
+      "level": 3,
+      "cond": "golden",
+      "win": true
+    },
+    {
+      "id": "maitre",
+      "title": "Le maître",
+      "desc": "Bats HIRO au niveau 3 par ippon.",
+      "opp": "professeur",
+      "level": 3,
+      "cond": "ippon",
+      "win": true
+    }
+  ]
+}

@@ -59,7 +59,7 @@
   "feint_push": 1500,
   "feint_window": 600,
   "feint_limit": 3,
-  "score_ippon": 8700,
+  "score_ippon": 7400,
   "score_waza": 6800,
   "score_stuffed": 1500,
   "partial_grip_mult": 60,
@@ -85,7 +85,7 @@
   "haute_cost": 120,
   "haute_koshi_bonus": 500,
   "courte_entry": 2,
-  "courte_ippon_extra": 800,
+  "courte_ippon_extra": 500,
   "courte_window": 8,
   "_doc_newaza": "Sol : jauge de contrôle 0..10000 pour le judoka du dessus",
   "newaza_start_control": 6000,
@@ -197,5 +197,7 @@
   "sub_cursor_ticks": 600,
   "sub_escape_at": 70,
   "sub_def_bonus": 3,
-  "sub_perfect": 14
+  "sub_perfect": 14,
+  "timing_window": 90,
+  "timing_ippon_margin": 200
 }

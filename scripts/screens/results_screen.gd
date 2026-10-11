@@ -8,6 +8,7 @@ const Sim := preload("res://scripts/sim/match_sim.gd")
 const Ai := preload("res://scripts/sim/ai_controller.gd")
 const Tournament := preload("res://scripts/tournament.gd")
 const Records := preload("res://scripts/records.gd")
+const Challenges := preload("res://scripts/challenges.gd")
 
 var app
 var frame = 0
@@ -18,6 +19,7 @@ var match_params: Dictionary
 var mode = "demo"
 var index = 0
 var items: Array = []
+var challenge: Dictionary = {}
 
 
 func on_enter(params: Dictionary) -> void:
@@ -28,13 +30,18 @@ func on_enter(params: Dictionary) -> void:
 	stats = params.stats
 	match_params = params.get("match_params", {})
 	mode = match_params.get("mode", "demo")
-	if mode in ["tournament", "versus"] and not app.capture_mode:
+	if mode in ["tournament", "versus", "challenge"] and not app.capture_mode:
 		_record()
 	if mode == "tournament" and not app.session.get("tournament", {}).is_empty():
 		Tournament.record(app.session.tournament, state.winner == 0)
 		items = ["CONTINUER", "MENU PRINCIPAL"]
 	elif mode == "versus":
 		items = ["REVANCHE", "CHANGER DE BUILD", "MENU PRINCIPAL"]
+	elif mode == "challenge":
+		challenge = params.get("challenge", {})
+		if challenge.get("success", false):
+			Challenges.complete(String(challenge.id))
+		items = ["RÉESSAYER", "DÉFIS", "MENU PRINCIPAL"]
 	else:
 		items = ["REJOUER", "MENU PRINCIPAL"]
 
@@ -100,7 +107,9 @@ func nav(action: String, _player: int = 0) -> void:
 			match items[index]:
 				"CONTINUER":
 					app.goto("tournament", {})
-				"REVANCHE", "REJOUER":
+				"DÉFIS":
+					app.goto("challenges", {"index": match_params.get("challenge_index", 0), "bi": match_params.get("bi", 0)})
+				"REVANCHE", "REJOUER", "RÉESSAYER":
 					app.goto("match", match_params if not match_params.is_empty() else app.default_match_params())
 				"CHANGER DE BUILD":
 					app.goto("select", {})
@@ -153,6 +162,12 @@ func _draw() -> void:
 			x += tw + 8
 			k += 1
 	_draw_score_table()
+	if not challenge.is_empty():
+		var ok: bool = challenge.get("success", false)
+		var cr = Rect2(700, 452, 400, 54)
+		Style.panel(self, cr, Style.GOOD if ok else Style.DANGER, Style.INK, 4.0, 6.0)
+		Style.text(self, Vector2(cr.position.x, cr.position.y + 40), "DÉFI RÉUSSI !" if ok else "DÉFI RATÉ", 34, Style.INK, "display", HORIZONTAL_ALIGNMENT_CENTER, cr.size.x, 1, -1.0)
+		Style.label(self, Vector2(cr.position.x, cr.position.y - 8), String(challenge.title).to_upper(), 15, Style.PAPER, "black", HORIZONTAL_ALIGNMENT_CENTER, cr.size.x)
 	_draw_menu()
 	Style.hints(self, [["A", "Valider"]])
 

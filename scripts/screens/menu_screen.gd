@@ -16,6 +16,8 @@ const ITEMS := [
 		"points": ["2 manettes", "Builds personnalisés", "Revanche immédiate"]},
 	{"id": "dojo", "label": "DOJO", "accent": "good", "desc": "Apprends tout le judo du jeu, leçon par leçon, puis entraîne-toi librement contre un partenaire réglable.",
 		"points": ["Tutoriel complet", "Guide de chaque technique", "Entraînement libre"]},
+	{"id": "challenges", "label": "DÉFIS", "accent": "gold", "desc": "Quinze défis contre les légendes : gagner par ippon, sur une feinte, au sol, en golden score… Chacun t'apprend une facette du jeu.",
+		"points": ["15 objectifs", "Contre les légendes", "Progression sauvegardée"]},
 	{"id": "online", "label": "EN LIGNE", "accent": "cyan", "desc": "Parties rapides, classées et salons privés, avec un netcode rollback pensé dès le premier jour.",
 		"points": ["Netcode rollback", "Matchmaking Steam", "Phase 8 du plan"], "badge": "BIENTÔT"},
 	{"id": "customize", "label": "PERSONNALISATION", "accent": "yellow", "desc": "Construis ton judoka : set de techniques à 15 points, garde, style de kumikata et profil physique.",
@@ -90,20 +92,20 @@ func _draw() -> void:
 	# boutons
 	for k in ITEMS.size():
 		var sel := k == index
-		var y := 160.0 + k * 68.0
-		var x := 60.0 - k * 9.0
+		var y := 152.0 + k * 60.0
+		var x := 60.0 - k * 8.0
 		var w := 470.0 + (40.0 if sel else 0.0)
-		var r := Rect2(x + (16.0 if sel else 0.0), y, w, 56)
+		var r := Rect2(x + (16.0 if sel else 0.0), y, w, 50)
 		var c := _accent(ITEMS[k].accent)
 		Style.panel(self, r, c if sel else Style.NIGHT_2, Style.INK, 4.0, 7.0 if sel else 5.0)
 		if not sel:
 			draw_colored_polygon(Style.slant_points(Rect2(r.position + Vector2(4, 4), Vector2(14, r.size.y - 8))), c)
-		Style.text(self, Vector2(r.position.x + 40, r.position.y + 42), ITEMS[k].label, 36 if sel else 32,
+		Style.text(self, Vector2(r.position.x + 40, r.position.y + 38), ITEMS[k].label, 34 if sel else 30,
 			Style.INK if sel else Style.PAPER, "display", HORIZONTAL_ALIGNMENT_LEFT, -1, 3 if sel else 4, 0.0 if sel else 3.0)
 		if ITEMS[k].has("badge"):
-			var br := Rect2(r.end.x - 130, r.position.y + 16, 96, 30)
+			var br := Rect2(r.end.x - 130, r.position.y + 12, 96, 28)
 			Style.panel(self, br, Style.INK, c, 2.5, 0.0)
-			Style.label(self, Vector2(br.position.x, br.position.y + 22), ITEMS[k].badge, 15, c, "black", HORIZONTAL_ALIGNMENT_CENTER, br.size.x)
+			Style.label(self, Vector2(br.position.x, br.position.y + 20), ITEMS[k].badge, 15, c, "black", HORIZONTAL_ALIGNMENT_CENTER, br.size.x)
 		if sel:
 			var ax := r.end.x + 14
 			draw_colored_polygon(PackedVector2Array([Vector2(ax, y + 11), Vector2(ax + 22, y + 28), Vector2(ax, y + 45)]), Style.INK)
