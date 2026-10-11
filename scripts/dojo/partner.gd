@@ -110,6 +110,8 @@ func _ground(sim, inp: Array) -> Array:
 			osae_ai = Ai.new(1, 5, 1)
 		return osae_ai._think_osae(sim, nw, sim.state.fighters[1], inp)
 	match mode:
+		"sol_passif":
+			pass  # se laisse faire (dessus comme dessous)
 		"sol_dessus":
 			if top:
 				inp[Sim.BA] = 1

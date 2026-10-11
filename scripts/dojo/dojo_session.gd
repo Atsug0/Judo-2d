@@ -29,6 +29,8 @@ var last_attack_combo = false
 var newaza_wait = 0
 var ended_t = 0
 var setup_wait = 0
+var drive_acc = 0       # objectif « mener le couple » : distance accumulée (cpx)
+var drive_prev_c = -1
 var frame = 0
 var opts = {"stamina": true, "data": true, "inputs": true}
 # pause du dojo
@@ -253,6 +255,8 @@ func _start_steps() -> void:
 
 
 func _enter_step(i: int) -> void:
+	drive_acc = 0
+	drive_prev_c = -1
 	step_i = i
 	progress = 0
 	latch = false
@@ -304,8 +308,8 @@ func _check_goal(sim, goal: Dictionary) -> int:
 			"feint":
 				feint_tick = s.tick
 		match goal.type:
-			"parry", "whiff", "break", "feint", "block", "reaction", "combo_open", "osaekomi":
-				if e.type == goal.type:
+			"parry", "whiff", "break", "feint", "block", "reaction", "combo_open", "osaekomi", "reversal":
+				if e.type == goal.type and (not goal.has("how") or e.get("how", "") == goal.how):
 					hits += 1
 			"dash":
 				if e.type == "dash" and e.dir == goal.dir:
@@ -373,6 +377,16 @@ func _check_goal(sim, goal: Dictionary) -> int:
 			ok = not nw2.is_empty() and nw2.top == 0 and nw2.control >= int(goal.min)
 		"read":
 			ok = _auto() and phase_t > 200
+		"drive":
+			# couple emmené (en garde) vers l'avant ("in") ou vers l'arrière ("out")
+			var cx: int = (me.x + uk.x) / 2
+			if drive_prev_c >= 0 and (sim.has_grip(me) or sim.has_grip(uk)):
+				drive_acc += (cx - drive_prev_c) * me.facing * (1 if goal.dir == "in" else -1)
+				drive_acc = maxi(0, drive_acc)
+			drive_prev_c = cx
+			ok = drive_acc >= int(goal.px) * 50
+			if ok:
+				drive_acc = 0
 	if ok and not latch:
 		latch = true
 		return 1

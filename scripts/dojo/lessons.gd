@@ -135,9 +135,20 @@ static func _fundamentals() -> Array:
 				"Une main chassée est bloquée un instant : profites-en pour saisir le premier."),
 			_s("Esquive", "Quand sa main arrive, dash arrière ({LS} en pichenette) : elle part dans le vide.", {"type": "whiff"}, "reach", 1),
 			_s("Arrache sa prise", "Il te tient : {B} en tirant {RS} vers toi arrache sa prise la plus profonde. Insiste si elle tient.", {"type": "break"}, "garde", 2, "",
-				"Une prise fraîche part du premier coup, une prise profonde en demande plusieurs. Sans saisie, tes deux mains attaquent la sienne : bien plus fort."),
+				"Une prise fraîche part du premier coup, une prise profonde en demande plusieurs."),
+			_s("Deux mains", "Lâche tes gâchettes, puis {B} : tes deux mains attaquent sa prise, bien plus fort.", {"type": "break", "how": "deux_mains"}, "garde", 1, "",
+				"Sans aucune prise, tu ne peux pas attaquer : arrache, puis reprends la garde avant lui."),
 			_s("Prends le dessus", "Saisis le premier et installe ta garde : remplis la jauge de domination de ton côté.", {"type": "dom", "min": 5000}, "reach", 1, "",
 				"Le dominant déséquilibre plus fort et ses techniques passent mieux. Le dominé se fait courber."),
+		]})
+	L.append({"id": "b4_mener", "cat": "base", "title": "Mener le couple", "player": P, "partner_build": U,
+		"intro": "En garde, le couple se déplace d'un bloc. Celui qui domine le kumikata l'emmène où il veut ; l'autre suit ou résiste.",
+		"steps": [
+			_s("Pousse-le", "En garde, avance avec {LS} : tu l'emmènes en arrière sur le tapis.", {"type": "drive", "dir": "in", "px": 160}, "garde", 1, "gripped"),
+			_s("Tire-le", "Recule avec {LS} : il est obligé de te suivre.", {"type": "drive", "dir": "out", "px": 160}, "garde", 1, "gripped",
+				"Reculer en tirant, c'est aussi le tsukuri des techniques vers l'avant."),
+			_s("Malgré lui", "Il résiste à tes tractions. Domine la garde (prises profondes) et emmène-le quand même.", {"type": "drive", "dir": "in", "px": 120}, "resiste", 1, "gripped",
+				"Attention au bord : celui qui sort du tapis prend un shido."),
 		]})
 	L.append({"id": "b4_kuzushi", "cat": "base", "title": "Kuzushi", "player": P, "partner_build": U,
 		"intro": "Kuzushi : casser l'équilibre. Avec ta garde, le stick droit tire ou pousse ton partenaire. Le radar sous sa jauge montre son déséquilibre.",
@@ -303,6 +314,14 @@ static func _ground_lessons() -> Array:
 		L.append({"id": "n_" + gid, "cat": "sol", "title": g.name, "player": p, "partner_build": partner_default(),
 			"intro": "%s (%s). Au sol, ta caractéristique « sol » compte : contrôle plus rapide, bras de fer plus solide." % [g.name,
 				{"osaekomi": "immobilisation", "kansetsu": "clé de bras", "shime": "étranglement"}[g.kind]], "steps": steps})
+	L.append({"id": "n_garde", "cat": "sol", "title": "Attaquer depuis la garde", "player": build("TOI", "seoi_nage", ["o_soto_gari"], [], [], ["juji_gatame", "sankaku_jime"], "classique", "droitier", 7),
+		"partner_build": partner_default(),
+		"intro": "Dessous, tu n'es pas perdu : si son contrôle est faible, une clé ou un étranglement équipé retourne la situation.",
+		"steps": [
+			_s("Retournement", "Dessous, quand sa jauge de contrôle est basse : {X} pour juji-gatame depuis la garde.", {"type": "reversal"}, "sol_passif", 1, "newaza_bottom",
+				"Possible seulement avant l'osaekomi. Chaque {B} fait baisser son contrôle d'abord."),
+			_s("Jusqu'à l'abandon", "Retourne-le avec {X}, puis garde {X} enfoncé : gagne le bras de fer jusqu'à l'abandon.", {"type": "submission"}, "sol_passif", 1, "newaza_bottom"),
+		]})
 	L.append({"id": "n_sortie", "cat": "sol", "title": "Sortir par-dessous", "player": player_default(), "partner_build": partner_default(),
 		"intro": "Avant l'osaekomi, chaque {B} fait baisser son contrôle. Pendant l'osaekomi, vise ta zone avec {B} : jauge de sortie pleine = toketa.",
 		"steps": [
