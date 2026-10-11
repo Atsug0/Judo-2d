@@ -1102,7 +1102,7 @@ func _newaza_tick(inputs: Array) -> void:
 		return
 	# --- garde : celui du dessous, s'il a une clé ou un étranglement et que le contrôle
 	# adverse est faible, retourne la situation et part directement sur la soumission
-	if not nw.osae and nw.control <= cfg.guard_sub_control:
+	if not nw.osae and nw.control <= cfg.guard_sub_control and nw.t >= int(cfg.get("guard_min_ticks", 0)):
 		for pair in [[BX, "kansetsu"], [BY, "shime"]]:
 			if _pressed(fb, ib, pair[0]):
 				for id in fb.set.ground:

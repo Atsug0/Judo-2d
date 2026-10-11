@@ -400,7 +400,7 @@ func _think_newaza(sim, inp: Array) -> Array:
 					inp[Sim.BY] = 1
 	else:
 		# en garde : soumission par-dessous quand son contrôle est faible
-		if nw.control <= sim.cfg.guard_sub_control and _rand(1000) < 10 * level:
+		if nw.control <= sim.cfg.guard_sub_control and nw.t >= int(sim.cfg.get("guard_min_ticks", 0)) and _rand(1000) < 4 * level:
 			for id in f.set.ground:
 				var kind: String = sim.techs._newaza[id].kind
 				if kind != "osaekomi" and f.prev[Sim.BX] == 0 and f.prev[Sim.BY] == 0:

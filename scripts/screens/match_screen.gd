@@ -39,6 +39,11 @@ var end_timer = 0
 var capture_flag = false   # demande de capture (mode capture d'écran)
 var attack_flag = false    # une attaque est à mi-entrée
 var frame = 0
+# poses au sol lissées, par judoka (index 0/1)
+var _gp_pose: Array = []
+var _gp_frame := -100
+var _gp_fc := 0
+var _gp_center := 12.0
 var params: Dictionary = {}
 var stats = []  # statistiques par joueur pour l'écran de résultats
 var libs = [null, null]  # sprites par joueur (null = dessin placeholder)
@@ -1320,9 +1325,33 @@ func _draw_newaza(nw: Dictionary) -> void:
 		kind = "%s:%s" % [nw.sub.kind, nw.sub.tech]
 	elif nw.osae:
 		kind = "osaekomi:%s" % nw.hold
-	var poses: Array = Art.ground_poses(kind, frame, ctrl)
+	var target: Array = Art.ground_poses(kind, frame, ctrl)
+	# Lissage : chaque judoka glisse de sa pose précédente vers la nouvelle
+	# (transition → osaekomi → clé, et renversement : le dessus roule dessous).
+	if _gp_pose.size() == 2 and _gp_fc == -fc and frame - _gp_frame <= 3:
+		# renversement : la scène change de sens ; on retourne les poses en place
+		# (x' = 2·centre − x) pour que chacun roule vers sa nouvelle position
+		for i in 2:
+			var m := {}
+			for k in _gp_pose[i]:
+				var v = _gp_pose[i][k]
+				m[k] = Vector2(2.0 * _gp_center - v.x, v.y) if v is Vector2 else v
+			_gp_pose[i] = m
+		_gp_fc = fc
+	if frame - _gp_frame > 3 or _gp_pose.size() < 2 or _gp_fc != fc:
+		_gp_pose = [{}, {}]
+		_gp_pose[nw.top] = target[0]
+		_gp_pose[nw.bottom] = target[1]
+		_gp_center = target[0].get("center", 12.0)
+	var rate := 0.0 if frame == _gp_frame else 0.2
+	_gp_frame = frame
+	_gp_fc = fc
+	_gp_pose[nw.top] = Art.lerp_pose(_gp_pose[nw.top], target[0], rate) if rate > 0.0 else _gp_pose[nw.top]
+	_gp_pose[nw.bottom] = Art.lerp_pose(_gp_pose[nw.bottom], target[1], rate) if rate > 0.0 else _gp_pose[nw.bottom]
+	_gp_center = lerpf(_gp_center, target[0].get("center", 12.0), rate)
+	var poses: Array = [_gp_pose[nw.top], _gp_pose[nw.bottom]]
 	# la caméra zoome au sol : la scène est dessinée à l'échelle normale
-	var center: float = poses[0].get("center", 12.0)
+	var center: float = _gp_center
 	var origin = Vector2(_newaza_center_x(nw) - fc * center * K, FEET_Y + 4.0)
 	var xf = Transform2D(0.0, Vector2(fc * K, K), 0.0, origin)
 	Art.shadow(_ci, origin + Vector2(fc * center * K, 2), K * 1.9, 0.32)

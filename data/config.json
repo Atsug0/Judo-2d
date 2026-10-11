@@ -186,6 +186,7 @@
   "pair_follow_pct": 25,
   "pair_resist_pct": 45,
   "guard_sub_control": 5200,
+  "guard_min_ticks": 90,
   "dom_rate": 2,
   "pull_tired_pct": 65,
   "frame_per_hand": 10,

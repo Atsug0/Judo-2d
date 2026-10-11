@@ -220,15 +220,15 @@ static func draw_arm(ci: CanvasItem, shoulder: Vector2, hand: Vector2, pal: Dict
 	var ink_w := 4.0
 	# --- avant-bras (peau), légèrement conique, sous la manche
 	var fore := PackedVector2Array([cuff + n2 * 3.4 * k, wrist + n2 * 2.4 * k, wrist - n2 * 2.4 * k, cuff - n2 * 3.4 * k])
-	ci.draw_colored_polygon(fore, skin)
-	ci.draw_colored_polygon(PackedVector2Array([cuff - n2 * 0.4 * k, wrist - n2 * 0.6 * k, wrist - n2 * 2.4 * k, cuff - n2 * 3.4 * k]), skin_sh)
+	_fill(ci, fore, skin)
+	_fill(ci, PackedVector2Array([cuff - n2 * 0.4 * k, wrist - n2 * 0.6 * k, wrist - n2 * 2.4 * k, cuff - n2 * 3.4 * k]), skin_sh)
 	_pline(ci, fore, ink_w)
 	# --- main (poing) orientée selon l'avant-bras
 	var hp := PackedVector2Array([
 		wrist + n2 * 2.6 * k, wrist + u2 * 2.2 * k + n2 * 3.4 * k, wrist + u2 * 5.0 * k + n2 * 3.0 * k,
 		wrist + u2 * 6.0 * k + n2 * 1.0 * k, wrist + u2 * 6.0 * k - n2 * 1.6 * k, wrist + u2 * 4.6 * k - n2 * 3.2 * k,
 		wrist + u2 * 2.0 * k - n2 * 3.6 * k, wrist - n2 * 2.6 * k])
-	ci.draw_colored_polygon(hp, skin)
+	_fill(ci, hp, skin)
 	# pouce + jointures
 	ci.draw_polyline(PackedVector2Array([wrist + u2 * 1.6 * k + n2 * 2.4 * k, wrist + u2 * 3.8 * k + n2 * 1.2 * k, wrist + u2 * 4.4 * k - n2 * 0.6 * k]), skin_sh, 1.8, true)
 	for t in [0.0, 1.0, 2.0]:
@@ -240,9 +240,9 @@ static func draw_arm(ci: CanvasItem, shoulder: Vector2, hand: Vector2, pal: Dict
 	var sleeve := PackedVector2Array([
 		s0 - u1 * 2.4 * k, s0 + n1 * 4.6 * k, elbow + ne * 4.4 * k, cuff + n2 * 5.0 * k,
 		cuff - n2 * 5.0 * k, elbow - ne * 4.0 * k, s0 - n1 * 4.6 * k])
-	ci.draw_colored_polygon(sleeve, gi)
+	_fill(ci, sleeve, gi)
 	# ombre propre sous la manche
-	ci.draw_colored_polygon(PackedVector2Array([s0 - n1 * 1.0 * k, elbow - ne * 0.8 * k, cuff - n2 * 1.4 * k,
+	_fill(ci, PackedVector2Array([s0 - n1 * 1.0 * k, elbow - ne * 0.8 * k, cuff - n2 * 1.4 * k,
 		cuff - n2 * 5.0 * k, elbow - ne * 4.0 * k, s0 - n1 * 4.6 * k]), gi_sh)
 	# plis au coude
 	ci.draw_line(elbow + ne * 2.6 * k - u1 * 1.6 * k, elbow + ne * 0.4 * k + u2 * 0.6 * k, gi_sh, 1.8, true)
@@ -401,7 +401,7 @@ static func shadow(ci: CanvasItem, feet: Vector2, scale: float, alpha: float = 0
 	for k in 24:
 		var a := TAU * k / 24.0
 		pts.append(feet + Vector2(cos(a) * 30.0 * scale, sin(a) * 6.0 * scale))
-	ci.draw_colored_polygon(pts, Color(0, 0, 0, alpha))
+	_fill(ci, pts, Color(0, 0, 0, alpha))
 
 
 ## Membre en capsule (contour d'encre + remplissage) passant par plusieurs points.
@@ -430,8 +430,21 @@ static func _foot(ci: CanvasItem, heel: Vector2, dir: float, col: Color, ow: flo
 	_outline(ci, pts, ow)
 
 
+## Remplissage sûr : un polygone qui se recoupe (coude très plié, corps en l'air)
+## ne peut pas être triangulé ; on remplit alors son enveloppe convexe.
+static func _fill(ci: CanvasItem, pts, col: Color) -> void:
+	var pv := PackedVector2Array(pts)
+	if pv.size() < 3:
+		return
+	if Geometry2D.triangulate_polygon(pv).is_empty():
+		pv = Geometry2D.convex_hull(pv)
+		if pv.size() < 4:
+			return
+	ci.draw_colored_polygon(pv, col)
+
+
 static func _poly(ci: CanvasItem, pts: Array, col: Color, outline_w: float) -> void:
-	ci.draw_colored_polygon(PackedVector2Array(pts), col)
+	_fill(ci, PackedVector2Array(pts), col)
 	if outline_w > 0.0:
 		_outline(ci, pts, outline_w)
 
