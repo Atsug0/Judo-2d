@@ -1042,6 +1042,7 @@ func _newaza_tick(inputs: Array) -> void:
 	var it: Array = inputs[top]
 	var ib: Array = inputs[bot]
 	nw.t += 1
+	nw.cur_t = int(nw.get("cur_t", 0)) + 1
 	if nw.osae:
 		if not state.golden and state.clock > 0:
 			state.clock -= 1  # un osaekomi en cours continue même après la fin du temps
@@ -1050,25 +1051,40 @@ func _newaza_tick(inputs: Array) -> void:
 		return
 	var sol_t: int = ft.mods.sol
 	var sol_b: int = fb.mods.sol
-	# --- clé de bras ou étranglement en cours : bras de fer d'entrées
+	# --- clé de bras ou étranglement en cours : curseurs des deux côtés
+	# (dessus : X ou Y dans sa zone pour serrer ; dessous : B dans sa zone pour se dégager)
 	if not nw.sub.is_empty():
 		var sub: Dictionary = nw.sub
 		sub.t += 1
 		var hold_btn: int = BX if sub.kind == "kansetsu" else BY
-		if it[hold_btn] != 0:
-			sub.tp += 3 + sol_t
-		if _pressed(fb, ib, BB):
-			sub.bp += 58 + sol_b * 6
-		if ib[MX] != 0:
-			sub.bp += 3
-		if sub.t >= cfg.sub_ticks:
-			if sub.tp > sub.bp:
-				events.append({"type": "submission", "who": top, "tech": sub.tech})
-				ft.ippon = 1
-				_end(top, "Ippon (maitta) — " + tech_name(sub.tech))
-				_announce("IPPON !")
-				return
+		if not sub.get("cursor", false):
+			sub.cursor = true
+			_cursor_init(nw, ft, fb, cfg.sub_zone_top, cfg.sub_zone_bot)
+		for role in ["top", "bot"]:
+			var q := _cursor_press(nw, role, ft if role == "top" else fb, it if role == "top" else ib, hold_btn if role == "top" else BB)
+			if q < 0:
+				continue
+			if q == 0:
+				if role == "top":
+					sub.tp = maxi(0, sub.tp - cfg.sub_miss)
+				else:
+					sub.bp = maxi(0, sub.bp - cfg.sub_miss)
+				continue
+			var gain: int = cfg.sub_perfect if q == 2 else cfg.sub_hit
+			if role == "top":
+				sub.tp = mini(100, sub.tp + gain + (sol_t - 5))
+			else:
+				sub.bp = mini(100, sub.bp + gain + cfg.sub_def_bonus + (sol_b - 5))
+		if sub.tp >= 100:
+			events.append({"type": "submission", "who": top, "tech": sub.tech})
+			ft.ippon = 1
+			_end(top, "Ippon (maitta) — " + tech_name(sub.tech))
+			_announce("IPPON !")
+			return
+		if sub.bp >= cfg.sub_escape_at or sub.t >= cfg.sub_cursor_ticks:
 			nw.sub = {}
+			nw.erase("ct")
+			nw.erase("cb")
 			nw.control -= cfg.newaza_escape
 			events.append({"type": "sub_escape", "who": bot})
 		_newaza_end_checks(nw)
@@ -1117,6 +1133,8 @@ func _newaza_tick(inputs: Array) -> void:
 					if techs._newaza[id].kind == pair[1]:
 						nw.sub = {"kind": pair[1], "tech": id, "t": 0, "tp": 0, "bp": 0}
 						nw.osae = false
+						nw.erase("ct")
+						nw.erase("cb")
 						events.append({"type": "sub_start", "who": top, "tech": id})
 						_announce(tech_name(id).to_upper())
 						return
@@ -1156,12 +1174,47 @@ func _newaza_tick(inputs: Array) -> void:
 ## des allers-retours et une zone. Celui du dessus vise la sienne avec A pour maintenir,
 ## celui du dessous avec B pour sortir. Centre de zone = coup parfait. Rater bloque un instant.
 func _osae_cursor_start(nw: Dictionary, ft: Dictionary, fb: Dictionary) -> void:
-	nw.rng = (state.tick * 1103515245 + nw.control + 77) & 0x7fffffff
 	nw.prog = 0
-	nw.ct = {"w": maxi(cfg.osae_zone_min, cfg.osae_zone_top + (ft.mods.sol - 5) * cfg.osae_zone_per_sol), "c": 5000, "lock": 0, "t0": 0}
-	nw.cb = {"w": maxi(cfg.osae_zone_min, cfg.osae_zone_bot + (fb.mods.sol - 5) * cfg.osae_zone_per_sol), "c": 5000, "lock": 0, "t0": 0}
+	_cursor_init(nw, ft, fb, cfg.osae_zone_top, cfg.osae_zone_bot)
+
+
+## Barres des deux joueurs (immobilisation, clé, étranglement) : zones et curseurs.
+func _cursor_init(nw: Dictionary, ft: Dictionary, fb: Dictionary, top_w: int, bot_w: int) -> void:
+	nw.rng = (state.tick * 1103515245 + nw.control + 77) & 0x7fffffff
+	var t0: int = int(nw.get("cur_t", 0))
+	nw.ct = {"w": maxi(cfg.osae_zone_min, top_w + (ft.mods.sol - 5) * cfg.osae_zone_per_sol), "c": 5000, "lock": 0, "t0": t0}
+	nw.cb = {"w": maxi(cfg.osae_zone_min, bot_w + (fb.mods.sol - 5) * cfg.osae_zone_per_sol), "c": 5000, "lock": 0, "t0": t0}
 	_osae_move_zone(nw, nw.ct)
 	_osae_move_zone(nw, nw.cb)
+
+
+## Appui sur la barre d'un rôle : -1 = rien (pas d'appui ou bloqué), 0 = raté (bloqué),
+## 1 = dans la zone, 2 = parfait. Déplace la zone touchée et rétrécit celle de l'adversaire.
+func _cursor_press(nw: Dictionary, role: String, f: Dictionary, inp: Array, btn: int) -> int:
+	var z: Dictionary = nw.ct if role == "top" else nw.cb
+	var other: Dictionary = nw.cb if role == "top" else nw.ct
+	var who: int = nw.top if role == "top" else nw.bottom
+	if z.lock > 0:
+		z.lock -= 1
+		return -1
+	if not _pressed(f, inp, btn):
+		return -1
+	var q := osae_quality(role)
+	if q == 0:
+		z.lock = cfg.osae_miss_lock
+		events.append({"type": "osae_miss", "who": who, "role": role})
+		return 0
+	var mult: int = cfg.osae_perfect_mult if q == 2 else 1
+	other.w = maxi(cfg.osae_zone_min, other.w - cfg.osae_zone_shrink * mult)
+	_osae_move_zone(nw, z)
+	f.stamina = maxi(0, f.stamina - (40 if role == "top" else 60))
+	events.append({"type": "osae_hit", "who": who, "role": role, "perfect": q == 2})
+	return q
+
+
+## Temps écoulé sur la barre d'un rôle (ticks).
+func cursor_time(z: Dictionary) -> int:
+	return int(state.newaza.get("cur_t", 0)) - int(z.t0)
 
 
 func _osae_rand(nw: Dictionary, n: int) -> int:
@@ -1189,7 +1242,7 @@ func osae_cursor(role: String) -> int:
 	var f: Dictionary = state.fighters[nw.top if role == "top" else nw.bottom]
 	var z: Dictionary = nw.ct if role == "top" else nw.cb
 	var per: int = osae_period(role, f)
-	var u: int = ((int(nw.osae_t) - int(z.t0)) * 20000 / per) % 20000
+	var u: int = (cursor_time(z) * 20000 / per) % 20000
 	return u if u <= 10000 else 20000 - u
 
 
@@ -1212,36 +1265,20 @@ func _osae_cursor_tick(nw: Dictionary, ft: Dictionary, fb: Dictionary, it: Array
 	var top: int = nw.top
 	var bot: int = nw.bottom
 	for role in ["top", "bot"]:
-		var z: Dictionary = nw.ct if role == "top" else nw.cb
-		var other: Dictionary = nw.cb if role == "top" else nw.ct
-		var f: Dictionary = ft if role == "top" else fb
-		var inp: Array = it if role == "top" else ib
-		var btn: int = BA if role == "top" else BB
-		var who: int = top if role == "top" else bot
-		if z.lock > 0:
-			z.lock -= 1
+		var q := _cursor_press(nw, role, ft if role == "top" else fb, it if role == "top" else ib, BA if role == "top" else BB)
+		if q < 0:
 			continue
-		if not _pressed(f, inp, btn):
-			continue
-		var q := osae_quality(role)
 		if q == 0:
-			z.lock = cfg.osae_miss_lock
 			if role == "bot":
 				nw.prog = maxi(0, nw.prog - cfg.osae_miss_progress)
-			events.append({"type": "osae_miss", "who": who, "role": role})
 			continue
 		var mult: int = cfg.osae_perfect_mult if q == 2 else 1
 		if role == "top":
 			nw.control = mini(10000, nw.control + cfg.osae_hit_control * mult)
 			nw.prog = maxi(0, nw.prog - cfg.osae_top_progress_cut * mult)
-			ft.stamina = maxi(0, ft.stamina - 40)
 		else:
 			nw.control = maxi(cfg.toketa_below, nw.control - cfg.osae_hit_escape_control * mult)
 			nw.prog = mini(100, nw.prog + cfg.osae_hit_progress * mult)
-			fb.stamina = maxi(0, fb.stamina - 60)
-		other.w = maxi(cfg.osae_zone_min, other.w - cfg.osae_zone_shrink * mult)
-		_osae_move_zone(nw, z)
-		events.append({"type": "osae_hit", "who": who, "role": role, "perfect": q == 2})
 	if nw.prog >= 100:
 		events.append({"type": "toketa", "who": bot})
 		events.append({"type": "escape", "who": bot})

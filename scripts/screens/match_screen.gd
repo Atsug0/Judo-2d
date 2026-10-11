@@ -1315,7 +1315,7 @@ func _draw_newaza_hud() -> void:
 	for mark in [cfg.toketa_below, cfg.osaekomi_on]:
 		var mx = gr.position.x + 4 + (gr.size.x - 8) * float(mark) / 10000.0
 		_ci.draw_line(Vector2(mx, gr.position.y - 4), Vector2(mx, gr.end.y + 4), Style.PAPER, 2.0)
-	if nw.osae and nw.has("ct"):
+	if nw.has("ct") and (nw.osae or not nw.sub.is_empty()):
 		_draw_osae_bar("top", nw, Rect2(370, 214, 540, 58))
 		_draw_osae_bar("bot", nw, Rect2(370, 584, 540, 58))
 	if nw.osae:
@@ -1326,7 +1326,7 @@ func _draw_newaza_hud() -> void:
 		_ci.draw_arc(c, 32, -PI / 2, -PI / 2 + TAU * clampf(float(nw.osae_t) / float(cfg.osaekomi_ippon), 0.0, 1.0), 48, Style.GOLD, 7.0, true)
 		Style.text(_ci, Vector2(c.x - 40, c.y + 14), str(secs), 38, Style.GOLD, "display", HORIZONTAL_ALIGNMENT_CENTER, 80, 3, 0.0)
 		Style.label(_ci, Vector2(r.position.x + 28, r.end.y - 6), "OSAEKOMI — %s" % sim.tech_name(nw.hold).to_upper(), 13, Style.GOLD, "black")
-	elif not nw.sub.is_empty():
+	elif not nw.sub.is_empty() and not nw.has("ct"):
 		var sub: Dictionary = nw.sub
 		var tot = maxf(1.0, float(sub.tp + sub.bp))
 		var tr = Rect2(r.position.x, r.end.y + 10, r.size.x, 34)
@@ -1346,14 +1346,29 @@ func _draw_osae_bar(role: String, nw: Dictionary, r: Rect2) -> void:
 	var hit = float(osae_fx[role]) / 12.0
 	var rr = r.grow(hit * 4.0)
 	Style.panel(_ci, rr, Style.INK, Style.GOLD if hit > 0.0 and osae_fx[role + "_perfect"] else col, 3.0 + hit * 2.0, 5.0)
+	var sub: Dictionary = nw.sub
+	var in_sub: bool = not sub.is_empty()
 	var btn = "{A}" if role == "top" else "{B}"
-	var title = "%s · %s %s" % [names[who], "TENIR" if role == "top" else "SORTIR", btn]
+	var verb = "TENIR" if role == "top" else "SORTIR"
+	if in_sub:
+		btn = ("{X}" if sub.kind == "kansetsu" else "{Y}") if role == "top" else "{B}"
+		verb = ("CLÉ" if sub.kind == "kansetsu" else "ÉTRANGLEMENT") if role == "top" else "RÉSISTER"
+	var title = "%s · %s %s" % [names[who], verb, btn]
 	Rich.draw(_ci, Vector2(r.position.x + 26, r.position.y + 22), title.to_upper(), r.size.x - 200, 13, col)
-	if role == "bot":
+	# jauge de progression du rôle : sortie (osaekomi), soumission ou dégagement (clé)
+	var prog_v := -1.0
+	var prog_lab := ""
+	if in_sub:
+		prog_v = float(sub.tp) / 100.0 if role == "top" else float(sub.bp) / float(cfg.sub_escape_at)
+		prog_lab = "ABANDON" if role == "top" else "DÉGAGEMENT"
+	elif role == "bot":
+		prog_v = float(nw.get("prog", 0)) / 100.0
+		prog_lab = "SORTIE"
+	if prog_v >= 0.0:
 		var pr = Rect2(r.end.x - 170, r.position.y + 10, 120, 12)
 		_ci.draw_rect(pr, Style.NIGHT)
-		_ci.draw_rect(Rect2(pr.position, Vector2(pr.size.x * float(nw.prog) / 100.0, pr.size.y)), col)
-		Style.label(_ci, Vector2(pr.position.x - 66, pr.end.y), "SORTIE", 11, Style.MUTED, "black")
+		_ci.draw_rect(Rect2(pr.position, Vector2(pr.size.x * clampf(prog_v, 0.0, 1.0), pr.size.y)), col)
+		Style.label(_ci, Vector2(pr.position.x - 96, pr.end.y), prog_lab, 11, Style.MUTED, "black", HORIZONTAL_ALIGNMENT_RIGHT, 90)
 	# barre
 	var b = Rect2(r.position.x + 26, r.position.y + 30, r.size.x - 64, 18)
 	_ci.draw_rect(b, Style.NIGHT if not locked else Style.NIGHT_2)
@@ -1700,6 +1715,10 @@ func _draw_hints() -> void:
 		var nwh: Dictionary = sim.state.newaza
 		if not nwh.is_empty() and nwh.osae and nwh.has("ct"):
 			nitems = [["A", "Dessus : tenir, quand ton curseur est dans ta zone"], ["B", "Dessous : sortir, même principe"], ["X", "Clé"], ["Y", "Étranglement"], ["R", "Centre doré = parfait · raté = bloqué"]]
+		elif not nwh.is_empty() and not nwh.sub.is_empty():
+			nitems = [["X", "Dessus : serrer (X clé, Y étranglement) dans ta zone"], ["B", "Dessous : résister dans ta zone"], ["R", "Jauge pleine : abandon ou dégagement"]]
+		elif not nwh.is_empty():
+			nitems = [["A", "Dessus : contrôler"], ["X", "Clé"], ["Y", "Étranglement"], ["B", "Dessous : se dégager"], ["R", "Dessous, contrôle bas : X / Y depuis la garde"]]
 		for it in nitems:
 			if it[0] == "R":
 				Style.label(_ci, Vector2(x, y + 6), it[1], 15, Style.MUTED, "bold")

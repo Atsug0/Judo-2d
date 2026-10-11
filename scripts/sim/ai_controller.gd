@@ -385,7 +385,7 @@ func _think_newaza(sim, inp: Array) -> Array:
 	var f: Dictionary = sim.state.fighters[me]
 	if nw.is_empty():
 		return inp
-	if nw.osae and nw.sub.is_empty() and nw.has("ct"):
+	if nw.has("ct") and (nw.osae or not nw.sub.is_empty()):
 		return _think_osae(sim, nw, f, inp)
 	if nw.top == me:
 		inp[Sim.BA] = 1
@@ -418,14 +418,18 @@ func _think_osae(sim, nw: Dictionary, f: Dictionary, inp: Array) -> Array:
 	var role := "top" if nw.top == me else "bot"
 	var z: Dictionary = nw.ct if role == "top" else nw.cb
 	var btn: int = Sim.BA if role == "top" else Sim.BB
-	if role == "top" and nw.control >= sim.cfg.sub_control and _rand(1000) < 4 * level:
+	var in_sub: bool = not nw.sub.is_empty()
+	if in_sub and role == "top":
+		btn = Sim.BX if nw.sub.kind == "kansetsu" else Sim.BY
+	# depuis l'osaekomi, on ne part sur une clé que si l'immobilisation vacille (il sort) ou rarement
+	if not in_sub and role == "top" and nw.control >= sim.cfg.sub_control and (int(nw.get("prog", 0)) > 45 or _rand(1000) < level):
 		for id in f.set.ground:
 			var kind: String = sim.techs._newaza[id].kind
 			if kind != "osaekomi" and f.prev[Sim.BX] == 0 and f.prev[Sim.BY] == 0:
 				inp[Sim.BX if kind == "kansetsu" else Sim.BY] = 1
 				return inp
 	var per: int = sim.osae_period(role, f)
-	var pass_id: int = (int(nw.osae_t) - int(z.t0)) * 2 / per
+	var pass_id: int = sim.cursor_time(z) * 2 / per
 	if pass_id != osae_pass:
 		osae_pass = pass_id
 		var roll := _rand(100)
