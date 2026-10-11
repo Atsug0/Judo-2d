@@ -51,10 +51,6 @@ var libs = [null, null]  # sprites par joueur (null = dessin placeholder)
 var layer_bg: Node2D
 var layer_world: Node2D
 var layer_hud: Node2D
-var layer_3d: Node2D       # judokas 3D (texture du SubViewport), entre le monde et le HUD
-var layer_fx: Node2D       # effets du monde dessinés par-dessus les judokas 3D
-var m3d = null             # scripts/view/models3d.gd (--models3d=dossier)
-var _callouts := []
 var _ci: CanvasItem  # calque en cours de dessin
 ## Caméra : centre (coordonnées monde, px) et zoom, lissés.
 var cam_c = Vector2(640, 380)
@@ -115,22 +111,6 @@ func on_enter(p: Dictionary) -> void:
 		n.fn = Callable(self, spec[1])
 		add_child(n)
 		set("layer_" + spec[0], n)
-	if app != null and app.args.has("models3d"):
-		var M3d = load("res://scripts/view/models3d.gd")
-		m3d = M3d.new()
-		add_child(m3d)
-		var who := String(app.args.get("models3d_who", "homme,homme")).split(",")
-		if m3d.setup(String(app.args.models3d), Array(who), K, FEET_Y):
-			for spec in [["3d", "_draw_layer_3d"], ["fx", "_draw_layer_fx"]]:
-				var n = Node2D.new()
-				n.set_script(Proxy)
-				n.fn = Callable(self, spec[1])
-				add_child(n)
-				move_child(n, layer_hud.get_index())
-				set("layer_" + spec[0], n)
-		else:
-			m3d.queue_free()
-			m3d = null
 	stats = [_new_stats(), _new_stats()]
 	cfg = GameData.load_json("res://data/config.json")
 	techs = GameData.load_json("res://data/techniques.json")
@@ -206,7 +186,7 @@ func _redraw_all() -> void:
 	_update_camera()
 	_update_referee()
 	queue_redraw()
-	for l in [layer_bg, layer_world, layer_3d, layer_fx, layer_hud]:
+	for l in [layer_bg, layer_world, layer_hud]:
 		if l != null:
 			l.queue_redraw()
 
@@ -674,24 +654,6 @@ func _draw_layer_world(ci: CanvasItem) -> void:
 	_draw_mat()
 	_draw_referee()
 	_draw_fighters()
-	if m3d != null:
-		return  # effets dessinés au-dessus des judokas 3D (calque fx)
-	_draw_particles()
-	_draw_impacts()
-	_draw_popups()
-
-
-func _draw_layer_3d(ci: CanvasItem) -> void:
-	if m3d != null:
-		ci.draw_texture(m3d.texture(), Vector2.ZERO)
-
-
-func _draw_layer_fx(ci: CanvasItem) -> void:
-	if sim == null:
-		return
-	_ci = ci
-	for c in _callouts:
-		_draw_callout(c[0], c[1])
 	_draw_particles()
 	_draw_impacts()
 	_draw_popups()
@@ -859,10 +821,6 @@ func _update_camera() -> void:
 		off = Vector2(sin(frame * 1.7) * shake, cos(frame * 2.3) * shake * 0.6)
 	if layer_world != null:
 		layer_world.transform = Transform2D(0.0, Vector2(cam_z, cam_z), 0.0, Vector2(640, 360) - cam_c * cam_z + off)
-	if layer_fx != null:
-		layer_fx.transform = layer_world.transform
-	if m3d != null:
-		m3d.update_camera(cam_c, cam_z, off)
 	if layer_bg != null:
 		# parallaxe : le décor bouge et zoome moins que le tatami
 		var zb = 1.0 + (cam_z - 1.0) * 0.45
@@ -1109,20 +1067,6 @@ func _draw_fighters() -> void:
 	var order = [1, 0]
 	if throwing:
 		order = [th.tori, th.uke] if Anims.family(th.tech) == "sacrifice" else [th.uke, th.tori]
-	if m3d != null:
-		# judokas 3D : tori d'abord (uke en l'air suit son recalage au sol)
-		_callouts.clear()
-		var first: int = th.tori if throwing else 0
-		var shift = null
-		for i in [first, 1 - first]:
-			var hw3: Array = _hands_world(i, rigs, th, throwing)
-			var airborne: bool = throwing and i == th.uke
-			var sh = m3d.pose_rig(i, rigs[i].xf, rigs[i].pose, hw3[0], not airborne, shift if airborne else null)
-			if i == first:
-				shift = sh
-			if not throwing:
-				_callouts.append([i, _base_xf(i)])
-		return
 	for i in order:
 		var hw: Array = _hands_world(i, rigs, th, throwing)
 		Art.draw_fighter(_ci, rigs[i].xf, _pal(i), rigs[i].pose, hw[0], hw[1])
@@ -1431,11 +1375,6 @@ func _draw_newaza(nw: Dictionary) -> void:
 	var origin = Vector2(_newaza_center_x(nw) - fc * center * K, FEET_Y + 4.0)
 	var xf = Transform2D(0.0, Vector2(fc * K, K), 0.0, origin)
 	Art.shadow(_ci, origin + Vector2(fc * center * K, 2), K * 1.9, 0.32)
-	if m3d != null:
-		_callouts.clear()
-		m3d.pose_ground(nw.bottom, xf, poses[1])
-		m3d.pose_ground(nw.top, xf, poses[0])
-		return
 	Art.draw_figure(_ci, xf, _pal(nw.bottom), poses[1])
 	Art.draw_figure(_ci, xf, _pal(nw.top), poses[0], ctrl)
 

@@ -134,34 +134,6 @@ Première technique faite ainsi : **uchi-mata** (vidéo « Uchi-mata - Demo », 
    crée deux mannequins articulés animés (collections TORI / UKE), avec une armature par
    judoka à reprendre sur un vrai modèle riggé, puis `render_sprites.py` comme ci-dessus.
 
-## Modèles 3D de judokas (homme, femme) : rig automatique et rendu
-
-Les modèles fournis (.glb sans squelette) ne sont pas versionnés (taille, licence) : garde-les
-hors du dépôt, par exemple dans `rushes/modeles/`.
-
-1. Rig automatique (squelette humain + poids de peau calculés par diffusion sur la surface) :
-
-   ```
-   python3 tools/rig/autorig.py model.glb tools/rig/judoka_joints.json judoka_rig.glb
-   python3 tools/rig/autorig.py model_femme.glb tools/rig/judokate_joints.json judokate_rig.glb
-   ```
-
-   Les articulations du repos sont dans les deux JSON (relevées sur des coupes du maillage).
-   Pour la judokate (mains sur les hanches au repos), le JSON protège la veste et la ceinture
-   des os des bras et retire les triangles soudés entre mains et ceinture.
-2. Judogi bleu pour uke : `python3 tools/rig/gi_bleu.py texture_0.png gi_bleu.png`
-3. Chorégraphie filmée → articulations gauche / droite :
-   `python3 tools/rig/mocap_to_rig.py data/anims/uchi_mata.json uchi_mata_rig.json`
-4. Rendu (Godot, profil du jeu ou trois-quarts) :
-
-   ```
-   godot --path . -s tools/rig/pose_model.gd -- --tori=judoka_rig.glb --tori_joints=tools/rig/judoka_joints.json \
-       --uke=judoka_rig.glb --uke_joints=tools/rig/judoka_joints.json --uke_texture=gi_bleu.png \
-       --anim=uchi_mata_rig.json --times=0,0.33,0.6,1.33 --cam=34 --out=/tmp/rendu
-   ```
-
-   `--test` rend la pose de repos et une pose d'essai (vérification des poids de peau).
-
 ## Noms des animations attendues
 
 | Animation | Contenu | Images |
