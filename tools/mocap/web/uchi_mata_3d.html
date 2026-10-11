@@ -1,0 +1,302 @@
+<title>Uchi-mata 3D</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Archivo:wght@500;700&display=swap">
+<style>
+/* Layout : scène 3D plein cadre (le tatami du jeu), bandeau titre en haut, pupitre de lecture en bas */
+:root {
+  --stage: #120f24;      /* fond de salle du jeu */
+  --panel: #1d1838;
+  --line: #3a3266;
+  --ink: #f4efe4;        /* texte, blanc judogi */
+  --muted: #a49fc4;
+  --gold: #ffd23f;       /* jaune tatami / joueur 1 */
+  --hot: #ff2e88;        /* rose 2XKO */
+  --display: "Archivo Black", "Arial Black", Impact, sans-serif;
+  --body: "Archivo", "Helvetica Neue", Arial, sans-serif;
+  color-scheme: dark;
+}
+html, body { height: 100%; }
+body { background: var(--stage); color: var(--ink); font-family: var(--body); overflow: hidden; }
+.app { position: relative; height: 100%; display: grid; grid-template-rows: auto 1fr auto; }
+canvas#scene { position: absolute; inset: 0; width: 100%; height: 100%; display: block; z-index: 0; touch-action: none; }
+header, .deck { position: relative; z-index: 1; padding-inline: 16px; }
+header { padding-block: 14px 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 14px; pointer-events: none; }
+h1 { margin: 0; font-family: var(--display); font-size: clamp(26px, 5vw, 40px); letter-spacing: 0.01em; transform: skewX(-8deg); color: var(--ink);
+     text-shadow: 3px 3px 0 var(--hot); text-wrap: balance; }
+.sub { margin: 0; color: var(--muted); font-size: 13px; max-width: 60ch; }
+.phase { position: relative; z-index: 1; justify-self: start; align-self: start; margin: 12px 16px 0; padding: 6px 12px; background: var(--gold); color: var(--stage);
+         font-family: var(--display); font-size: 15px; letter-spacing: 0.06em; text-transform: uppercase; transform: skewX(-8deg); pointer-events: none; }
+.deck { padding-block: 10px 14px; display: grid; gap: 10px; background: linear-gradient(to top, var(--stage) 55%, transparent); }
+.row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; }
+button { font: 700 13px var(--body); color: var(--ink); background: var(--panel); border: 2px solid var(--line); padding: 7px 12px; cursor: pointer; letter-spacing: 0.03em; }
+button[aria-pressed="true"] { background: var(--gold); color: var(--stage); border-color: var(--gold); }
+button:focus-visible, input:focus-visible { outline: 3px solid var(--hot); outline-offset: 2px; }
+#play { min-width: 92px; background: var(--hot); border-color: var(--hot); color: var(--ink); }
+.group { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.12em; color: var(--muted); }
+.scrub { display: flex; align-items: center; gap: 10px; flex: 1 1 260px; min-width: 0; }
+input[type=range] { flex: 1; min-width: 0; accent-color: var(--gold); }
+.clock { font-variant-numeric: tabular-nums; font-size: 13px; color: var(--muted); white-space: nowrap; }
+.note { font-size: 12px; color: var(--muted); margin: 0; max-width: 80ch; }
+@media (max-width: 520px) { .sub { display: none; } }
+</style>
+
+<div class="app">
+  <canvas id="scene" aria-label="Uchi-mata en 3D : tori en blanc, uke en bleu"></canvas>
+  <header>
+    <h1>UCHI-MATA</h1>
+    <p class="sub">Tori en blanc, uke en bleu. Le mouvement vient de la démonstration filmée, relevée image par image puis reportée sur le squelette du jeu.</p>
+  </header>
+  <div class="phase" id="phase">Kuzushi</div>
+  <div class="deck">
+    <div class="row">
+      <button id="play" type="button">Pause</button>
+      <div class="scrub">
+        <input id="time" type="range" min="0" max="1000" value="0" aria-label="Avancement du mouvement">
+        <span class="clock" id="clock">image 36 · 0,00 s</span>
+      </div>
+    </div>
+    <div class="row">
+      <div class="group" role="group" aria-label="Vitesse">
+        <span class="label">Vitesse</span>
+        <button type="button" data-speed="1" aria-pressed="true">×1</button>
+        <button type="button" data-speed="0.5" aria-pressed="false">×½</button>
+        <button type="button" data-speed="0.2" aria-pressed="false">×⅕</button>
+      </div>
+      <div class="group" role="group" aria-label="Caméra">
+        <span class="label">Caméra</span>
+        <button type="button" data-cam="profil" aria-pressed="false">Profil (jeu)</button>
+        <button type="button" data-cam="34" aria-pressed="true">Trois-quarts</button>
+        <button type="button" data-cam="dos" aria-pressed="false">Derrière tori</button>
+        <button type="button" data-cam="dessus" aria-pressed="false">Dessus</button>
+      </div>
+    </div>
+    <p class="note">Fais glisser pour tourner autour, pince ou molette pour zoomer. La vidéo est vue de profil : la profondeur (écart des jambes et des bras vers la caméra) est estimée.</p>
+  </div>
+</div>
+
+<script type="importmap">
+{"imports": {"three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+             "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"}}
+</script>
+<script id="mocap" type="application/json">[{"t":0.0,"tori":{"bassin":[0.0,0.0,0.8622],"cou":[0.1952,0.0,1.5368],"tete":[0.1024,0.0,1.7318],"hanche_b":[-0.1045,0.1,0.8895],"genou_b":[-0.2682,0.1,0.5004],"pied_b":[-0.423,0.1,0.1458],"hanche_f":[0.1045,-0.1,0.8349],"genou_f":[0.2556,-0.1,0.4392],"pied_f":[0.2736,-0.1,0.054],"epaule_b":[0.0111,0.1,1.4733],"coude_b":[0.0772,0.1,1.1194],"main_b":[0.3906,0.1,1.3464],"epaule_f":[0.3026,-0.1,1.3784],"coude_f":[0.2448,-0.1,1.0231],"main_f":[0.5868,-0.1,1.2042]},"uke":{"bassin":[0.6822,0.0,0.8741],"cou":[0.5865,0.0,1.5698],"tete":[0.5139,0.0,1.7732],"hanche_b":[0.7895,0.1,0.886],"genou_b":[0.7459,0.1,0.4646],"pied_b":[0.7,0.1,0.081],"hanche_f":[0.5749,-0.1,0.8621],"genou_f":[0.602,-0.1,0.4395],"pied_f":[0.6034,-0.1,0.0539],"epaule_b":[0.7595,0.1,1.4804],"coude_b":[0.7186,0.1,1.1227],"main_b":[0.3319,0.1,1.1085],"epaule_f":[0.4574,-0.1,1.4286],"coude_f":[0.2474,-0.1,1.1362],"main_f":[-0.1126,-0.1,1.2781]}},{"t":0.1667,"tori":{"bassin":[0.2252,0.0,0.8694],"cou":[0.1527,0.0,1.5679],"tete":[-0.0065,0.0,1.7138],"hanche_b":[0.1181,0.1,0.8555],"genou_b":[0.0398,0.1,0.4392],"pied_b":[0.0092,0.1,0.054],"hanche_f":[0.3323,-0.1,0.8833],"genou_f":[0.4772,-0.1,0.486],"pied_f":[0.5672,-0.1,0.1098],"epaule_b":[0.006,0.1,1.4399],"coude_b":[0.2779,0.1,1.204],"main_b":[0.3602,0.1,1.5822],"epaule_f":[0.3117,-0.1,1.4615],"coude_f":[0.0371,-0.1,1.2287],"main_f":[0.4214,-0.1,1.2744]},"uke":{"bassin":[0.6277,0.0,0.8775],"cou":[0.4877,0.0,1.5656],"tete":[0.3663,0.0,1.7443],"hanche_b":[0.734,0.1,0.8963],"genou_b":[0.7266,0.1,0.4728],"pied_b":[0.6979,0.1,0.0875],"hanche_f":[0.5213,-0.1,0.8587],"genou_f":[0.5825,-0.1,0.44],"pied_f":[0.6124,-0.1,0.0541],"epaule_b":[0.666,0.1,1.4875],"coude_b":[0.8208,0.1,1.1624],"main_b":[0.4341,0.1,1.1449],"epaule_f":[0.3678,-0.1,1.4165],"coude_f":[0.3627,-0.1,1.0565],"main_f":[0.0051,-0.1,1.2043]}},{"t":0.3333,"tori":{"bassin":[0.3834,0.0,0.9054],"cou":[-0.0503,0.0,1.4577],"tete":[-0.2566,0.0,1.5217],"hanche_b":[0.47,0.1,0.9699],"genou_b":[0.5202,0.1,0.549],"pied_b":[0.5562,0.1,0.1638],"hanche_f":[0.2968,-0.1,0.8409],"genou_f":[0.4104,-0.1,0.4338],"pied_f":[0.4824,-0.1,0.054],"epaule_b":[0.1442,0.1,1.4678],"coude_b":[0.4846,0.1,1.3507],"main_b":[0.441,0.1,1.7352],"epaule_f":[-0.0905,-0.1,1.2707],"coude_f":[0.1898,-0.1,1.0447],"main_f":[-0.1638,-0.1,0.8874]},"uke":{"bassin":[0.6536,0.0,0.9049],"cou":[0.3414,0.0,1.5339],"tete":[0.1637,0.0,1.6567],"hanche_b":[0.7515,0.1,0.9504],"genou_b":[0.7297,0.1,0.5274],"pied_b":[0.7066,0.1,0.1415],"hanche_f":[0.5556,-0.1,0.8593],"genou_f":[0.6097,-0.1,0.4398],"pied_f":[0.6381,-0.1,0.0541],"epaule_b":[0.5339,0.1,1.5042],"coude_b":[0.7793,0.1,1.2409],"main_b":[0.4095,0.1,1.1269],"epaule_f":[0.2639,-0.1,1.3589],"coude_f":[0.4777,-0.1,1.0693],"main_f":[0.0908,-0.1,1.078]}},{"t":0.4167,"tori":{"bassin":[0.4653,0.0,0.945],"cou":[-0.1387,0.0,1.3031],"tete":[-0.3527,0.0,1.2732],"hanche_b":[0.5227,0.1,1.0365],"genou_b":[0.7515,0.1,0.6804],"pied_b":[0.8865,0.1,0.3168],"hanche_f":[0.4079,-0.1,0.8535],"genou_f":[0.4725,-0.1,0.4356],"pied_f":[0.5373,-0.1,0.054],"epaule_b":[0.0389,0.1,1.3829],"coude_b":[0.3799,0.1,1.2677],"main_b":[0.3609,0.1,1.6542],"epaule_f":[-0.1086,-0.1,1.1142],"coude_f":[0.112,-0.1,0.8297],"main_f":[-0.1467,-0.1,0.5418]},"uke":{"bassin":[0.7218,0.0,1.0204],"cou":[0.2605,0.0,1.5499],"tete":[0.071,0.0,1.6534],"hanche_b":[0.805,0.1,1.0892],"genou_b":[0.7475,0.1,0.6702],"pied_b":[0.7479,0.1,0.2828],"hanche_f":[0.6386,-0.1,0.9516],"genou_f":[0.6766,-0.1,0.5299],"pied_f":[0.6874,-0.1,0.1441],"epaule_b":[0.4542,0.1,1.5699],"coude_b":[0.6777,0.1,1.2877],"main_b":[0.308,0.1,1.1734],"epaule_f":[0.2299,-0.1,1.361],"coude_f":[0.489,-0.1,1.1111],"main_f":[0.1054,-0.1,1.0596]}},{"t":0.5,"tori":{"bassin":[0.5035,0.0,0.9486],"cou":[-0.1203,0.0,1.2711],"tete":[-0.3321,0.0,1.2288],"hanche_b":[0.5555,0.1,1.0432],"genou_b":[0.8833,0.1,0.7758],"pied_b":[1.1209,0.1,0.4698],"hanche_f":[0.4514,-0.1,0.854],"genou_f":[0.5071,-0.1,0.4338],"pied_f":[0.5719,-0.1,0.054],"epaule_b":[0.0524,0.1,1.361],"coude_b":[0.373,0.1,1.1974],"main_b":[0.3559,0.1,1.584],"epaule_f":[-0.0793,-0.1,1.0842],"coude_f":[-0.2261,-0.1,0.7555],"main_f":[-0.0005,-0.1,0.441]},"uke":{"bassin":[0.7641,0.0,1.0773],"cou":[0.2504,0.0,1.5561],"tete":[0.0957,0.0,1.7068],"hanche_b":[0.8397,0.1,1.1544],"genou_b":[0.7954,0.1,0.7339],"pied_b":[0.8475,0.1,0.35],"hanche_f":[0.6885,-0.1,1.0002],"genou_f":[0.7371,-0.1,0.5794],"pied_f":[0.7942,-0.1,0.198],"epaule_b":[0.4409,0.1,1.5961],"coude_b":[0.5695,0.1,1.2598],"main_b":[0.183,0.1,1.2792],"epaule_f":[0.2395,-0.1,1.365],"coude_f":[0.3049,-0.1,1.011],"main_f":[-0.0588,-0.1,1.1432]}},{"t":0.5833,"tori":{"bassin":[0.524,0.0,0.9486],"cou":[-0.0912,0.0,1.2872],"tete":[-0.3041,0.0,1.2504],"hanche_b":[0.5785,0.1,1.0418],"genou_b":[0.956,0.1,0.8514],"pied_b":[1.2746,0.1,0.6318],"hanche_f":[0.4695,-0.1,0.8554],"genou_f":[0.5528,-0.1,0.441],"pied_f":[0.5834,-0.1,0.054],"epaule_b":[0.0838,0.1,1.3726],"coude_b":[0.4136,0.1,1.2285],"main_b":[0.2414,0.1,1.575],"epaule_f":[-0.0551,-0.1,1.0993],"coude_f":[-0.1583,-0.1,0.7544],"main_f":[0.0938,-0.1,0.4608]},"uke":{"bassin":[0.7805,0.0,1.291],"cou":[0.1819,0.0,1.6581],"tete":[0.0527,0.0,1.8312],"hanche_b":[0.8393,0.1,1.3815],"genou_b":[0.9023,0.1,0.9629],"pied_b":[1.0654,0.1,0.6124],"hanche_f":[0.7217,-0.1,1.2004],"genou_f":[0.8623,-0.1,0.8022],"pied_f":[1.0458,-0.1,0.4599],"epaule_b":[0.3607,0.1,1.7352],"coude_b":[0.3665,0.1,1.3752],"main_b":[0.0141,0.1,1.5352],"epaule_f":[0.2091,-0.1,1.4687],"coude_f":[0.0734,-0.1,1.1353],"main_f":[-0.2374,-0.1,1.3659]}},{"t":0.6667,"tori":{"bassin":[0.5485,0.0,0.954],"cou":[-0.0874,0.0,1.2519],"tete":[-0.2974,0.0,1.2014],"hanche_b":[0.5968,0.1,1.0506],"genou_b":[1.0147,0.1,0.9828],"pied_b":[1.3999,0.1,0.9468],"hanche_f":[0.5001,-0.1,0.8574],"genou_f":[0.5773,-0.1,0.441],"pied_f":[0.5827,-0.1,0.054],"epaule_b":[0.0816,0.1,1.3485],"coude_b":[-0.277,0.1,1.3168],"main_b":[0.0265,0.1,1.557],"epaule_f":[-0.0392,-0.1,1.0668],"coude_f":[-0.2496,-0.1,0.7747],"main_f":[0.0553,-0.1,0.5364]},"uke":{"bassin":[0.7956,0.0,1.3207],"cou":[0.0953,0.0,1.3727],"tete":[-0.0814,0.0,1.4969],"hanche_b":[0.8064,0.1,1.4281],"genou_b":[1.1425,0.1,1.172],"pied_b":[1.4756,0.1,0.9758],"hanche_f":[0.7848,-0.1,1.2132],"genou_f":[1.123,-0.1,0.9586],"pied_f":[1.4453,-0.1,0.7455],"epaule_b":[0.2189,0.1,1.5231],"coude_b":[0.2135,0.1,1.1632],"main_b":[-0.096,0.1,1.3955],"epaule_f":[0.2063,-0.1,1.2169],"coude_f":[0.049,-0.1,0.8931],"main_f":[-0.2117,-0.1,1.1791]}},{"t":0.75,"tori":{"bassin":[0.58,0.0,0.9612],"cou":[-0.0727,0.0,1.2205],"tete":[-0.2792,0.0,1.1574],"hanche_b":[0.6224,0.1,1.0605],"genou_b":[1.0264,0.1,1.1844],"pied_b":[1.3774,0.1,1.3464],"hanche_f":[0.5375,-0.1,0.8619],"genou_f":[0.5746,-0.1,0.441],"pied_f":[0.5764,-0.1,0.054],"epaule_b":[0.0903,0.1,1.327],"coude_b":[0.3373,0.1,1.0651],"main_b":[-0.0428,0.1,1.1376],"epaule_f":[-0.0134,-0.1,1.0385],"coude_f":[-0.3078,-0.1,0.8314],"main_f":[-0.005,-0.1,0.5904]},"uke":{"bassin":[0.7191,0.0,1.2753],"cou":[0.0628,0.0,1.0254],"tete":[-0.1444,0.0,0.9644],"hanche_b":[0.6833,0.1,1.3772],"genou_b":[1.0943,0.1,1.4779],"pied_b":[1.4806,0.1,1.4973],"hanche_f":[0.7549,-0.1,1.1734],"genou_f":[1.1785,-0.1,1.1736],"pied_f":[1.5655,-0.1,1.1799],"epaule_b":[0.111,0.1,1.2141],"coude_b":[0.1767,0.1,0.8601],"main_b":[-0.0916,0.1,1.139],"epaule_f":[0.2295,-0.1,0.9314],"coude_f":[0.1177,-0.1,1.2736],"main_f":[-0.0718,-0.1,0.9361]}},{"t":0.8333,"tori":{"bassin":[0.61,0.0,0.9666],"cou":[-0.066,0.0,1.1567],"tete":[-0.2707,0.0,1.0879],"hanche_b":[0.6419,0.1,1.0698],"genou_b":[1.0042,0.1,1.2888],"pied_b":[1.3246,0.1,1.5048],"hanche_f":[0.5781,-0.1,0.8634],"genou_f":[0.5884,-0.1,0.441],"pied_f":[0.583,-0.1,0.054],"epaule_b":[0.085,0.1,1.2796],"coude_b":[0.3566,0.1,1.0433],"main_b":[-0.0182,0.1,0.9468],"epaule_f":[0.0119,-0.1,0.9819],"coude_f":[-0.2798,-0.1,0.7709],"main_f":[0.0556,-0.1,0.5778]},"uke":{"bassin":[0.5744,0.0,1.2008],"cou":[0.0445,0.0,0.7399],"tete":[-0.1052,0.0,0.5842],"hanche_b":[0.5056,0.1,1.2841],"genou_b":[0.8192,0.1,1.5687],"pied_b":[1.1391,0.1,1.7861],"hanche_f":[0.6431,-0.1,1.1175],"genou_f":[1.0162,-0.1,1.3159],"pied_f":[1.3451,-0.1,1.5197],"epaule_b":[0.0247,0.1,0.9336],"coude_b":[-0.101,0.1,1.271],"main_b":[-0.1876,0.1,0.8938],"epaule_f":[0.2334,-0.1,0.7091],"coude_f":[0.1673,-0.1,1.063],"main_f":[-0.0474,-0.1,0.741]}},{"t":0.9167,"tori":{"bassin":[0.6304,0.0,0.9702],"cou":[-0.0671,0.0,1.0523],"tete":[-0.2716,0.0,0.9829],"hanche_b":[0.6457,0.1,1.0771],"genou_b":[1.0084,0.1,1.2942],"pied_b":[1.3558,0.1,1.467],"hanche_f":[0.615,-0.1,0.8633],"genou_f":[0.6088,-0.1,0.441],"pied_f":[0.598,-0.1,0.054],"epaule_b":[0.0629,0.1,1.1973],"coude_b":[0.3748,0.1,1.0175],"main_b":[0.0166,0.1,0.8712],"epaule_f":[0.0372,-0.1,0.8918],"coude_f":[-0.2335,-0.1,0.6545],"main_f":[0.1246,-0.1,0.5076]},"uke":{"bassin":[0.513,0.0,1.1039],"cou":[0.1217,0.0,0.5208],"tete":[0.0089,0.0,0.3366],"hanche_b":[0.4249,0.1,1.1664],"genou_b":[0.5701,0.1,1.5643],"pied_b":[0.6786,0.1,1.9353],"hanche_f":[0.6011,-0.1,1.0415],"genou_f":[0.9144,-0.1,1.3247],"pied_f":[1.1176,-0.1,1.655],"epaule_b":[0.052,0.1,0.7026],"coude_b":[-0.1181,0.1,1.0199],"main_b":[-0.1612,0.1,0.6353],"epaule_f":[0.3121,-0.1,0.5403],"coude_f":[0.1675,-0.1,0.87],"main_f":[-0.0109,-0.1,0.5266]}},{"t":1.0,"tori":{"bassin":[0.6277,0.0,0.9702],"cou":[-0.073,0.0,1.0166],"tete":[-0.2719,0.0,0.9323],"hanche_b":[0.6376,0.1,1.0777],"genou_b":[1.0057,0.1,1.2852],"pied_b":[1.3693,0.1,1.4166],"hanche_f":[0.6178,-0.1,0.8627],"genou_f":[0.6151,-0.1,0.4392],"pied_f":[0.5953,-0.1,0.054],"epaule_b":[0.0494,0.1,1.168],"coude_b":[0.3649,0.1,0.9948],"main_b":[0.0211,0.1,0.8172],"epaule_f":[0.0392,-0.1,0.8617],"coude_f":[-0.2169,-0.1,0.6087],"main_f":[0.1345,-0.1,0.4464]},"uke":{"bassin":[0.4858,0.0,1.0453],"cou":[0.2117,0.0,0.3987],"tete":[0.1626,0.0,0.1884],"hanche_b":[0.3875,0.1,1.0899],"genou_b":[0.2019,0.1,1.4689],"pied_b":[0.0763,0.1,1.8364],"hanche_f":[0.5841,-0.1,1.0006],"genou_f":[0.9075,-0.1,1.2728],"pied_f":[0.9991,-0.1,1.6483],"epaule_b":[0.1089,0.1,0.5641],"coude_b":[-0.1914,0.1,0.7625],"main_b":[-0.0423,0.1,0.4054],"epaule_f":[0.395,-0.1,0.4538],"coude_f":[0.1546,-0.1,0.7218],"main_f":[0.165,-0.1,0.335]}},{"t":1.1667,"tori":{"bassin":[0.6113,0.0,0.9702],"cou":[-0.0878,0.0,1.0362],"tete":[-0.2864,0.0,0.9513],"hanche_b":[0.6242,0.1,1.0774],"genou_b":[0.9947,0.1,1.2816],"pied_b":[1.3583,0.1,1.413],"hanche_f":[0.5984,-0.1,0.863],"genou_f":[0.6095,-0.1,0.441],"pied_f":[0.5825,-0.1,0.054],"epaule_b":[0.0387,0.1,1.1842],"coude_b":[0.3474,0.1,0.9988],"main_b":[-0.0025,0.1,0.8334],"epaule_f":[0.02,-0.1,0.8782],"coude_f":[-0.2348,-0.1,0.6239],"main_f":[0.1091,-0.1,0.4464]},"uke":{"bassin":[-0.3821,0.0,0.27],"cou":[0.2806,0.0,0.038],"tete":[0.4938,0.0,0.003],"hanche_b":[-0.4204,0.1,0.169],"genou_b":[-0.7395,0.1,0.4468],"pied_b":[-1.1233,0.1,0.397],"hanche_f":[-0.3439,-0.1,0.371],"genou_f":[-0.5888,-0.1,0.7158],"pied_f":[-0.9747,-0.1,0.6872],"epaule_b":[0.1222,0.1,-0.0752],"coude_b":[-0.1807,0.1,0.1192],"main_b":[-0.3688,0.1,0.4575],"epaule_f":[0.2139,-0.1,0.2173],"coude_f":[-0.1456,-0.1,0.2358],"main_f":[0.0571,-0.1,0.5655]}},{"t":1.3333,"tori":{"bassin":[0.5949,0.0,0.9684],"cou":[-0.1036,0.0,1.0407],"tete":[-0.3073,0.0,0.9688],"hanche_b":[0.6088,0.1,1.0755],"genou_b":[0.9837,0.1,1.2726],"pied_b":[1.3419,0.1,1.4184],"hanche_f":[0.581,-0.1,0.8613],"genou_f":[0.6057,-0.1,0.4392],"pied_f":[0.5751,-0.1,0.054],"epaule_b":[0.0243,0.1,1.1875],"coude_b":[0.3202,0.1,0.9824],"main_b":[-0.0477,0.1,0.8622],"epaule_f":[0.0029,-0.1,0.8817],"coude_f":[-0.2697,-0.1,0.6466],"main_f":[0.0657,-0.1,0.4536]},"uke":{"bassin":[-0.3821,0.0,0.162],"cou":[0.3199,0.0,0.1783],"tete":[0.5317,0.0,0.2207],"hanche_b":[-0.3824,0.1,0.054],"genou_b":[-0.7788,0.1,0.2015],"pied_b":[-1.1205,0.1,0.0198],"hanche_f":[-0.3819,-0.1,0.27],"genou_f":[-0.7326,-0.1,0.5065],"pied_f":[-1.0837,-0.1,0.3437],"epaule_b":[0.2115,0.1,0.0166],"coude_b":[-0.1405,0.1,0.0919],"main_b":[-0.4357,0.1,0.3421],"epaule_f":[0.1942,-0.1,0.3226],"coude_f":[-0.1488,-0.1,0.2133],"main_f":[-0.0751,-0.1,0.5933]}}]</script>
+<script type="module">
+import * as THREE from "three";
+import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+
+const KEYS = JSON.parse(document.getElementById("mocap").textContent);
+const FIRST_FRAME = 36;
+const T_END = KEYS[KEYS.length - 1].t;
+const HOLD = 0.9;                 // pause sur la chute avant de reboucler
+const LOOP = T_END + HOLD;
+const PHASES = [[0, "Kuzushi · tsukuri"], [0.33, "Kake"], [0.75, "Uke décolle"], [1.0, "Chute"], [1.22, "Zanshin"]];
+
+const canvas = document.getElementById("scene");
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x120f24);
+scene.fog = new THREE.Fog(0x120f24, 7, 16);
+
+const camera = new THREE.PerspectiveCamera(38, 1, 0.05, 50);
+const controls = new OrbitControls(camera, canvas);
+controls.target.set(0.35, 0.85, 0);
+controls.enableDamping = true;
+controls.minDistance = 1.6;
+controls.maxDistance = 9;
+controls.maxPolarAngle = Math.PI * 0.495;
+
+// --- lumière façon salle de combat : clé chaude, contre-jour rose, fond bleu
+scene.add(new THREE.HemisphereLight(0xcfc8ff, 0x2a1c3a, 0.9));
+const key = new THREE.DirectionalLight(0xfff3dc, 2.1);
+key.position.set(2.5, 5, 3.5);
+key.castShadow = true;
+key.shadow.mapSize.set(1024, 1024);
+Object.assign(key.shadow.camera, { left: -3, right: 3, top: 3, bottom: -3, near: 0.5, far: 15 });
+scene.add(key);
+const rim = new THREE.DirectionalLight(0xff2e88, 1.4);
+rim.position.set(-3, 2.5, -3);
+scene.add(rim);
+
+// --- tatami : carrés jaunes, zone de sécurité bleue
+function tatamiTexture() {
+  const c = document.createElement("canvas");
+  c.width = c.height = 1024;
+  const g = c.getContext("2d");
+  g.fillStyle = "#2659d8"; g.fillRect(0, 0, 1024, 1024);
+  g.fillStyle = "#f2c230"; g.fillRect(128, 128, 768, 768);
+  g.strokeStyle = "rgba(90,60,0,0.35)"; g.lineWidth = 3;
+  for (let i = 0; i <= 8; i++) {
+    const p = 128 + i * 96;
+    g.beginPath(); g.moveTo(p, 128); g.lineTo(p, 896); g.stroke();
+    g.beginPath(); g.moveTo(128, p); g.lineTo(896, p); g.stroke();
+  }
+  g.strokeStyle = "rgba(255,255,255,0.18)"; g.lineWidth = 6; g.strokeRect(128, 128, 768, 768);
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  t.anisotropy = 4;
+  return t;
+}
+const floor = new THREE.Mesh(new THREE.PlaneGeometry(8, 8), new THREE.MeshLambertMaterial({ map: tatamiTexture() }));
+floor.rotation.x = -Math.PI / 2;
+floor.position.set(0.3, 0, 0);
+floor.receiveShadow = true;
+scene.add(floor);
+
+// --- matériaux cel-shading (trois tons) et contour d'encre
+const ramp = new THREE.DataTexture(new Uint8Array([90, 90, 90, 255, 185, 185, 185, 255, 255, 255, 255, 255]), 3, 1, THREE.RGBAFormat);
+ramp.minFilter = ramp.magFilter = THREE.NearestFilter;
+ramp.needsUpdate = true;
+const toon = (hex) => new THREE.MeshToonMaterial({ color: hex, gradientMap: ramp });
+const INK = new THREE.MeshBasicMaterial({ color: 0x0b0a14, side: THREE.BackSide });
+const OUT = 0.014;
+const MAT = {
+  tori: { gi: toon(0xf4efe4), skin: toon(0xe7b78f), belt: toon(0x17141f) },
+  uke: { gi: toon(0x2a5fe0), skin: toon(0xc98b5e), belt: toon(0x17141f) },
+};
+const UP = new THREE.Vector3(0, 1, 0);
+const v3 = (p) => new THREE.Vector3(p[0], p[2], -p[1]);   // (x, profondeur, haut) → repère three.js
+
+function inked(geoFill, geoInk, mat) {
+  const g = new THREE.Group();
+  const m = new THREE.Mesh(geoFill, mat);
+  m.castShadow = true;
+  g.add(m, new THREE.Mesh(geoInk, INK));
+  scene.add(g);
+  return g;
+}
+function limb(r, mat) {
+  const g = inked(new THREE.CylinderGeometry(r, r, 1, 18), new THREE.CylinderGeometry(r + OUT, r + OUT, 1, 18), mat);
+  g.place = (a, b) => {
+    const d = new THREE.Vector3().subVectors(b, a);
+    const len = Math.max(0.001, d.length());
+    g.position.copy(a).addScaledVector(d, 0.5);
+    g.quaternion.setFromUnitVectors(UP, d.normalize());
+    g.scale.set(1, len, 1);
+  };
+  return g;
+}
+function ball(r, mat) {
+  const g = inked(new THREE.SphereGeometry(r, 20, 14), new THREE.SphereGeometry(r + OUT, 20, 14), mat);
+  g.place = (a) => g.position.copy(a);
+  return g;
+}
+
+function mannequin(who) {
+  const m = MAT[who];
+  const parts = [];
+  const add = (obj, a, b) => parts.push({ obj, a, b });
+  add(limb(0.145, m.gi), "bassin", "cou");
+  add(ball(0.15, m.gi), "bassin");
+  add(ball(0.13, m.gi), "cou");
+  add(limb(0.05, m.skin), "cou", "tete");
+  add(ball(0.11, m.skin), "tete");
+  for (const s of ["b", "f"]) {
+    add(ball(0.072, m.gi), "epaule_" + s);
+    add(limb(0.062, m.gi), "epaule_" + s, "coude_" + s);
+    add(ball(0.06, m.gi), "coude_" + s);
+    add(limb(0.05, m.gi), "coude_" + s, "main_" + s);
+    add(ball(0.05, m.skin), "main_" + s);
+    add(ball(0.085, m.gi), "hanche_" + s);
+    add(limb(0.082, m.gi), "hanche_" + s, "genou_" + s);
+    add(ball(0.072, m.gi), "genou_" + s);
+    add(limb(0.066, m.gi), "genou_" + s, "pied_" + s);
+    add(ball(0.06, m.skin), "pied_" + s);
+  }
+  // ceinture : anneau autour du bassin, perpendiculaire au buste
+  const belt = inked(new THREE.TorusGeometry(0.152, 0.024, 10, 32), new THREE.TorusGeometry(0.152, 0.024 + OUT * 0.7, 10, 32), m.belt);
+  return { parts, belt };
+}
+const actors = { tori: mannequin("tori"), uke: mannequin("uke") };
+
+function jointsAt(t, who) {
+  let i = 0;
+  while (i < KEYS.length - 2 && t > KEYS[i + 1].t) i++;
+  const a = KEYS[i], b = KEYS[i + 1];
+  const u = Math.min(1, Math.max(0, (t - a.t) / (b.t - a.t)));
+  const out = {};
+  for (const n in a[who]) {
+    const p = a[who][n], q = b[who][n];
+    out[n] = v3([p[0] + (q[0] - p[0]) * u, p[1] + (q[1] - p[1]) * u, p[2] + (q[2] - p[2]) * u]);
+  }
+  return out;
+}
+function pose(t) {
+  for (const who of ["tori", "uke"]) {
+    const j = jointsAt(t, who);
+    const act = actors[who];
+    for (const p of act.parts) p.b ? p.obj.place(j[p.a], j[p.b]) : p.obj.place(j[p.a]);
+    const dir = new THREE.Vector3().subVectors(j.cou, j.bassin).normalize();
+    act.belt.position.copy(j.bassin).addScaledVector(dir, 0.03);
+    act.belt.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), dir);
+  }
+}
+
+// --- caméras
+const CAMS = {
+  profil: [[0.35, 0.95, 4.4], [0.35, 0.85, 0]],
+  34: [[-1.3, 1.5, 3.9], [0.4, 0.8, 0]],
+  dos: [[-2.6, 1.5, 2.2], [0.4, 0.8, 0]],
+  dessus: [[0.35, 4.6, 1.2], [0.35, 0.4, 0]],
+};
+let camAnim = null;
+function setCam(name, instant) {
+  const [pos, tgt] = CAMS[name];
+  if (instant) { camera.position.set(...pos); controls.target.set(...tgt); return; }
+  camAnim = { p0: camera.position.clone(), t0: controls.target.clone(), p1: new THREE.Vector3(...pos), t1: new THREE.Vector3(...tgt), k: 0 };
+}
+setCam("34", true);
+
+// --- lecture
+const ui = { play: document.getElementById("play"), time: document.getElementById("time"), clock: document.getElementById("clock"), phase: document.getElementById("phase") };
+const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+let playing = !reduced, speed = 1, t = reduced ? 1.05 : 0, last = performance.now();
+ui.play.textContent = playing ? "Pause" : "Lecture";
+ui.play.addEventListener("click", () => { playing = !playing; ui.play.textContent = playing ? "Pause" : "Lecture"; });
+ui.time.addEventListener("input", () => { t = (ui.time.value / 1000) * T_END; playing = false; ui.play.textContent = "Lecture"; });
+for (const b of document.querySelectorAll("[data-speed]")) b.addEventListener("click", () => {
+  speed = parseFloat(b.dataset.speed);
+  document.querySelectorAll("[data-speed]").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+});
+for (const b of document.querySelectorAll("[data-cam]")) b.addEventListener("click", () => {
+  setCam(b.dataset.cam);
+  document.querySelectorAll("[data-cam]").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+});
+controls.addEventListener("start", () => { camAnim = null; document.querySelectorAll("[data-cam]").forEach((x) => x.setAttribute("aria-pressed", "false")); });
+
+function resize() {
+  const w = canvas.clientWidth, h = canvas.clientHeight;
+  if (canvas.width !== Math.floor(w * renderer.getPixelRatio()) || canvas.height !== Math.floor(h * renderer.getPixelRatio())) {
+    renderer.setSize(w, h, false);
+    camera.aspect = w / h;
+    camera.fov = w < 560 ? 52 : 38;
+    camera.updateProjectionMatrix();
+  }
+}
+function frame(now) {
+  const dt = Math.min(0.05, (now - last) / 1000);
+  last = now;
+  if (playing) { t += dt * speed; if (t > LOOP) t = 0; }
+  const tt = Math.min(t, T_END);
+  pose(tt);
+  ui.time.value = String(Math.round((tt / T_END) * 1000));
+  ui.clock.textContent = "image " + Math.round(FIRST_FRAME + tt * 12) + " · " + tt.toFixed(2).replace(".", ",") + " s";
+  let ph = PHASES[0][1];
+  for (const [s, name] of PHASES) if (tt >= s) ph = name;
+  ui.phase.textContent = ph;
+  if (camAnim) {
+    camAnim.k = Math.min(1, camAnim.k + dt * 2.2);
+    const e = camAnim.k * camAnim.k * (3 - 2 * camAnim.k);
+    camera.position.lerpVectors(camAnim.p0, camAnim.p1, e);
+    controls.target.lerpVectors(camAnim.t0, camAnim.t1, e);
+    if (camAnim.k >= 1) camAnim = null;
+  }
+  controls.update();
+  resize();
+  renderer.render(scene, camera);
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+</script>
