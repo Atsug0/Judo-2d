@@ -97,8 +97,9 @@ func _draw() -> void:
 	var wcol = Style.P1 if w == 0 else Style.P2
 	Style.menu_background(self, Vector2(1280, 720), wcol)
 	# bandeau vainqueur
-	var title = "VICTOIRE" if (mode != "versus" and w == 0) else ("DÉFAITE" if mode != "versus" else "%s GAGNE" % names[w])
-	if mode == "versus":
+	var spect = mode in ["versus", "demo"]  # deux joueurs ou IA contre IA : on nomme le vainqueur
+	var title = "VICTOIRE" if (not spect and w == 0) else ("DÉFAITE" if not spect else "%s GAGNE" % names[w])
+	if spect and w >= 0:
 		title = "%s GAGNE !" % names[w]
 	var tcol = Style.GOLD if title != "DÉFAITE" else Style.DANGER
 	Style.speed_lines(self, Vector2(480, 380), 120, 520, 40, Color(wcol, 0.18), 13)

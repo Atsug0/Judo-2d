@@ -1,0 +1,8 @@
+{
+  "_doc": "Vidéo de démo v3 : écran de sélection, parcours des légendes. godot --path . --write-movie select.avi --fixed-fps 60 -- --screen=select --demo=tools/video/demo_select.json",
+  "steps": [
+    [70, "right"], [120, "right"], [170, "right"], [220, "right"], [270, "right"], [320, "right"],
+    [380, "down"], [440, "right"], [490, "right"], [540, "right"], [600, "left"], [650, "left"],
+    [760, "quit"]
+  ]
+}

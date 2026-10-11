@@ -113,7 +113,7 @@ static func text_width(s: String, size: int, kind: String = "display") -> float:
 ## Parallélogramme incliné (forme de base de toute l'interface).
 static func slant_points(r: Rect2, slant: float = SLANT, flip: bool = false) -> PackedVector2Array:
 	# décalage plafonné : un grand panneau reste lisible (le texte ne déborde pas des coins)
-	var o := minf(r.size.y * slant, SLANT_MAX)
+	var o := minf(minf(r.size.y * slant, SLANT_MAX), absf(r.size.x) * 0.45)  # jamais de polygone croisé
 	if flip:
 		return PackedVector2Array([r.position, Vector2(r.end.x - o, r.position.y), r.end, Vector2(r.position.x + o, r.end.y)])
 	return PackedVector2Array([Vector2(r.position.x + o, r.position.y), Vector2(r.end.x, r.position.y),

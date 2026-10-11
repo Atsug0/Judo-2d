@@ -1,0 +1,11 @@
+{
+  "_doc": "Vidéo de démo v3, partie dojo : catégories, leçon « Mener le couple », entraînement libre. godot --path . --write-movie dojo.avi --fixed-fps 60 -- --demo=tools/video/demo_dojo.json",
+  "steps": [
+    [120, "accept"],
+    [180, "down"], [240, "down"], [320, "accept"],
+    [420, "down"], [480, "down"], [540, "down"], [600, "down"], [660, "up"], [720, "up"], [780, "up"], [840, "up"],
+    [900, "right"], [960, "down"], [1020, "down"], [1080, "down"], [1180, "accept"],
+    [1500, "accept"],
+    [1900, "quit"]
+  ]
+}

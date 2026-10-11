@@ -1,0 +1,16 @@
+{
+  "_doc": "Vidéo de démo v3, partie menus : titre, menu, personnalisation (profil, techniques, garde, physique), sélection. Données utilisateur vierges. godot --path . --write-movie menus.avi --fixed-fps 60 -- --demo=tools/video/demo_menus.json",
+  "steps": [
+    [200, "accept"],
+    [260, "down"], [320, "down"], [380, "down"], [440, "down"], [520, "accept"],
+    [600, "down"], [650, "down"], [700, "right"], [760, "right"], [820, "down"], [870, "right"], [920, "right"], [980, "down"], [1030, "right"],
+    [1110, "next"], [1170, "down"], [1230, "down"], [1290, "right"],
+    [1360, "next"], [1430, "down"], [1490, "right"],
+    [1560, "next"], [1620, "down"], [1680, "right"],
+    [1760, "back"],
+    [1830, "up"], [1880, "up"], [1930, "up"], [2000, "accept"],
+    [2080, "right"], [2130, "right"], [2180, "right"], [2230, "right"], [2280, "right"], [2330, "right"],
+    [2400, "down"], [2460, "right"], [2520, "right"],
+    [2700, "quit"]
+  ]
+}
