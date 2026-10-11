@@ -68,6 +68,8 @@ var walk_amp = [0.0, 0.0]
 var walk_dir = [1.0, 1.0]
 var prev_dx = [-1.0, -1.0]  # main chassée : images restantes de l'animation, par joueur et par main
 var last_reaction_popup = -9999
+var pause_tab = 0       # 0 = commandes, 1 = set du joueur 1, 2 = set du joueur 2
+var pause_player = 0
 ## Format en manches (deux manches gagnantes, façon jeu de combat)
 var rounds_to_win = 1
 var round_wins = [0, 0]
@@ -236,8 +238,14 @@ func nav(action: String, _player: int = 0) -> void:
 	if action == "start":
 		paused = not paused
 		pause_index = 0
+		pause_tab = 0
+		pause_player = _player
 	elif paused:
 		match action:
+			"prev":
+				pause_tab = (pause_tab + 2) % 3
+			"next":
+				pause_tab = (pause_tab + 1) % 3
 			"up":
 				pause_index = (pause_index + PAUSE_ITEMS.size() - 1) % PAUSE_ITEMS.size()
 			"down":
@@ -1745,14 +1753,99 @@ func _draw_hints() -> void:
 
 
 func _draw_pause() -> void:
-	_ci.draw_rect(Rect2(0, 0, W, H), Color(0.04, 0.03, 0.1, 0.72))
+	_ci.draw_rect(Rect2(0, 0, W, H), Color(0.04, 0.03, 0.1, 0.8))
 	Style.halftone(_ci, Rect2(0, 0, W, H), Color(1, 1, 1, 0.04), 18.0, 5.0, Vector2(1, 0))
-	Style.text(_ci, Vector2(0, 200), "PAUSE", 96, Style.PAPER, "display", HORIZONTAL_ALIGNMENT_CENTER, W)
+	Style.text(_ci, Vector2(60, 150), "PAUSE", 96, Style.PAPER, "display")
 	for k in PAUSE_ITEMS.size():
 		var sel = k == pause_index
-		var r = Rect2(440 - (12 if sel else 0), 250 + k * 70, 400 + (24 if sel else 0), 56)
+		var r = Rect2(50 + (14 if sel else 0), 190 + k * 66, 360, 54)
 		Style.panel(_ci, r, Style.HOT if sel else Style.NIGHT_2, Style.INK, 4.0, 6.0)
-		Style.text(_ci, Vector2(r.position.x, r.position.y + 41), PAUSE_ITEMS[k], 32, Style.INK if sel else Style.PAPER, "display", HORIZONTAL_ALIGNMENT_CENTER, r.size.x, 3, 0.0)
+		Style.text(_ci, Vector2(r.position.x, r.position.y + 39), PAUSE_ITEMS[k], 28, Style.INK if sel else Style.PAPER, "display", HORIZONTAL_ALIGNMENT_CENTER, r.size.x, 3, 0.0)
+	# panneau d'aide : commandes, ou set de techniques de chaque judoka (LB / RB)
+	var tabs = ["COMMANDES", names[0], names[1]]
+	var x = 470.0
+	for k in 3:
+		var sel2 = k == pause_tab
+		var w = Style.text_width(String(tabs[k]).to_upper(), 20) + 40
+		var tr = Rect2(x, 128, w, 36)
+		Style.panel(_ci, tr, (Style.PAPER if k == 0 else (Style.P1 if k == 1 else Style.P2)) if sel2 else Style.NIGHT_2, Style.INK, 3.0, 4.0)
+		Style.text(_ci, Vector2(tr.position.x, tr.position.y + 27), String(tabs[k]).to_upper(), 20, Style.INK if sel2 else Style.MUTED, "display", HORIZONTAL_ALIGNMENT_CENTER, w, 1 if sel2 else 3, -1.0 if sel2 else 0.0)
+		x += w + 8
+	var pr = Rect2(470, 176, 760, 450)
+	Style.panel(_ci, pr, Color(Style.INK, 0.92), Style.NIGHT_3, 3.0, 6.0, 0.04)
+	if pause_tab == 0:
+		_draw_pause_controls(pr)
+	else:
+		_draw_pause_set(pr, pause_tab - 1)
+	Style.hints(_ci, [["LB", "RB", "Commandes / sets"], ["A", "Valider"], ["B", "Reprendre"]])
+
+
+func _draw_pause_controls(pr: Rect2) -> void:
+	var rows = [
+		["{LS}", "Se déplacer · pichenette franche = dash (entrée / sortie)"],
+		["{LT} {RT}", "Main gauche / droite : saisir, serrer fort = prise profonde"],
+		["{LB} {RB}", "Changer la cible de la main (manche, revers, col, ceinture)"],
+		["{RS}", "Kuzushi : tirer vers soi, pousser, sur le côté"],
+		["{A}", "Technique adaptée au déséquilibre · tap court = feinte"],
+		["{X}", "Technique de jambe · {Y} tokui-waza"],
+		["{B}", "Chasser une main, arracher une prise (+ {RS} vers soi), bloquer, contrer"],
+		["SOL", "{A} contrôler · {X} / {Y} clé, étranglement · {B} se dégager"],
+		["CURSEURS", "Immobilisation, clé : appuie quand ton curseur est dans ta zone"],
+	]
+	var y = pr.position.y + 40
+	for r in rows:
+		Rich.draw(_ci, Vector2(pr.position.x + 28, y), r[0], 150, 17, Style.GOLD)
+		Rich.draw(_ci, Vector2(pr.position.x + 190, y), r[1], pr.size.x - 220, 16, Style.PAPER)
+		y += 46
+
+
+func _draw_pause_set(pr: Rect2, i: int) -> void:
+	var f: Dictionary = sim.state.fighters[i]
+	var st: Dictionary = f.set
+	var col: Color = Style.P1 if i == 0 else Style.P2
+	var x0 = pr.position.x + 28
+	var y = pr.position.y + 40
+	Style.label(_ci, Vector2(x0, y), "TOKUI-WAZA {Y}".replace("{Y}", ""), 13, Style.MUTED, "black")
+	Style.pad_button(_ci, Vector2(x0 + 108, y - 5), "Y", 10.0)
+	Style.label(_ci, Vector2(x0 + 130, y), sim.tech_name(st.tokui).to_upper(), 18, col, "black")
+	y += 36
+	Style.label(_ci, Vector2(x0, y), "TECHNIQUES ({A} SELON LE DÉSÉQUILIBRE, {X} JAMBES)".replace("{A}", "A").replace("{X}", "X"), 13, Style.MUTED, "black")
+	y += 26
+	var dl = {"avant": "AVANT", "arriere": "ARRIÈRE", "cote": "CÔTÉ", "arriere_cote": "ARRIÈRE-CÔTÉ", "avant_cote": "AVANT-CÔTÉ"}
+	for id in st.main:
+		var t: Dictionary = techs[id]
+		var btn = "X" if t.family == "ashi" else "A"
+		Style.pad_button(_ci, Vector2(x0 + 10, y - 5), btn, 9.0)
+		Style.label(_ci, Vector2(x0 + 30, y), sim.tech_name(id).to_upper(), 16, Style.PAPER, "black", HORIZONTAL_ALIGNMENT_LEFT, 220)
+		Style.label(_ci, Vector2(x0 + 250, y), "KUZUSHI " + String(dl.get(t.dir, t.dir)), 13, Style.MUTED, "black", HORIZONTAL_ALIGNMENT_LEFT, 175)
+		y += 26
+	var x1 = pr.position.x + 470
+	var y1 = pr.position.y + 40
+	Style.label(_ci, Vector2(x1, y1), "ENCHAÎNEMENTS", 13, Style.MUTED, "black")
+	y1 += 26
+	if st.combos.is_empty():
+		Style.label(_ci, Vector2(x1, y1), "AUCUN", 15, Style.MUTED, "black")
+		y1 += 26
+	for c in st.combos:
+		Style.label(_ci, Vector2(x1, y1), "%s → %s" % [sim.tech_name(c[0]).to_upper(), sim.tech_name(c[1]).to_upper()], 15, Style.PAPER, "black", HORIZONTAL_ALIGNMENT_LEFT, 260)
+		y1 += 26
+	y1 += 10
+	Style.label(_ci, Vector2(x1, y1), "CONTRES ({B} PENDANT SON ATTAQUE)".replace("{B}", "B"), 13, Style.MUTED, "black")
+	y1 += 26
+	if st.counters.is_empty():
+		Style.label(_ci, Vector2(x1, y1), "AUCUN", 15, Style.MUTED, "black")
+		y1 += 26
+	for c in st.counters:
+		Style.label(_ci, Vector2(x1, y1), sim.tech_name(c).to_upper(), 15, Style.PAPER, "black")
+		y1 += 26
+	y1 += 10
+	Style.label(_ci, Vector2(x1, y1), "AU SOL", 13, Style.MUTED, "black")
+	y1 += 26
+	for g in st.ground:
+		var kind: String = techs._newaza[g].kind
+		var how = {"osaekomi": "IMMOBILISATION", "kansetsu": "CLÉ · X", "shime": "ÉTRANGLEMENT · Y"}.get(kind, kind)
+		Style.label(_ci, Vector2(x1, y1), "%s  ·  %s" % [sim.tech_name(g).to_upper(), how], 15, Style.PAPER, "black", HORIZONTAL_ALIGNMENT_LEFT, 260)
+		y1 += 26
 
 
 # =============================================================================
