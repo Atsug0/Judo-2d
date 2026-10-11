@@ -82,6 +82,7 @@ func _tournament_flow() -> void:
 		_check("tournoi tour %d : retour au tableau" % (round_i + 1), app.current_name == "tournament", app.current_name)
 	var t: Dictionary = app.session.tournament
 	_check("tournoi : champion", t.done and t.champion >= 0 and t.players[t.champion].human, str(t.champion))
+	app.current.nav("accept", 0)  # ferme l'écran du champion
 	app.current.nav("accept", 0)
 	await process_frame
 	_check("tournoi terminé → menu", app.current_name == "menu", app.current_name)
