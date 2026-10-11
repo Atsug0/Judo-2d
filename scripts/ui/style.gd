@@ -33,6 +33,7 @@ const MAT_SAFETY := Color("2b5bd8")
 const MAT_SAFETY_SHADE := Color("1d3f9e")
 
 const SLANT := 0.22  # inclinaison des panneaux (décalage horizontal / hauteur)
+const SLANT_MAX := 24.0  # décalage maximal en pixels (grands panneaux de texte)
 
 static var _fonts := {}
 
@@ -71,6 +72,8 @@ static func text(ci: CanvasItem, pos: Vector2, s: String, size: int, color: Colo
 		kind: String = "display", align: int = HORIZONTAL_ALIGNMENT_LEFT, width: float = -1,
 		outline: int = 0, shadow: float = 0.0) -> void:
 	var f := font(kind)
+	if width > 0.0:
+		size = fit_size(s, size, width, kind)
 	# texte sombre sur fond vif (éléments sélectionnés) : pas de contour d'encre, sinon il « bave »
 	if color.get_luminance() < 0.2:
 		ci.draw_string(f, pos, s, align, width, size, color)
@@ -89,7 +92,17 @@ static func text(ci: CanvasItem, pos: Vector2, s: String, size: int, color: Colo
 ## Texte simple, sans contour (petits libellés sur fond uni).
 static func label(ci: CanvasItem, pos: Vector2, s: String, size: int, color: Color,
 		kind: String = "ui", align: int = HORIZONTAL_ALIGNMENT_LEFT, width: float = -1) -> void:
+	if width > 0.0:
+		size = fit_size(s, size, width, kind)
 	ci.draw_string(font(kind), pos, s, align, width, size, color)
+
+
+## Plus grande taille (<= size) pour que `s` tienne dans `max_w` pixels.
+static func fit_size(s: String, size: int, max_w: float, kind: String = "display") -> int:
+	var w := text_width(s, size, kind)
+	if w <= max_w or w <= 0.0:
+		return size
+	return maxi(8, int(floor(size * max_w / w)))
 
 
 static func text_width(s: String, size: int, kind: String = "display") -> float:
@@ -99,7 +112,8 @@ static func text_width(s: String, size: int, kind: String = "display") -> float:
 # --- Formes ------------------------------------------------------------------
 ## Parallélogramme incliné (forme de base de toute l'interface).
 static func slant_points(r: Rect2, slant: float = SLANT, flip: bool = false) -> PackedVector2Array:
-	var o := r.size.y * slant
+	# décalage plafonné : un grand panneau reste lisible (le texte ne déborde pas des coins)
+	var o := minf(r.size.y * slant, SLANT_MAX)
 	if flip:
 		return PackedVector2Array([r.position, Vector2(r.end.x - o, r.position.y), r.end, Vector2(r.position.x + o, r.end.y)])
 	return PackedVector2Array([Vector2(r.position.x + o, r.position.y), Vector2(r.end.x, r.position.y),

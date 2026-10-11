@@ -91,7 +91,7 @@ func _draw() -> void:
 		var fill = Style.GOOD if sel and focus == 0 else (Style.NIGHT_3 if sel else Style.NIGHT_2)
 		Style.panel(self, r, fill, Style.INK, 4.0, 6.0)
 		var tcol = Style.INK if sel and focus == 0 else Style.PAPER
-		Style.text(self, Vector2(r.position.x + 30, r.position.y + 39), cats[k].name, 26, tcol, "display", HORIZONTAL_ALIGNMENT_LEFT, -1, 3, 0.0)
+		Style.text(self, Vector2(r.position.x + 30, r.position.y + 39), cats[k].name, 26, tcol, "display", HORIZONTAL_ALIGNMENT_LEFT, 230, 3, 0.0)
 		if cats[k].id != "training":
 			var ls = Lessons.in_category(cats[k].id)
 			var ids = ls.map(func(l): return l.id)
@@ -112,7 +112,7 @@ func _draw() -> void:
 			Style.panel(self, r2, Style.P1 if sel2 else Style.NIGHT_2, Style.INK, 3.0, 4.0)
 			var done2 = Progress.is_done(list[k].id)
 			Style.label(self, Vector2(r2.position.x + 24, r2.position.y + 28), "%02d" % (k + 1), 15, Style.INK if sel2 else Style.MUTED, "black")
-			Style.label(self, Vector2(r2.position.x + 62, r2.position.y + 28), String(list[k].title).to_upper(), 17, Style.INK if sel2 else Style.PAPER, "black")
+			Style.label(self, Vector2(r2.position.x + 62, r2.position.y + 28), String(list[k].title).to_upper(), 17, Style.INK if sel2 else Style.PAPER, "black", HORIZONTAL_ALIGNMENT_LEFT, 270)
 			if done2:
 				var c = Vector2(r2.end.x - 30, r2.position.y + 21)
 				draw_circle(c, 11.0, Style.INK)
@@ -124,13 +124,24 @@ func _draw() -> void:
 			var dr = Rect2(810, 168, 440, 446)
 			Style.panel(self, dr, Style.NIGHT_2, Style.GOOD, 4.0, 8.0)
 			Style.label(self, dr.position + Vector2(34, 36), cats[cat_i].name, 14, Style.GOOD, "black")
-			Style.text(self, dr.position + Vector2(30, 82), String(l.title).to_upper(), 34, Style.PAPER, "display")
-			var hh = Rich.draw(self, dr.position + Vector2(34, 122), l.intro, 380, 16, Style.PAPER)
-			var sy = dr.position.y + 140 + hh
-			Style.label(self, Vector2(dr.position.x + 34, sy), "ÉTAPES", 13, Style.MUTED, "black")
-			for k in mini(l.steps.size(), 5):
-				Style.label(self, Vector2(dr.position.x + 34, sy + 24 + k * 22), "%d · %s" % [k + 1, l.steps[k].title], 15, Style.PAPER, "bold")
-	Style.label(self, Vector2(400, 650), cats[cat_i].desc, 15, Style.MUTED, "bold", HORIZONTAL_ALIGNMENT_LEFT, 840)
+			Style.text(self, dr.position + Vector2(30, 82), String(l.title).to_upper(), 34, Style.PAPER, "display", HORIZONTAL_ALIGNMENT_LEFT, 370)
+			var lines = Rich.layout(l.intro, 360, 16)
+			var max_lines = 11
+			if lines.size() > max_lines:
+				lines = lines.slice(0, max_lines)
+			Rich.draw_lines(self, dr.position + Vector2(34, 122), lines, 16, Style.PAPER, 22.0)
+			var sy = dr.position.y + 132 + lines.size() * 22.0
+			var room = int((dr.end.y - 24 - sy - 24) / 22.0)
+			if room > 0:
+				Style.label(self, Vector2(dr.position.x + 34, sy), "ÉTAPES", 13, Style.MUTED, "black")
+				var n = mini(l.steps.size(), room)
+				for k in n:
+					var st_txt = "%d · %s" % [k + 1, l.steps[k].title]
+					if k == n - 1 and n < l.steps.size():
+						st_txt = "… et %d autres étapes" % (l.steps.size() - k)
+					Style.label(self, Vector2(dr.position.x + 34, sy + 24 + k * 22), st_txt, 15, Style.PAPER, "bold", HORIZONTAL_ALIGNMENT_LEFT, 360)
+	if cats[cat_i].id != "training":
+		Rich.draw(self, Vector2(400, 640), cats[cat_i].desc, 840, 14, Style.MUTED)
 	Style.hints(self, [["A", "Choisir"], ["B", "Retour"]])
 
 
@@ -149,7 +160,7 @@ func _draw_training_panel() -> void:
 	var y = r.position.y + 112
 	for ptxt in points:
 		draw_circle(Vector2(r.position.x + 46, y - 6), 5.0, Style.GOOD)
-		y += Rich.draw(self, Vector2(r.position.x + 62, y), ptxt, 740, 17, Style.PAPER) + 10
+		y += Rich.draw(self, Vector2(r.position.x + 62, y), ptxt, 500, 17, Style.PAPER) + 8
 	# deux judokas en garde
 	var sc = 2.1
 	var xa = Art.stand_xform(Vector2(r.end.x - 230, r.end.y - 18), 1, 0.05, sc, 0.2)

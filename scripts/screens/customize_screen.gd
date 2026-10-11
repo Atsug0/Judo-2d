@@ -3,6 +3,7 @@ extends Node2D
 ## techniques (15 points), garde et style, profil physique. Plusieurs judokas par joueur.
 
 const Style := preload("res://scripts/ui/style.gd")
+const Rich := preload("res://scripts/ui/rich.gd")
 const Art := preload("res://scripts/view/fighter_art.gd")
 const Build := preload("res://scripts/build.gd")
 
@@ -434,7 +435,7 @@ func _draw_card(e: Dictionary, tokui: bool) -> void:
 		Style.label(self, Vector2(r.position.x, r.position.y + 250), "← → pour choisir une technique", 18, Style.MUTED, "bold", HORIZONTAL_ALIGNMENT_CENTER, r.size.x)
 		return
 	var x0 = r.position.x + 36
-	Style.text(self, Vector2(x0, r.position.y + 66), e.name.to_upper(), 46, Style.P1, "display")
+	Style.text(self, Vector2(x0, r.position.y + 66), e.name.to_upper(), 46, Style.P1, "display", HORIZONTAL_ALIGNMENT_LEFT, r.size.x - 72)
 	# puces : famille, jouable, tokui
 	var cx = x0
 	var chips = [[e.family.to_upper(), Style.PAPER]]
@@ -465,7 +466,7 @@ func _draw_card(e: Dictionary, tokui: bool) -> void:
 	var gy = r.position.y + 330
 	draw_line(Vector2(x0, gy), Vector2(r.end.x - 40, gy), Style.NIGHT_3, 2.0)
 	Style.label(self, Vector2(x0, gy + 32), "GARDE FAVORABLE", 13, Style.MUTED, "black")
-	Style.label(self, Vector2(x0, gy + 58), e.garde, 20, Style.PAPER, "bold")
+	Rich.draw(self, Vector2(x0, gy + 56), String(e.garde), r.size.x - 240, 18, Style.PAPER)
 	# coût
 	var cr2 = Rect2(r.end.x - 170, r.end.y - 76, 130, 52)
 	Style.panel(self, cr2, Style.P1, Style.INK, 4.0, 6.0)

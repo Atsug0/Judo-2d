@@ -575,18 +575,20 @@ func _draw_badge(ci: CanvasItem) -> void:
 ## Carte d'introduction de la leçon (au centre).
 func _draw_intro(ci: CanvasItem) -> void:
 	var t = clampf(phase_t / 14.0, 0.0, 1.0)
-	var r = Rect2(240, 190 + (1.0 - t) * 40.0, 800, 300)
+	var intro_lines = Rich.layout(lesson.intro, 690, 19)
+	var hgt = 200.0 + intro_lines.size() * 26.0
+	var r = Rect2(240, clampf(340.0 - hgt * 0.5, 110.0, 300.0) + (1.0 - t) * 40.0, 800, hgt)
 	ci.draw_rect(Rect2(0, 0, W, H), Color(0.04, 0.03, 0.1, 0.45 * t))
 	Style.panel(ci, r, Style.NIGHT_2, Style.GOOD, 4.0, 8.0)
 	var cat_name = ""
 	for c in Lessons.CATEGORIES:
 		if c.id == lesson.cat:
 			cat_name = c.name
-	Style.label(ci, r.position + Vector2(48, 40), "DOJO · %s" % cat_name, 15, Style.GOOD, "black")
-	Style.text(ci, r.position + Vector2(44, 96), String(lesson.title).to_upper(), 46, Style.PAPER, "display")
-	Rich.draw(ci, r.position + Vector2(48, 140), lesson.intro, 680, 19, Style.PAPER)
+	Style.label(ci, r.position + Vector2(48, 40), "DOJO · %s" % cat_name, 15, Style.GOOD, "black", HORIZONTAL_ALIGNMENT_LEFT, 690)
+	Style.text(ci, r.position + Vector2(44, 96), String(lesson.title).to_upper(), 46, Style.PAPER, "display", HORIZONTAL_ALIGNMENT_LEFT, 700)
+	Rich.draw_lines(ci, r.position + Vector2(48, 140), intro_lines, 19, Style.PAPER, 26.0)
 	Style.label(ci, Vector2(r.position.x + 48, r.end.y - 26), "%d ÉTAPES" % lesson.steps.size(), 14, Style.MUTED, "black")
-	var hx = r.end.x - 230
+	var hx = r.end.x - 250
 	Style.pad_button(ci, Vector2(hx, r.end.y - 31), "A", 13.0)
 	Style.label(ci, Vector2(hx + 22, r.end.y - 25), "COMMENCER", 16, Style.PAPER, "black")
 	Style.pad_button(ci, Vector2(hx + 150, r.end.y - 31), "B", 13.0)
@@ -599,8 +601,9 @@ func _draw_step_card(ci: CanvasItem) -> void:
 	var x = 24.0
 	var y = 200.0
 	var w = 440.0
-	var lines = Rich.layout(st.text, w - 48, 19)
-	var tip_lines: Array = Rich.layout(st.tip, w - 48, 15) if st.tip != "" else []
+	var tw = w - 76.0  # marge gauche + coin incliné à droite
+	var lines = Rich.layout(st.text, tw, 19)
+	var tip_lines: Array = Rich.layout(st.tip, tw, 15) if st.tip != "" else []
 	var hgt = 96.0 + lines.size() * 26.0 + (tip_lines.size() * 20.0 + 14.0 if not tip_lines.is_empty() else 0.0)
 	if int(st.count) > 1:
 		hgt += 30.0
@@ -608,8 +611,8 @@ func _draw_step_card(ci: CanvasItem) -> void:
 		hgt += 22.0
 	var r = Rect2(x, y, w, hgt)
 	Style.panel(ci, r, Color(Style.NIGHT_2, 0.94), Style.GOOD if phase == "success" else Style.P1, 4.0, 6.0)
-	Style.label(ci, Vector2(x + 30, y + 26), "ÉTAPE %d / %d  ·  %s" % [step_i + 1, lesson.steps.size(), String(lesson.title).to_upper()], 13, Style.MUTED, "black")
-	Style.text(ci, Vector2(x + 26, y + 62), String(st.title).to_upper(), 30, Style.P1, "display")
+	Style.label(ci, Vector2(x + 30, y + 26), "ÉTAPE %d / %d  ·  %s" % [step_i + 1, lesson.steps.size(), String(lesson.title).to_upper()], 13, Style.MUTED, "black", HORIZONTAL_ALIGNMENT_LEFT, tw)
+	Style.text(ci, Vector2(x + 26, y + 62), String(st.title).to_upper(), 30, Style.P1, "display", HORIZONTAL_ALIGNMENT_LEFT, tw)
 	var yy = y + 92.0
 	Rich.draw_lines(ci, Vector2(x + 30, yy), lines, 19, Style.PAPER, 26.0)
 	yy += lines.size() * 26.0
@@ -624,7 +627,7 @@ func _draw_step_card(ci: CanvasItem) -> void:
 		yy += 22.0
 	if not tip_lines.is_empty():
 		yy += 8.0
-		ci.draw_line(Vector2(x + 30, yy), Vector2(x + w - 40, yy), Style.NIGHT_3, 2.0)
+		ci.draw_line(Vector2(x + 30, yy), Vector2(x + w - 50, yy), Style.NIGHT_3, 2.0)
 		Rich.draw_lines(ci, Vector2(x + 30, yy + 20), tip_lines, 15, Style.MUTED, 20.0)
 
 
@@ -642,10 +645,10 @@ func _draw_done(ci: CanvasItem) -> void:
 	ci.draw_rect(Rect2(0, 0, W, H), Color(0.04, 0.03, 0.1, 0.55 * t))
 	var r = Rect2(300, 200, 680, 250)
 	Style.panel(ci, r, Style.GOOD, Style.INK, 5.0, 10.0)
-	Style.text(ci, Vector2(r.position.x, r.position.y + 92), "LEÇON TERMINÉE", 60, Style.INK, "display", HORIZONTAL_ALIGNMENT_CENTER, r.size.x, 2, -1.0)
-	Style.label(ci, Vector2(r.position.x, r.position.y + 132), String(lesson.title).to_upper(), 20, Style.INK, "black", HORIZONTAL_ALIGNMENT_CENTER, r.size.x)
+	Style.text(ci, Vector2(r.position.x + 30, r.position.y + 92), "LEÇON TERMINÉE", 60, Style.INK, "display", HORIZONTAL_ALIGNMENT_CENTER, r.size.x - 60, 2, -1.0)
+	Style.label(ci, Vector2(r.position.x + 30, r.position.y + 132), String(lesson.title).to_upper(), 20, Style.INK, "black", HORIZONTAL_ALIGNMENT_CENTER, r.size.x - 60)
 	var items = [["A", "LEÇON SUIVANTE"], ["X", "RECOMMENCER"], ["B", "DOJO"]]
-	var x = r.position.x + 70
+	var x = r.position.x + 60
 	for it in items:
 		Style.pad_button(ci, Vector2(x, r.end.y - 50), it[0], 14.0)
 		Style.label(ci, Vector2(x + 24, r.end.y - 43), it[1], 18, Style.INK, "black")
@@ -653,11 +656,11 @@ func _draw_done(ci: CanvasItem) -> void:
 
 
 func _draw_training_card(ci: CanvasItem) -> void:
-	var r = Rect2(24, 200, 360, 96)
+	var r = Rect2(24, 200, 380, 100)
 	Style.panel(ci, r, Color(Style.NIGHT_2, 0.9), Style.GOOD, 3.0, 5.0)
 	Style.label(ci, Vector2(r.position.x + 28, r.position.y + 28), "PARTENAIRE", 13, Style.MUTED, "black")
-	Style.text(ci, Vector2(r.position.x + 26, r.position.y + 60), Partner.NAMES.get(partner.mode, partner.mode).to_upper(), 24, Style.GOOD, "display")
-	Rich.draw(ci, Vector2(r.position.x + 28, r.position.y + 84), "Pause : réglages · View : replacer", 320, 13, Style.MUTED)
+	Style.text(ci, Vector2(r.position.x + 26, r.position.y + 60), Partner.NAMES.get(partner.mode, partner.mode).to_upper(), 24, Style.GOOD, "display", HORIZONTAL_ALIGNMENT_LEFT, r.size.x - 70)
+	Style.label(ci, Vector2(r.position.x + 28, r.position.y + 86), "Pause : réglages · View : replacer", 13, Style.MUTED, "bold", HORIZONTAL_ALIGNMENT_LEFT, r.size.x - 70)
 
 
 ## Données d'entraînement (à droite) : kuzushi du partenaire, réaction, et ce que donne chaque bouton.
@@ -681,18 +684,18 @@ func _draw_data(ci: CanvasItem, sim) -> void:
 	elif u.follow_t > 0:
 		react_txt = "IL SUIT → balaye son pied"
 	if react_txt != "":
-		Style.label(ci, Vector2(x + 26, y + 130), react_txt, 13, Style.GOLD, "black")
+		Style.label(ci, Vector2(x + 30, y + 130), react_txt, 13, Style.GOLD, "black", HORIZONTAL_ALIGNMENT_LEFT, 360)
 	# boutons
 	var bx = x + 26
 	for k in Readout.BUTTONS.size():
 		var pr = Readout.predict(sim, 0, Readout.BUTTONS[k][1])
 		var yy2 = y + 146 + k * 22
 		Style.pad_button(ci, Vector2(bx + 10, yy2 + 8), Readout.BUTTONS[k][0], 10.0)
-		Style.label(ci, Vector2(bx + 30, yy2 + 13), String(pr.name).to_upper(), 13, Style.PAPER, "black")
+		Style.label(ci, Vector2(bx + 30, yy2 + 13), String(pr.name).to_upper(), 13, Style.PAPER, "black", HORIZONTAL_ALIGNMENT_LEFT, 160)
 		var oc = Readout.outcome_label(pr.outcome)
 		if pr.counter_risk and pr.outcome in ["stoppe", "expose"]:
 			oc += " · CONTRE !"
-		Style.label(ci, Vector2(x + 220, yy2 + 13), oc, 13, Readout.outcome_color(pr.outcome), "black")
+		Style.label(ci, Vector2(x + 220, yy2 + 13), oc, 13, Readout.outcome_color(pr.outcome), "black", HORIZONTAL_ALIGNMENT_LEFT, 170)
 
 
 ## Affichage des entrées (bas gauche) : manette en direct + historique.
