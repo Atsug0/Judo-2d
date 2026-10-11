@@ -9,6 +9,9 @@ const Tournament := preload("res://scripts/tournament.gd")
 var app
 var frame = 0
 var t: Dictionary
+var anim_round = -1    # tour dont les résultats s'animent
+var anim = 1.0
+var celebrate = false  # écran du champion
 
 
 func on_enter(params: Dictionary) -> void:
@@ -16,18 +19,30 @@ func on_enter(params: Dictionary) -> void:
 		app.session.tournament = Tournament.create(params.get("build", Build.load_all()[0]), int(Time.get_unix_time_from_system()) % 100000 if not app.capture_mode else 7)
 	t = app.session.tournament
 	if app.capture_mode and app.args.has("demo_round"):
-		# capture : simule une progression jusqu'en demi-finale
-		Tournament.record(t, true)
+		# capture : simule une progression (demi-finale, ou victoire finale avec --demo_round=3)
+		for k in int(app.args.demo_round):
+			if not t.done:
+				Tournament.record(t, true)
+	if t.has("fresh"):
+		anim_round = int(t.fresh)
+		anim = 0.0
+		t.erase("fresh")
+	celebrate = t.done and t.champion >= 0 and t.players[t.champion].human
 
 
 func tick() -> void:
 	frame += 1
+	if anim < 1.0:
+		anim = minf(1.0, anim + 1.0 / 50.0)
 	queue_redraw()
 
 
 func nav(action: String, _player: int = 0) -> void:
 	match action:
 		"accept":
+			if celebrate:
+				celebrate = false
+				return
 			if t.done:
 				app.session.tournament = {}
 				app.goto("menu", {})
@@ -49,6 +64,9 @@ func _draw() -> void:
 	Style.header(self, "TOURNOI", "Élimination directe · 8 combattants", Style.GOLD)
 	_draw_bracket()
 	_draw_next_card()
+	if celebrate:
+		_draw_champion()
+		return
 	if t.done:
 		Style.hints(self, [["A", "Terminer"], ["B", "Menu"]])
 	else:
@@ -79,6 +97,12 @@ func _draw_bracket() -> void:
 			for side in 2:
 				var pi: int = m.a if side == 0 else m.b
 				var rect = _slot_rect(r, mi * 2 + side)
+				if r == anim_round + 1 and anim < 1.0:
+					# nouveaux qualifiés : ils glissent depuis le tour précédent
+					var e2 = clampf(anim * 1.4 - 0.3, 0.0, 1.0)
+					if e2 <= 0.0:
+						continue
+					rect.position.x -= (1.0 - e2 * e2 * (3.0 - 2.0 * e2)) * 120.0
 				_draw_player_slot(rect, t.players[pi], m.winner, pi)
 			# connecteur vers le tour suivant
 			var ra = _slot_rect(r, mi * 2)
@@ -91,7 +115,14 @@ func _draw_bracket() -> void:
 			if m.winner >= 0:
 				col = Style.GOLD if t.players[m.winner].human else Style.MUTED
 			draw_polyline(PackedVector2Array([Vector2(xr, ya), Vector2(xm, ya), Vector2(xm, yb), Vector2(xr, yb)]), col, 3.0)
-			draw_line(Vector2(xm, (ya + yb) * 0.5), Vector2(xm + 16, (ya + yb) * 0.5), col, 3.0)
+			var reach = 16.0
+			if r == anim_round and m.winner >= 0:
+				# le vainqueur avance : le trait part vers le tour suivant
+				reach = 16.0 + 0.0 * anim
+				var e = clampf(anim * 1.6, 0.0, 1.0)
+				var wy = ya if m.winner == m.a else yb
+				draw_line(Vector2(xr, wy), Vector2(xm, wy), Style.PAPER if t.players[m.winner].human else col, 5.0 * (1.0 - e) + 3.0)
+			draw_line(Vector2(xm, (ya + yb) * 0.5), Vector2(xm + reach, (ya + yb) * 0.5), col, 3.0)
 	# champion
 	var cr = Rect2(790, 368, 200, 70)
 	var champ = "?"
@@ -117,7 +148,9 @@ func _draw_player_slot(r: Rect2, p: Dictionary, winner: int, pi: int) -> void:
 	Style.panel(self, r, fill, border, 3.0, 4.0 if not lost else 0.0, 0.18)
 	Style.label(self, Vector2(r.position.x + 20, r.position.y + 29), p.name, 20, tcol, "black")
 	if not lost:
-		Style.label(self, Vector2(r.position.x + 20, r.position.y + 29), p.tag.to_upper() if not p.human else "TOI", 11, tcol if p.human else Style.MUTED, "black", HORIZONTAL_ALIGNMENT_RIGHT, r.size.x - 40)
+		var nw2 = Style.text_width(p.name, 20, "black")
+		var tw = maxf(20.0, r.size.x - 50 - nw2)
+		Style.label(self, Vector2(r.end.x - 24 - tw, r.position.y + 28), p.tag.to_upper() if not p.human else "TOI", 11, tcol if p.human else Style.MUTED, "black", HORIZONTAL_ALIGNMENT_RIGHT, tw)
 	if lost:
 		var nw = Style.text_width(p.name, 20, "black")
 		draw_line(Vector2(r.position.x + 14, r.get_center().y - 2), Vector2(r.position.x + 26 + nw, r.get_center().y - 2), Style.DANGER, 2.5)
@@ -178,3 +211,37 @@ func _draw_next_card() -> void:
 		Style.label(self, Vector2(r.position.x + 24, y), l[0], 13, Style.MUTED, "black")
 		Style.label(self, Vector2(r.position.x + 24, y), str(l[1]).to_upper(), 14, Style.PAPER, "black", HORIZONTAL_ALIGNMENT_RIGHT, r.size.x - 56)
 		y += 24
+
+
+## Écran du champion : trophée, confettis, judoka poing levé.
+func _draw_champion() -> void:
+	draw_rect(Rect2(0, 0, 1280, 720), Color(0.04, 0.03, 0.1, 0.82))
+	Style.speed_lines(self, Vector2(640, 330), 120, 760, 46, Color(Style.GOLD, 0.22), 21)
+	# confettis (déterministes, ils tombent en boucle)
+	var cols = [Style.GOLD, Style.HOT, Style.P2, Style.GOOD, Style.PAPER]
+	for k in 90:
+		var sx = float((k * 7919) % 1280)
+		var sp = 1.2 + float((k * 31) % 17) / 10.0
+		var y = fmod(float(k * 53) + frame * sp, 760.0) - 30.0
+		var x = sx + sin(frame * 0.05 + k) * 14.0
+		var c: Color = cols[k % cols.size()]
+		draw_set_transform(Vector2(x, y), frame * 0.08 + k, Vector2.ONE)
+		draw_rect(Rect2(-5, -3, 10, 6), c)
+		draw_set_transform(Vector2.ZERO)
+	var me: Dictionary = t.players[t.champion]
+	var feet = Vector2(420, 640)
+	var xf = Art.stand_xform(feet, 1, 0.0, 3.4, 0.0)
+	var pal = Art.palette(0, me.get("build", {}).get("look", {}))
+	Art.shadow(self, feet + Vector2(0, 2), 3.4, 0.45)
+	Art.draw_arm(self, xf * Art.SHOULDER_BACK, xf * Vector2(-12, -126), pal, true, 3.4)
+	Art.draw_body(self, xf, pal, 0.3)
+	Art.draw_arm(self, xf * Art.SHOULDER_FRONT, xf * Vector2(16, -128), pal, false, 3.4)
+	draw_set_transform(Vector2(830, 330), 0.0, Vector2(2.4, 2.4))
+	_draw_trophy(Vector2.ZERO, true)
+	draw_set_transform(Vector2.ZERO)
+	var r = Rect2(640, 470, 520, 100)
+	Style.panel(self, r, Style.GOLD, Style.INK, 5.0, 10.0)
+	Style.text(self, Vector2(r.position.x, r.position.y + 74), "CHAMPION !", 72, Style.INK, "display", HORIZONTAL_ALIGNMENT_CENTER, r.size.x, 2, -1.0)
+	Style.label(self, Vector2(r.position.x, r.end.y + 34), "%s REMPORTE LE TOURNOI" % String(me.name).to_upper(), 22, Style.PAPER, "black", HORIZONTAL_ALIGNMENT_CENTER, r.size.x)
+	Style.hints(self, [["A", "Voir le tableau"]])
+

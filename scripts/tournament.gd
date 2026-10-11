@@ -96,6 +96,7 @@ static func ai_level(t: Dictionary) -> int:
 
 ## Enregistre le résultat du joueur, résout les autres combats et passe au tour suivant.
 static func record(t: Dictionary, human_won: bool) -> void:
+	t.fresh = t.round  # tour qui vient d'être décidé (animation du tableau)
 	var rng = t.seed * 31 + t.round * 7
 	for m in t.rounds[t.round]:
 		var pa: Dictionary = t.players[m.a]
