@@ -40,12 +40,58 @@ static func _actor(pos: Vector2, rot: float, face: int, pose: Dictionary) -> Dic
 	return {"pos": pos, "rot": rot, "face": face, "pose": pose}
 
 
+## Chorégraphies issues de vidéos (rotoscopie → tools/mocap/retarget.py → data/anims/<tech>.json).
+static var _mocap := {}
+
+
+static func _mocap_data(tech: String):
+	if not _mocap.has(tech):
+		var path := "res://data/anims/%s.json" % tech
+		_mocap[tech] = null
+		if FileAccess.file_exists(path):
+			var f := FileAccess.open(path, FileAccess.READ)
+			var data = JSON.parse_string(f.get_as_text())
+			if typeof(data) == TYPE_DICTIONARY and data.has("keys"):
+				_mocap[tech] = data
+	return _mocap[tech]
+
+
+static func has_mocap(tech: String) -> bool:
+	return _mocap_data(tech) != null
+
+
+static func _vec(a) -> Vector2:
+	return Vector2(float(a[0]), float(a[1]))
+
+
+## Clés d'une chorégraphie filmée, mises à l'échelle de la distance du combat
+## (les x sont étirés de d / d0) et précédées de la garde du jeu.
+static func _mocap_keys(data: Dictionary, d: float, k0: Dictionary) -> Array:
+	var sx: float = d / maxf(1.0, float(data.d0))
+	var out := [k0]
+	for k in data.keys:
+		var key := {"p": float(k.p), "lin": true}
+		for who in ["tori", "uke"]:
+			var a: Dictionary = k[who]
+			var pose := {}
+			for name in a.pose:
+				var v = a.pose[name]
+				pose[name] = _vec(v) if typeof(v) == TYPE_ARRAY else float(v)
+			var pos := _vec(a.pos)
+			key[who] = _actor(Vector2(pos.x * sx, pos.y), float(a.rot), int(a.face), pose)
+		out.append(key)
+	return out
+
+
 ## Images clés d'une technique. d = distance initiale entre les pieds (unités).
 static func keys(tech: String, d: float) -> Array:
 	var stand = Art.pose_stand(0.5)
 	var uke_stand = Art.pose_stand(0.4)
 	var lying = _p(Vector2(0, -47), 0.0, Vector2(-8, -6), Vector2(10, -8), Vector2(10, -44), Vector2(24, -64), 0.2)
 	var k0 = {"p": 0.0, "tori": _actor(Vector2(0, -47), 0.0, 1, stand), "uke": _actor(Vector2(d, -47), 0.0, -1, uke_stand)}
+	var mc = _mocap_data(tech)
+	if mc != null:
+		return _mocap_keys(mc, d, k0)
 	match family(tech):
 		"fauche":
 			return _keys_fauche(tech, d, k0, lying)
@@ -169,7 +215,8 @@ static func sample(ks: Array, p: float) -> Dictionary:
 			break
 	var span: float = maxf(0.0001, b.p - a.p)
 	var t: float = (p - a.p) / span
-	t = t * t * (3.0 - 2.0 * t)
+	if not b.get("lin", false):
+		t = t * t * (3.0 - 2.0 * t)  # clés dessinées : accélération / décélération ; clés filmées : linéaire
 	var out = {}
 	for who in ["tori", "uke"]:
 		var x: Dictionary = a[who]

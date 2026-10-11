@@ -112,6 +112,28 @@ godot --path . -- --screen=bake --capture=/tmp/x
 godot --path . -- --screen=match --sprites=placeholder
 ```
 
+## Raccourci : une vidéo → la technique animée dans le jeu (sans Blender)
+
+Première technique faite ainsi : **uchi-mata** (vidéo « Uchi-mata - Demo », utilisée avec accord).
+
+1. Repérer la technique dans la vidéo et extraire les images à 12 i/s.
+2. Rotoscopie : pour chaque image clé, noter en pixels la tête, la base du cou, le bassin,
+   genoux, chevilles et poignets de tori et d'uke (côté caméra / côté opposé), et le sens du regard.
+   Exemple complet : `tools/mocap/uchi_mata_annot.json`.
+3. Reporter sur le squelette du jeu (on garde les angles, pas les longueurs, pour respecter
+   les proportions du dessin) :
+
+   ```
+   python3 tools/mocap/retarget.py tools/mocap/uchi_mata_annot.json
+   ```
+
+   Écrit `data/anims/uchi_mata.json`. Le jeu l'utilise automatiquement à la place de la
+   chorégraphie dessinée (`scripts/view/throw_anims.gd`). Planche de contrôle :
+   `godot --path . -- --screen=art --anim=uchi_mata`.
+4. Pour la 3D : `blender --python tools/blender/import_mocap.py -- --anim data/anims/uchi_mata.json`
+   crée deux mannequins articulés animés (collections TORI / UKE), avec une armature par
+   judoka à reprendre sur un vrai modèle riggé, puis `render_sprites.py` comme ci-dessus.
+
 ## Noms des animations attendues
 
 | Animation | Contenu | Images |

@@ -90,14 +90,29 @@ func _draw_ground() -> void:
 func _draw_anim(tech: String) -> void:
 	var ks: Array = Anims.keys(tech, 54.0)
 	var steps = [0.0, 0.15, 0.3, 0.45, 0.55, 0.68, 0.82, 1.0]
+	var cols := 4
 	var sc = 1.25
+	if Anims.has_mocap(tech):
+		# chorégraphie filmée : une case par image clé
+		steps = []
+		for k in ks:
+			steps.append(float(k.p))
+		cols = 7
+		sc = 0.95
+		if app != null and app.args.has("from"):
+			# gros plan sur quelques clés : --from=i --count=n
+			var i0 := int(app.args.from)
+			steps = steps.slice(i0, i0 + int(app.args.get("count", "4")))
+			cols = steps.size()
+			sc = 1.9
+	var cw := 1240.0 / cols
 	for k in steps.size():
-		var col = k % 4
-		var row = k / 4
-		var cell = Rect2(20 + col * 312, 150 + row * 280, 300, 268)
+		var col = k % cols
+		var row = k / cols
+		var cell = Rect2(20 + col * cw, 150 + row * 280, cw - 12, 268)
 		draw_rect(cell, Color(0, 0, 0, 0.25))
 		draw_line(Vector2(cell.position.x + 10, cell.end.y - 30), Vector2(cell.end.x - 10, cell.end.y - 30), Style.MAT_COMBAT, 3.0)
-		var frame = Transform2D(0.0, Vector2(sc, sc), 0.0, Vector2(cell.position.x + 90, cell.end.y - 30))
+		var frame = Transform2D(0.0, Vector2(sc, sc), 0.0, Vector2(cell.position.x + cw * 0.42, cell.end.y - 30))
 		var smp: Dictionary = Anims.sample(ks, steps[k])
 		var fam = Anims.family(tech)
 		var order = ["tori", "uke"] if fam == "sacrifice" else ["uke", "tori"]
