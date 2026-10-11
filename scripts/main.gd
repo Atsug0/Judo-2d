@@ -91,7 +91,7 @@ func _ready() -> void:
 				_demo = d.get("steps", [])
 	var start: String = args.get("screen", "title")
 	var params := {}
-	if start == "match":
+	if start == "match" or start == "vs":
 		params = default_match_params()
 	if args.has("lesson") or args.has("training"):
 		start = "match"
@@ -106,9 +106,13 @@ func default_match_params() -> Dictionary:
 	var pads := Input.get_connected_joypads()
 	var c1 := "pad0" if pads.size() >= 1 and not capture_mode else "ai"
 	var c2 := "pad1" if pads.size() >= 2 and not capture_mode else "ai"
-	var bs: Array = preload("res://scripts/build.gd").defaults()
-	var b1: Dictionary = bs[int(args.get("p1build", "0"))]
-	var b2: Dictionary = bs[int(args.get("p2build", "1"))]
+	var BuildS = preload("res://scripts/build.gd")
+	var bs: Array = BuildS.defaults()
+	# --p1build / --p2build : indice d'un build par défaut, ou identifiant de légende (ex. lame, mur)
+	var a1: String = String(args.get("p1build", "0"))
+	var a2: String = String(args.get("p2build", "1"))
+	var b1: Dictionary = bs[int(a1)] if a1.is_valid_int() else BuildS.find(a1)
+	var b2: Dictionary = bs[int(a2)] if a2.is_valid_int() else BuildS.find(a2)
 	return {"controllers": [c1, c2], "names": [b1.name, b2.name], "tokui": [b1.slots.tokui[0], b2.slots.tokui[0]], "builds": [b1, b2],
 		"sprites": String(args.get("sprites", "")), "seed": int(args.get("seed", "3")), "level": int(args.get("level", str(preload("res://scripts/settings.gd").value("ai_level")))), "mode": "demo"}
 

@@ -195,6 +195,8 @@ func _step_sim() -> void:
 		e.t += 1
 	if sim.state.phase == "ended":
 		end_timer += 1
+		if end_timer == 119 and not sim.state.throw.is_empty():
+			replay_ok = true  # combat fini sur une projection (ippon ou deuxième waza-ari)
 		if end_timer == 120 and replay_ok and not replay_done and (app == null or not app.capture_mode or app.args.has("replay")):
 			_start_replay()
 			return
