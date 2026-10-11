@@ -3,6 +3,7 @@ extends Node2D
 ## techniques (15 points), garde et style, profil physique. Plusieurs judokas par joueur.
 
 const Style := preload("res://scripts/ui/style.gd")
+const Records := preload("res://scripts/records.gd")
 const Rich := preload("res://scripts/ui/rich.gd")
 const Art := preload("res://scripts/view/fighter_art.gd")
 const Build := preload("res://scripts/build.gd")
@@ -336,14 +337,27 @@ func _draw_profile(b: Dictionary) -> void:
 	var iy = pr.position.y + 124
 	for it in info:
 		Style.label(self, Vector2(tx, iy), it[0], 12, Style.MUTED, "black")
-		Style.label(self, Vector2(tx, iy + 20), String(it[1]).to_upper(), 17, Style.PAPER, "black")
-		iy += 44
+		Style.label(self, Vector2(tx, iy + 19), String(it[1]).to_upper(), 17, Style.PAPER, "black", HORIZONTAL_ALIGNMENT_LEFT, 205)
+		iy += 36
 	for st in cat.physique.stats:
 		var v: int = b.physique[st.id]
 		Style.label(self, Vector2(tx, iy + 2), String(st.name).substr(0, 4).to_upper(), 11, Style.MUTED, "black")
 		for s2 in 10:
 			draw_rect(Rect2(tx + 44 + s2 * 15, iy - 8, 12, 10), Style.P2 if s2 < v else Style.NIGHT)
-		iy += 18
+		iy += 16
+	# palmarès
+	var rec: Dictionary = Records.of(String(b.get("id", "")))
+	var py = iy + 8
+	Style.label(self, Vector2(tx, py), "PALMARÈS", 12, Style.MUTED, "black")
+	if int(rec.m) == 0:
+		Style.label(self, Vector2(tx, py + 22), "AUCUN COMBAT", 15, Style.MUTED, "black")
+	else:
+		Style.label(self, Vector2(tx, py + 22), "%d V · %d D · %d %%" % [rec.w, rec.l, Records.win_rate(rec)], 17, Style.GOLD, "black", HORIZONTAL_ALIGNMENT_LEFT, 200)
+		var fav = Records.favorite(rec)
+		var fav_txt = "%d IPPON · SÉRIE %d" % [rec.ippon, rec.best]
+		if fav != "":
+			fav_txt += " · " + String(Build.entry("technique", fav).get("name", fav)).to_upper()
+		Style.label(self, Vector2(tx, py + 42), fav_txt, 12, Style.PAPER, "black", HORIZONTAL_ALIGNMENT_LEFT, 205)
 
 
 func _draw_keyboard() -> void:

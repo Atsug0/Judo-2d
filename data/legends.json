@@ -375,9 +375,9 @@
         ],
         "main": [
           "sasae_tsurikomi_ashi",
-          "harai_goshi",
           "ko_uchi_gari",
-          ""
+          "o_uchi_gari",
+          "tai_otoshi"
         ],
         "combo": [
           "de_ashi_harai",

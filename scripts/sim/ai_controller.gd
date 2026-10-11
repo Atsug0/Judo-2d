@@ -288,7 +288,9 @@ func think(sim) -> Array:
 			best_dir = sim.techs[id].dir
 	var thr := threshold - 1200 + _rand(1400) + level * 250
 	# Pression de la passivité : plus le shido approche, moins on est exigeant.
-	var urgency: int = f.passive_t - (cfg.passivity_ticks - 900)
+	var urgency: int = f.passive_t - ((cfg.passivity_ticks / 2 if s.golden else cfg.passivity_ticks) - 900)
+	if s.golden:
+		thr -= 600  # golden score : on prend plus de risques
 	if urgency > 0:
 		thr -= urgency * 5
 		if urgency > 600 and _rand(100) < 5:
@@ -299,7 +301,7 @@ func think(sim) -> Array:
 	elif btn_urgent:
 		btn = _safe_button(sim, f, o)  # attaque de sécurité pour éviter le shido
 		btn_urgent = false
-	elif best_score > thr - 3000 and f.set.combos.size() > 0 and _rand(1000) < 8 + 4 * level:
+	elif best_score > thr - 2000 and f.set.combos.size() > 0 and _rand(1000) < 3 + 2 * level:
 		# ouvre avec le début d'un enchaînement équipé
 		var first: String = f.set.combos[_rand(f.set.combos.size())][0]
 		for b in [Sim.BA, Sim.BX, Sim.BY]:

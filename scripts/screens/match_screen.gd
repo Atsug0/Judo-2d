@@ -99,6 +99,10 @@ func on_enter(p: Dictionary) -> void:
 	stats = [_new_stats(), _new_stats()]
 	cfg = GameData.load_json("res://data/config.json")
 	techs = GameData.load_json("res://data/techniques.json")
+	if not p.has("dojo") and app != null and not app.capture_mode:
+		# règles choisies dans les options (durée, golden score limité)
+		cfg.match_ticks = int(Settings.value("match_minutes")) * 3600
+		cfg.golden_limit_ticks = int(Settings.value("golden_limit")) * 3600
 	controllers = p.get("controllers", ["ai", "ai"])
 	names = p.get("names", ["HUGO", "KENJI"])
 	var tokui: Array = p.get("tokui", ["seoi_nage", "o_soto_gari"])
@@ -197,7 +201,7 @@ func _step_sim() -> void:
 		end_timer += 1
 		if end_timer == 119 and not sim.state.throw.is_empty():
 			replay_ok = true  # combat fini sur une projection (ippon ou deuxième waza-ari)
-		if end_timer == 120 and replay_ok and not replay_done and (app == null or not app.capture_mode or app.args.has("replay")):
+		if end_timer == 120 and replay_ok and not replay_done and Settings.value("replay") and (app == null or not app.capture_mode or app.args.has("replay")):
 			_start_replay()
 			return
 		if end_timer == 200 and app != null and not app.capture_mode and dojo == null:
@@ -247,7 +251,7 @@ func _pal(i: int) -> Dictionary:
 
 func _new_stats() -> Dictionary:
 	return {"attacks": 0, "throws": 0, "counters": 0, "breaks": 0, "feints": 0, "exposed": 0,
-		"blocks": 0, "shidos": 0, "kuzushi_max": 0, "method": ""}
+		"blocks": 0, "shidos": 0, "kuzushi_max": 0, "method": "", "scored": {}}
 
 
 func _consume_events() -> void:
@@ -267,6 +271,7 @@ func _consume_events() -> void:
 				"throw":
 					st.throws += 1
 					st.method = sim.tech_name(e.tech)
+					st.scored[e.tech] = int(st.scored.get(e.tech, 0)) + 1
 				"counter":
 					st.counters += 1
 				"break":

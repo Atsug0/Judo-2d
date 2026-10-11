@@ -7,6 +7,7 @@ const GameData := preload("res://scripts/game_data.gd")
 const Sim := preload("res://scripts/sim/match_sim.gd")
 const Ai := preload("res://scripts/sim/ai_controller.gd")
 const Tournament := preload("res://scripts/tournament.gd")
+const Records := preload("res://scripts/records.gd")
 
 var app
 var frame = 0
@@ -27,6 +28,8 @@ func on_enter(params: Dictionary) -> void:
 	stats = params.stats
 	match_params = params.get("match_params", {})
 	mode = match_params.get("mode", "demo")
+	if mode in ["tournament", "versus"] and not app.capture_mode:
+		_record()
 	if mode == "tournament" and not app.session.get("tournament", {}).is_empty():
 		Tournament.record(app.session.tournament, state.winner == 0)
 		items = ["CONTINUER", "MENU PRINCIPAL"]
@@ -34,6 +37,20 @@ func on_enter(params: Dictionary) -> void:
 		items = ["REVANCHE", "CHANGER DE BUILD", "MENU PRINCIPAL"]
 	else:
 		items = ["REJOUER", "MENU PRINCIPAL"]
+
+
+## Palmarès : chaque judoka garde son bilan (victoires, ippons, techniques).
+func _record() -> void:
+	var bs: Array = match_params.get("builds", [])
+	if bs.size() < 2 or typeof(bs[0]) != TYPE_DICTIONARY:
+		return
+	var ids = [String(bs[0].get("id", "")), String(bs[1].get("id", ""))]
+	var scored = [stats[0].get("scored", {}), stats[1].get("scored", {})]
+	var fs: Array = state.fighters
+	var ippon_by := -1
+	if state.winner >= 0 and String(state.win_reason).begins_with("Ippon"):
+		ippon_by = state.winner
+	Records.record(ids, state.winner, scored, [fs[0].waza, fs[1].waza], ippon_by)
 
 
 ## Combat IA contre IA joué instantanément (capture d'écran / démo).

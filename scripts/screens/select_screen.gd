@@ -5,6 +5,7 @@ extends Node2D
 ## Deux manettes : chacun choisit le sien. Mode « tournament » : un seul choix.
 
 const Style := preload("res://scripts/ui/style.gd")
+const Records := preload("res://scripts/records.gd")
 const Art := preload("res://scripts/view/fighter_art.gd")
 const Build := preload("res://scripts/build.gd")
 
@@ -200,6 +201,11 @@ func _draw_side(i: int) -> void:
 	Style.label(self, Vector2(x, y), " · ".join(techs.slice(0, 2)), 12, Style.PAPER, "bold")
 	if techs.size() > 2:
 		Style.label(self, Vector2(x, y + 16), " · ".join(techs.slice(2, 4)), 12, Style.PAPER, "bold")
+	# palmarès (combats joués en tournoi et en versus)
+	var rec: Dictionary = Records.of(String(b.get("id", "")))
+	if int(rec.m) > 0:
+		# en haut à droite de la fiche, sur la ligne du joueur
+		Style.label(self, Vector2(r.position.x, r.position.y + 28), "%d V · %d D" % [rec.w, rec.l], 13, Style.GOLD, "black", HORIZONTAL_ALIGNMENT_RIGHT, r.size.x - 22)
 	if b.has("inspiration"):
 		_wrap_label("Inspiré : " + String(b.inspiration), Vector2(x, r.end.y - 34), r.size.x - 40, 11, Style.MUTED)
 	if is_ready[i]:

@@ -102,7 +102,7 @@ func _new_fighter(id: int, fname: String, loadout) -> Dictionary:
 		"defend_t": 0, "break_cd": 0,
 		"combo_t": 0, "combo_next": "",
 		"waza": 0, "ippon": 0, "shidos": 0, "passive_t": 0, "feints": [],
-		"last_move": 0, "last_score": 0, "nogrip_t": 0,
+		"last_move": 0, "last_score": 0, "nogrip_t": 0, "attacks_n": 0,
 		"react": 0, "resist_t": 0, "follow_t": 0,
 		"stick_t": 0, "dash_t": 0, "dash_dir": 0, "dash_cd": 0, "fast_reach_t": 0,
 		"mods": {},
@@ -163,7 +163,7 @@ func _make_set(loadout) -> Dictionary:
 func _make_mods(f: Dictionary) -> Dictionary:
 	var ph: Dictionary = f.physique
 	var m := {
-		"entry_delta": clampi(5 - int(ph.explosivite), -3, 3),
+		"entry_delta": clampi((5 - int(ph.explosivite)) * 2 / 3, -3, 3),
 		"stamina_pct": 80 + 4 * int(ph.endurance),
 		"recover_pct": 70 + 6 * int(ph.endurance),
 		"pull_pct": 100 + (int(ph.poigne) - 5) * 4,
@@ -243,6 +243,9 @@ func _tick_clock() -> bool:
 	var s := state
 	if s.golden:
 		s.clock += 1
+		if int(cfg.get("golden_limit_ticks", 0)) > 0 and s.clock >= int(cfg.golden_limit_ticks):
+			_hantei()
+			return false
 	else:
 		s.clock -= 1
 		if s.clock <= 0:
@@ -502,7 +505,7 @@ func _update_dominance() -> void:
 				r[i] += int(cfg.dom_gain[tname]) * settle / 100 * (40 + hand.trig * 60 / 100) / 100
 		r[i] = r[i] * f.mods.dom_pct / 100
 	var d: int = state.dom
-	d += (r[0] - r[1]) * 3
+	d += (r[0] - r[1]) * cfg.dom_rate
 	d -= d * cfg.dom_decay_permille / 1000
 	state.dom = clampi(d, -10000, 10000)
 
@@ -535,7 +538,13 @@ func _apply_pull(i: int, inp: Array) -> void:
 			force += cfg.pull_force_per_hand * hand.trig / 100 * cfg.grip_pull_mult[tname] / 100 * settle / 100
 	if force == 0:
 		return
-	force = force * (5000 + f.stamina * 5000 / f.stamina_max) / 10000
+	force = force * (cfg.pull_tired_pct * 100 + f.stamina * (100 - cfg.pull_tired_pct) * 100 / f.stamina_max) / 10000
+	# cadre de l'adversaire : ses propres prises profondes le gardent solide sur ses appuis
+	var frame := 0
+	for oh in o.hands:
+		if oh.state == HAND_GRIP:
+			frame += cfg.frame_per_hand * oh.q / 10000
+	force = force * (100 - frame) / 100
 	force = force * f.mods.pull_pct / 100
 	force = force * (100 + dom_of(i) * cfg.dom_kuzushi_pct / 10000) / 100
 	# Repère de l'adversaire : « avant » = vers l'attaquant.
@@ -582,6 +591,9 @@ func _kuzushi_on(i: int, kx: int, ky: int) -> void:
 			events.append({"type": "resist", "who": 1 - i})
 		o.resist_t = 12
 	var bmax: int = cfg.balance_max
+	# un déséquilibre se construit : vitesse plafonnée par tick (il faut tenir la traction)
+	kx = clampi(kx, -cfg.bal_rate_max, cfg.bal_rate_max)
+	ky = clampi(ky, -cfg.bal_rate_max, cfg.bal_rate_max)
 	o.bal_x = clampi(o.bal_x + kx, -bmax, bmax)
 	o.bal_y = clampi(o.bal_y + ky, -bmax, bmax)
 
@@ -729,6 +741,7 @@ func _update_attack(i: int, inp: Array) -> void:
 			f.passive_t = 0
 			f.stamina = maxi(0, f.stamina - tech.stamina)
 			events.append({"type": "attack", "who": i, "tech": atk.tech, "combo": atk.combo})
+			f.attacks_n += 1
 	elif o.defend_t > 0 and not atk.blocked:
 		var dv := dir_value(1 - i, tech.dir)
 		if tech.counter != "" and o.set.counters.has(tech.counter) and dv < cfg.counter_threshold:
@@ -843,7 +856,7 @@ func attack_score(i: int, tech_id: String, blocked: bool = false, combo: bool = 
 	score += f.mods.style_bonus
 	score += dom_of(i) * cfg.dom_score / 10000
 	var o: Dictionary = state.fighters[1 - i]
-	if is_sweep(tech_id) and (o.follow_t > 0 or o.dash_t > 0):
+	if is_sweep(tech_id) and (o.follow_t > 0 or o.dash_t > 0 or absi(o.last_move) * 3 > cfg.move_speed):
 		# sur le pas : d'autant plus efficace que son pied est en mouvement
 		score += cfg.sweep_timing_bonus * mini(absi(o.last_move), cfg.move_speed) / cfg.move_speed
 	if combo:
@@ -1276,7 +1289,8 @@ func _update_rules(i: int) -> void:
 			if state.phase != "fight":
 				return
 	f.passive_t += 1
-	if f.passive_t >= cfg.passivity_ticks:
+	# golden score : la passivité est sanctionnée deux fois plus vite
+	if f.passive_t >= (cfg.passivity_ticks / 2 if state.golden else cfg.passivity_ticks):
 		f.passive_t = 0
 		_shido(i, "Passivité")
 		if state.phase != "fight":
@@ -1298,6 +1312,8 @@ func _shido(i: int, reason: String) -> void:
 
 
 func _time_up() -> void:
+	if state.phase == "ended":
+		return  # décision déjà rendue (golden score limité)
 	var fs: Array = state.fighters
 	if fs[0].waza != fs[1].waza:
 		var w := 0 if fs[0].waza > fs[1].waza else 1
@@ -1310,6 +1326,21 @@ func _time_up() -> void:
 	events.append({"type": "golden"})
 	_announce("GOLDEN SCORE")
 	_set_phase("matte")
+
+
+## Décision (hantei) à la fin d'un golden score limité : moins de shidos, puis plus
+## d'attaques engagées, puis domination du kumikata.
+func _hantei() -> void:
+	var fs: Array = state.fighters
+	var w := -1
+	if fs[0].shidos != fs[1].shidos:
+		w = 0 if fs[0].shidos < fs[1].shidos else 1
+	elif fs[0].attacks_n != fs[1].attacks_n:
+		w = 0 if fs[0].attacks_n > fs[1].attacks_n else 1
+	else:
+		w = 0 if state.dom >= 0 else 1
+	_end(w, "Décision (hantei)")
+	_announce("HANTEI")
 
 
 func _end(winner: int, reason: String) -> void:

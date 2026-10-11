@@ -4,13 +4,16 @@ extends Node2D
 const Style := preload("res://scripts/ui/style.gd")
 const Settings := preload("res://scripts/settings.gd")
 
-const CATS := ["MANETTE", "AUDIO", "AFFICHAGE", "JEU"]
+const CATS := ["MANETTE", "AUDIO", "AFFICHAGE", "JEU", "COMBAT"]
 ## [clé, libellé, type, min, max]
 const ROWS := {
 	"MANETTE": [["vibrations", "Vibrations", "bool"], ["vibration_force", "Force des vibrations", "range", 1, 5]],
 	"AUDIO": [["volume_master", "Volume général", "range", 0, 10], ["volume_music", "Musique", "range", 0, 10], ["volume_sfx", "Effets sonores", "range", 0, 10]],
 	"AFFICHAGE": [["fullscreen", "Plein écran", "bool"], ["vsync", "Synchronisation verticale", "bool"]],
 	"JEU": [["ai_level", "Niveau de l'IA par défaut", "range", 1, 3], ["radar", "Radar de kuzushi", "bool"], ["hints", "Aide des commandes en combat", "bool"], ["feed", "Fil des événements", "bool"], ["readout", "Lecture des techniques (A/X/Y)", "bool"]],
+	"COMBAT": [["match_minutes", "Durée du combat", "choice", [2, 3, 4, 5], ["2 MIN", "3 MIN", "4 MIN", "5 MIN"]],
+		["golden_limit", "Golden score", "choice", [0, 1, 2, 3], ["ILLIMITÉ", "1 MIN + DÉCISION", "2 MIN + DÉCISION", "3 MIN + DÉCISION"]],
+		["replay", "Ralenti de la victoire", "bool"]],
 }
 ## Légendes du schéma de manette (mapping du GDD).
 const PAD_LABELS := [
@@ -58,7 +61,7 @@ func nav(action: String, _player: int = 0) -> void:
 		"left":
 			if row < 0:
 				pass
-			elif rows[row][2] == "range":
+			elif rows[row][2] in ["range", "choice"]:
 				_change(rows[row], -1)
 			else:
 				row = -1
@@ -76,6 +79,10 @@ func _change(r: Array, delta: int) -> void:
 	var v = Settings.value(r[0])
 	if r[2] == "bool":
 		Settings.set_value(r[0], not v)
+	elif r[2] == "choice":
+		var opts: Array = r[3]
+		var k = maxi(0, opts.find(int(v)))
+		Settings.set_value(r[0], opts[(k + delta + opts.size()) % opts.size()])
 	else:
 		Settings.set_value(r[0], clampi(int(v) + delta, r[3], r[4]))
 		if String(r[0]).begins_with("volume"):
@@ -100,12 +107,19 @@ func _draw() -> void:
 		var sel = k == row
 		var r = Rect2(350 + (10 if sel else 0), y, 480, 56)
 		Style.panel(self, r, Style.NIGHT_3 if sel else Style.NIGHT_2, Style.HOT if sel else Style.INK, 4.0, 5.0, 0.12)
-		Style.label(self, Vector2(r.position.x + 28, r.position.y + 35), rr[1].to_upper(), 18, Style.PAPER, "black")
+		var lw = r.size.x - 28 - (270.0 if rr[2] == "choice" else 150.0)
+		Style.label(self, Vector2(r.position.x + 28, r.position.y + 35), rr[1].to_upper(), 18, Style.PAPER, "black", HORIZONTAL_ALIGNMENT_LEFT, lw)
 		var v = Settings.value(rr[0])
 		if rr[2] == "bool":
 			var cr = Rect2(r.end.x - 130, r.position.y + 12, 100, 32)
 			Style.panel(self, cr, Style.GOOD if v else Style.NIGHT, Style.INK, 3.0, 0.0)
 			Style.label(self, Vector2(cr.position.x, cr.position.y + 23), "OUI" if v else "NON", 17, Style.INK if v else Style.MUTED, "black", HORIZONTAL_ALIGNMENT_CENTER, cr.size.x)
+		elif rr[2] == "choice":
+			var opts: Array = rr[3]
+			var lab: String = rr[4][maxi(0, opts.find(int(v)))]
+			var cr2 = Rect2(r.end.x - 250, r.position.y + 12, 220, 32)
+			Style.panel(self, cr2, Style.NIGHT, Style.INK, 3.0, 0.0)
+			Style.label(self, Vector2(cr2.position.x, cr2.position.y + 23), "‹ %s ›" % lab if sel else lab, 16, Style.HOT if sel else Style.PAPER, "black", HORIZONTAL_ALIGNMENT_CENTER, cr2.size.x)
 		else:
 			var n: int = rr[4]
 			var seg_w = minf(22.0, 210.0 / n)
@@ -130,6 +144,7 @@ func _draw_side_note() -> void:
 		"AUDIO": "Le volume général s'applique à tout ; musique et effets se règlent séparément.",
 		"AFFICHAGE": "Résolution de référence 1280×720, mise à l'échelle nette jusqu'en 4K.",
 		"JEU": "Le radar et le fil d'événements aident à comprendre le kuzushi. Les experts peuvent les masquer.",
+		"COMBAT": "4 minutes et golden score illimité : les règles de compétition. Avec une limite, une décision départage : moins de shidos, puis plus d'attaques.",
 	}
 	Style.text(self, Vector2(r.position.x + 26, r.position.y + 50), "À SAVOIR", 30, Style.PAPER, "display")
 	var words: PackedStringArray = notes.get(CATS[cat], "").split(" ")
