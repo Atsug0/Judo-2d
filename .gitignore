@@ -11,3 +11,4 @@ export_presets.cfg
 /animations/_frames/
 # Sprites placeholder cuits (régénérables : godot --path . -- --screen=bake --capture=/tmp/x)
 /animations/placeholder_*/
+__pycache__/
