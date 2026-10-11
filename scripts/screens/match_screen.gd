@@ -142,6 +142,12 @@ func on_enter(p: Dictionary) -> void:
 	elif dojo == null and app != null and (not app.capture_mode or app.args.has("bo3")) and Settings.value("format") == "bo3":
 		rounds_to_win = 2
 		round_banner = 100
+	# vidéos : avance rapide muette jusqu'à un instant du combat (--skip=images)
+	if app != null and app.args.has("skip"):
+		Sound.muted = true
+		for k in int(app.args.skip):
+			tick()
+		Sound.muted = false
 
 
 func tick() -> void:
@@ -216,6 +222,8 @@ func _step_sim() -> void:
 		elif sim.state.phase == "matte":
 			replay_buf.clear()
 	sim.step(inputs)
+	if app != null and app.args.has("eventlog"):
+		_log_events()
 	if ch_tracker != null:
 		for e in sim.events:
 			Challenges.track(ch_tracker, sim, e)
@@ -299,6 +307,18 @@ func _pal(i: int) -> Dictionary:
 func _new_stats() -> Dictionary:
 	return {"attacks": 0, "throws": 0, "counters": 0, "breaks": 0, "feints": 0, "exposed": 0,
 		"blocks": 0, "shidos": 0, "kuzushi_max": 0, "method": "", "scored": {}}
+
+
+## Journal des événements pour le montage vidéo : image, manche, tick, type, qui, détail.
+var _evlog: FileAccess
+func _log_events() -> void:
+	if _evlog == null:
+		_evlog = FileAccess.open(String(app.args.eventlog), FileAccess.WRITE)
+	for e in sim.events:
+		if e.type in ["grip", "release", "dash", "follow", "resist", "block", "whiff", "osae_hit", "osae_miss"]:
+			continue
+		_evlog.store_line("%d\t%d\t%d\t%s\t%s\t%s" % [Engine.get_physics_frames(), round_no, sim.state.tick, e.type, str(e.get("who", "")), str(e.get("tech", e.get("result", "")))])
+	_evlog.flush()
 
 
 func _consume_events() -> void:

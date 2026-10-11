@@ -1,0 +1,53 @@
+{
+ "_doc": "Vid\u00e9o de pr\u00e9sentation, partie tournoi : tableau, trois victoires forc\u00e9es, tableau anim\u00e9, \u00e9cran du champion. godot --path . --write-movie tour.avi --fixed-fps 60 -- --screen=menu --demo=tools/video/pres_tour.json",
+ "steps": [
+  [
+   90,
+   "accept"
+  ],
+  [
+   200,
+   "accept"
+  ],
+  [
+   380,
+   "accept"
+  ],
+  [
+   820,
+   "force_win"
+  ],
+  [
+   1020,
+   "accept"
+  ],
+  [
+   1300,
+   "accept"
+  ],
+  [
+   1740,
+   "force_win"
+  ],
+  [
+   1940,
+   "accept"
+  ],
+  [
+   2220,
+   "accept"
+  ],
+  [
+   2660,
+   "force_win"
+  ],
+  [
+   2860,
+   "accept"
+  ],
+  [
+   3560,
+   "quit"
+  ]
+ ]
+}

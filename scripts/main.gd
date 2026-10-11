@@ -77,6 +77,9 @@ func _draw_transition(ci: CanvasItem) -> void:
 		ci.draw_colored_polygon(pts, cols[cols.size() - 1 - k])
 
 
+var _results_frames := 0
+
+
 func _ready() -> void:
 	_setup_transition()
 	for a in OS.get_cmdline_user_args():
@@ -171,6 +174,12 @@ func _physics_process(_delta: float) -> void:
 		_trans_draw.queue_redraw()
 	_poll_nav()
 	_run_demo()
+	if args.has("quit_results") and current_name == "results":
+		# vidéos : on arrête l'enregistrement un peu après l'écran de résultats
+		_results_frames += 1
+		if _results_frames >= int(args.quit_results):
+			get_tree().quit()
+			return
 	if current.has_method("tick"):
 		current.tick()
 
@@ -181,9 +190,22 @@ func _run_demo() -> void:
 	_demo_frame += 1
 	while not _demo.is_empty() and int(_demo[0][0]) <= _demo_frame:
 		var action: String = _demo.pop_front()[1]
+		if args.has("demo_log"):
+			print("démo ", _demo_frame, " ", current_name, " ← ", action)
 		if action == "quit":
 			get_tree().quit()
 			return
+		if action.begins_with("goto:"):
+			goto(action.trim_prefix("goto:"), default_match_params() if action.ends_with("match") else {})
+			continue
+		if action == "force_win" and current_name == "match":
+			# vidéos : victoire immédiate du joueur 1 (parcours du tournoi sans jouer chaque combat)
+			var st: Dictionary = current.sim.get_state()
+			st.winner = 0
+			st.win_reason = "Ippon — Uchi-mata"
+			st.fighters[0].ippon = 1
+			goto("results", {"state": st, "names": current.names, "stats": current.stats, "match_params": current.params})
+			continue
 		Sound.ui(action)
 		current.nav(action, 0)
 

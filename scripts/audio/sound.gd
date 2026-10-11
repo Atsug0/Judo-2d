@@ -23,6 +23,7 @@ var _crowd: AudioStreamPlayer
 var _crowd_on := false
 var _crowd_level := 0.3
 var _rng := RandomNumberGenerator.new()
+var muted := false          # coupe les bruitages (avance rapide des vidéos)
 var _fades := []            # [lecteur, de_db, vers_db, durée, t, arrêter_à_la_fin]
 
 
@@ -101,6 +102,8 @@ func _count_variants(sound_name: String) -> int:
 ## Joue un bruitage. « sound_name » peut désigner une famille de variantes
 ## (grip → grip_0..grip_3, tirée au hasard).
 func play(sound_name: String, volume_db: float = 0.0, pitch: float = 1.0, pitch_var: float = 0.04) -> void:
+	if muted:
+		return
 	var path := SFX_DIR + sound_name + ".wav"
 	if not ResourceLoader.exists(path):
 		var n := _count_variants(sound_name)
