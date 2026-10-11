@@ -135,9 +135,23 @@ func _draw() -> void:
 	Style.text(self, Vector2(40, 100 + tsize * 0.35), title, tsize, Style.INK, "display", HORIZONTAL_ALIGNMENT_LEFT, -1, 2, -1.0)
 	# méthode
 	var reason: String = state.win_reason
-	var mr = Rect2(40, 176, Style.text_width(reason.to_upper(), 22, "black") + 50, 40)
+	var mr = Rect2(40, 176, minf(600.0, Style.text_width(reason.to_upper(), 22, "black") + 50), 40)
 	Style.panel(self, mr, Style.INK, wcol, 3.0, 4.0)
-	Style.label(self, Vector2(mr.position.x, mr.position.y + 28), reason.to_upper(), 22, wcol, "black", HORIZONTAL_ALIGNMENT_CENTER, mr.size.x)
+	Style.label(self, Vector2(mr.position.x + 16, mr.position.y + 28), reason.to_upper(), 22, wcol, "black", HORIZONTAL_ALIGNMENT_CENTER, mr.size.x - 32)
+	# manches (format deux manches gagnantes)
+	if state.has("rounds"):
+		var rr = Rect2(40, 226, 600, 34)
+		Style.label(self, Vector2(rr.position.x + 4, rr.position.y + 24), "MANCHES  %d — %d" % [state.rounds[0], state.rounds[1]], 20, Style.PAPER, "black")
+		var x = rr.position.x + 190
+		var k = 1
+		for rd in state.get("round_log", []):
+			var c: Color = Style.P1 if int(rd.winner) == 0 else (Style.P2 if int(rd.winner) == 1 else Style.MUTED)
+			var txt = "M%d %s" % [k, String(rd.reason).split(" — ")[0].to_upper()]
+			var tw = Style.text_width(txt, 12, "black") + 22
+			Style.chip(self, Rect2(x, rr.position.y + 6, tw, 24), Style.INK, c)
+			Style.label(self, Vector2(x, rr.position.y + 23), txt, 12, c, "black", HORIZONTAL_ALIGNMENT_CENTER, tw)
+			x += tw + 8
+			k += 1
 	_draw_score_table()
 	_draw_menu()
 	Style.hints(self, [["A", "Valider"]])

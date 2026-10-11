@@ -18,8 +18,9 @@ const DEFAULTS := {
 	"hints": true,             # barre d'aide des commandes en combat
 	"feed": true,              # fil des événements en combat
 	"readout": true,
-	"match_minutes": 4,        # durée réglementaire du combat
-	"golden_limit": 0,         # golden score : 0 = illimité, sinon minutes avant décision
+	"format": "bo3",           # "bo3" : deux manches gagnantes ; "single" : un seul combat
+	"match_minutes": 2,        # durée réglementaire d'une manche
+	"golden_limit": 1,         # golden score : 0 = illimité, sinon minutes avant décision
 	"replay": true,            # ralenti de la projection gagnante           # lecture des boutons A/X/Y et alerte de contre (joueurs humains)
 }
 

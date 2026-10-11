@@ -246,6 +246,8 @@ func _run_capture() -> void:
 		while current.sim.state.tick < until and shots < max_shots:
 			current.tick()
 			var t: int = current.sim.state.tick
+			if t < last_t:
+				last_t = -1  # nouvelle manche : le chrono de la simulation repart de zéro
 			if t == last_t:
 				continue  # arrêt sur image / ralenti : même instant de simulation
 			if wanted.has(t) or (args.has("events") and current.capture_flag) or (args.has("attack") and current.attack_flag and t > int(args.get("after", "0"))):
@@ -254,7 +256,7 @@ func _run_capture() -> void:
 				await _shot("%s/match_%05d.png" % [dir, t])
 				last_t = current.sim.state.tick
 				shots += 1
-			if current.sim.state.phase == "ended" and current.end_timer > 30:
+			if current.sim.state.phase == "ended" and current.end_timer > 30 and not args.has("bo3"):
 				break
 	else:
 		var frames := int(args.get("frames", "20"))

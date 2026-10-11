@@ -68,6 +68,12 @@ var walk_amp = [0.0, 0.0]
 var walk_dir = [1.0, 1.0]
 var prev_dx = [-1.0, -1.0]  # main chassée : images restantes de l'animation, par joueur et par main
 var last_reaction_popup = -9999
+## Format en manches (deux manches gagnantes, façon jeu de combat)
+var rounds_to_win = 1
+var round_wins = [0, 0]
+var round_no = 1
+var round_log: Array = []     # [{winner, reason}]
+var round_banner = 0          # images restantes du bandeau « MANCHE n »
 ## Ralenti de l'ippon : derniers états de la simulation, rejoués à la fin du combat.
 const REPLAY_KEEP := 300
 var replay_buf: Array = []
@@ -122,10 +128,15 @@ func on_enter(p: Dictionary) -> void:
 			ais[i] = Ai.new(i, seed_value + i * 7, level)
 	if p.has("dojo"):
 		dojo = DojoSession.new(self, p.dojo)
+	elif app != null and (not app.capture_mode or app.args.has("bo3")) and Settings.value("format") == "bo3":
+		rounds_to_win = 2
+		round_banner = 100
 
 
 func tick() -> void:
 	frame += 1
+	if round_banner > 0 and not paused:
+		round_banner -= 1
 	if paused:
 		_redraw_all()
 		return
@@ -135,6 +146,9 @@ func tick() -> void:
 		_redraw_all()
 		return
 	_update_fx()
+	if round_banner > 30:
+		_redraw_all()  # présentation de la manche : le combat attend le bandeau
+		return
 	if hitstop > 0:
 		hitstop -= 1
 		_redraw_all()
@@ -204,8 +218,14 @@ func _step_sim() -> void:
 		if end_timer == 120 and replay_ok and not replay_done and Settings.value("replay") and (app == null or not app.capture_mode or app.args.has("replay")):
 			_start_replay()
 			return
+		if end_timer == 200 and app != null and dojo == null and rounds_to_win > 1 and _round_over():
+			return
 		if end_timer == 200 and app != null and not app.capture_mode and dojo == null:
-			app.goto("results", {"state": sim.get_state(), "names": names, "stats": stats, "match_params": params})
+			var fin: Dictionary = sim.get_state()
+			if rounds_to_win > 1:
+				fin.rounds = round_wins.duplicate()
+				fin.round_log = round_log.duplicate()
+			app.goto("results", {"state": fin, "names": names, "stats": stats, "match_params": params})
 
 
 func nav(action: String, _player: int = 0) -> void:
@@ -608,6 +628,38 @@ func _draw_layer_hud(ci: CanvasItem) -> void:
 # =============================================================================
 # Caméra et effets
 # =============================================================================
+
+## Fin d'une manche : renvoie true si le match continue (nouvelle manche lancée).
+func _round_over() -> bool:
+	var w: int = sim.state.winner
+	round_log.append({"winner": w, "reason": String(sim.state.win_reason)})
+	if app != null and app.capture_mode:
+		print("fin de manche ", round_no, " : ", w, " ", sim.state.win_reason)
+	if w >= 0:
+		round_wins[w] += 1
+	if round_wins[0] >= rounds_to_win or round_wins[1] >= rounds_to_win:
+		return false
+	# manche suivante : mêmes judokas, judogi et chrono remis à zéro
+	round_no += 1
+	var p: Dictionary = params
+	var tokui: Array = p.get("tokui", ["seoi_nage", "o_soto_gari"])
+	sim = Sim.new(cfg, techs, names, p.get("builds", tokui))
+	var seed_value: int = int(p.get("seed", 1)) + round_no * 101
+	for i in 2:
+		if controllers[i] == "ai":
+			ais[i] = Ai.new(i, seed_value + i * 7, int(p.get("level", 2)))
+	end_timer = 0
+	replay_buf.clear()
+	replay_ok = false
+	replay_done = false
+	shown = [null, null]
+	popups.clear()
+	feed.clear()
+	gap_shown = -1.0
+	prev_dx = [-1.0, -1.0]
+	round_banner = 100
+	return true
+
 
 ## Démarre le ralenti : depuis un peu avant l'entrée de la technique gagnante.
 func _start_replay() -> void:
@@ -1362,9 +1414,32 @@ func _draw_hud() -> void:
 			_draw_readout(i)
 	if dojo == null:
 		_draw_timer()
+		if rounds_to_win > 1:
+			_draw_rounds()
 	if sim.state.phase in ["fight", "intro", "matte"]:
 		_draw_dominance()
 	_draw_newaza_hud()
+
+
+## Manches : losanges sous le chrono (gagnées en couleur) et bandeau « MANCHE n ».
+func _draw_rounds() -> void:
+	for i in 2:
+		var col: Color = Style.P1 if i == 0 else Style.P2
+		for k in rounds_to_win:
+			var cx = 640.0 + (-1 if i == 0 else 1) * (104.0 + k * 22.0)
+			var c = Vector2(cx, 56.0)
+			var pts = PackedVector2Array([c + Vector2(0, -10), c + Vector2(10, 0), c + Vector2(0, 10), c + Vector2(-10, 0)])
+			_ci.draw_colored_polygon(pts, Style.INK)
+			var inner = PackedVector2Array([c + Vector2(0, -7), c + Vector2(7, 0), c + Vector2(0, 7), c + Vector2(-7, 0)])
+			_ci.draw_colored_polygon(inner, col if round_wins[i] > k else Style.NIGHT_3)
+	if round_banner > 30:
+		var t = clampf(float(100 - round_banner) / 10.0, 0.0, 1.0)
+		var a = minf(1.0, float(round_banner - 30) / 15.0)
+		var r = Rect2(640 - 230 + (1.0 - t) * 300.0, 168, 460, 92)
+		Style.panel(_ci, r, Color(Style.HOT, a), Style.INK, 5.0, 8.0)
+		var label = "MANCHE DÉCISIVE" if round_wins[0] == rounds_to_win - 1 and round_wins[1] == rounds_to_win - 1 else "MANCHE %d" % round_no
+		Style.text(_ci, Vector2(r.position.x, r.position.y + 62), label, 50, Color(Style.INK, a), "display", HORIZONTAL_ALIGNMENT_CENTER, r.size.x, 2, -1.0)
+		Style.label(_ci, Vector2(r.position.x, r.end.y + 26), "%s  %d — %d  %s" % [names[0], round_wins[0], round_wins[1], names[1]], 20, Color(Style.PAPER, a), "black", HORIZONTAL_ALIGNMENT_CENTER, r.size.x)
 
 
 ## Lecture des boutons pour un joueur humain : technique de A / X / Y et issue prévisible,
@@ -1560,7 +1635,7 @@ func _draw_popups() -> void:
 
 func _draw_announce() -> void:
 	var t: int = sim.state.announce_t
-	if t <= 0:
+	if t <= 0 or round_banner > 30:
 		return
 	var txt: String = sim.state.announce
 	var age = 90 - t
