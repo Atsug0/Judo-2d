@@ -68,6 +68,15 @@ var walk_amp = [0.0, 0.0]
 var walk_dir = [1.0, 1.0]
 var prev_dx = [-1.0, -1.0]  # main chassée : images restantes de l'animation, par joueur et par main
 var last_reaction_popup = -9999
+## Ralenti de l'ippon : derniers états de la simulation, rejoués à la fin du combat.
+const REPLAY_KEEP := 300
+var replay_buf: Array = []
+var replay_ok = false      # le combat s'est fini sur une projection ippon
+var replaying = false
+var replay_i = 0
+var replay_sub = 0
+var replay_done = false
+var replay_final = {}
 var vel = [0.0, 0.0]          # vitesse affichée vers l'avant (px/image), lissée
 var gap_shown = -1.0         # écart affiché entre les deux judokas (px), lissé
 var tug = [[Vector2.ZERO, Vector2.ZERO], [Vector2.ZERO, Vector2.ZERO]]  # main qui tire / pousse
@@ -116,6 +125,11 @@ func tick() -> void:
 	if paused:
 		_redraw_all()
 		return
+	if replaying:
+		_replay_tick()
+		_update_fx()
+		_redraw_all()
+		return
 	_update_fx()
 	if hitstop > 0:
 		hitstop -= 1
@@ -162,6 +176,13 @@ func _step_sim() -> void:
 	if dojo != null:
 		inputs[0] = dojo.player_input(sim, inputs[0])
 		dojo.pre_step(sim)
+	if dojo == null:
+		if sim.state.phase in ["fight", "throw"]:
+			replay_buf.append(sim.get_state())
+			if replay_buf.size() > REPLAY_KEEP:
+				replay_buf.pop_front()
+		elif sim.state.phase == "matte":
+			replay_buf.clear()
 	sim.step(inputs)
 	_consume_events()
 	if dojo != null:
@@ -174,6 +195,9 @@ func _step_sim() -> void:
 		e.t += 1
 	if sim.state.phase == "ended":
 		end_timer += 1
+		if end_timer == 120 and replay_ok and not replay_done and (app == null or not app.capture_mode or app.args.has("replay")):
+			_start_replay()
+			return
 		if end_timer == 200 and app != null and not app.capture_mode and dojo == null:
 			app.goto("results", {"state": sim.get_state(), "names": names, "stats": stats, "match_params": params})
 
@@ -259,6 +283,8 @@ func _consume_events() -> void:
 			"attack":
 				pass  # le nom de la technique s'affiche déjà au-dessus du judoka : pas de doublon dans le fil
 			"throw":
+				if e.result == "ippon":
+					replay_ok = true
 				var res = "IPPON" if e.result == "ippon" else "WAZA-ARI"
 				_feed("%s : %s → %s" % [nm, sim.tech_name(e.tech), res], Style.GOLD)
 			"counter":
@@ -555,6 +581,9 @@ func _draw_layer_hud(ci: CanvasItem) -> void:
 	if sim == null:
 		return
 	_ci = ci
+	if replaying:
+		_draw_replay_banner()
+		return
 	_draw_hud()
 	_draw_announce()
 	if Settings.value("feed") and dojo == null:
@@ -572,6 +601,55 @@ func _draw_layer_hud(ci: CanvasItem) -> void:
 # =============================================================================
 # Caméra et effets
 # =============================================================================
+
+## Démarre le ralenti : depuis un peu avant l'entrée de la technique gagnante.
+func _start_replay() -> void:
+	if replay_buf.is_empty():
+		replay_done = true
+		return
+	replay_final = sim.get_state()
+	var start = 0
+	for k in range(replay_buf.size() - 1, -1, -1):
+		var st: Dictionary = replay_buf[k]
+		if st.phase == "fight" and not (st.fighters[0].attack.is_empty() and st.fighters[1].attack.is_empty()):
+			start = k
+		elif start > 0 and st.phase == "fight":
+			break
+	replay_i = maxi(0, start - 50)
+	replay_sub = 0
+	replaying = true
+	shown = [null, null]
+	popups.clear()
+
+
+func _replay_tick() -> void:
+	var st: Dictionary = replay_buf[replay_i]
+	sim.state = st
+	replay_sub += 1
+	var slow = 3 if st.phase == "throw" else 2
+	if replay_sub >= slow:
+		replay_sub = 0
+		replay_i += 1
+	if replay_i >= replay_buf.size():
+		replaying = false
+		replay_done = true
+		sim.set_state(replay_final)
+		shown = [null, null]
+		end_timer = 140
+
+
+func _draw_replay_banner() -> void:
+	_ci.draw_rect(Rect2(0, 0, W, 64), Style.INK)
+	_ci.draw_rect(Rect2(0, H - 64, W, 64), Style.INK)
+	var r = Rect2(W / 2 - 150, 16, 300, 60)
+	Style.panel(_ci, r, Style.HOT, Style.INK, 4.0, 6.0)
+	Style.text(_ci, Vector2(r.position.x, r.position.y + 45), "RALENTI", 40, Style.INK, "display", HORIZONTAL_ALIGNMENT_CENTER, r.size.x, 2, -1.0)
+	if frame % 60 < 40:
+		_ci.draw_circle(Vector2(r.position.x + 30, r.get_center().y), 8.0, Style.DANGER)
+	var th: Dictionary = sim.state.throw
+	if not th.is_empty():
+		Style.text(_ci, Vector2(0, H - 22), sim.tech_name(th.tech).to_upper(), 30, Style.GOLD, "display", HORIZONTAL_ALIGNMENT_CENTER, W)
+
 
 ## Cible de la caméra selon la phase : suit les judokas, zoome quand ils sont proches,
 ## serre sur les projections et le sol.
@@ -609,6 +687,8 @@ func _camera_target() -> Array:
 		"ended":
 			z = 1.15
 			c = Vector2((_draw_x(0) + _draw_x(1)) * 0.5, 440.0)
+	if replaying:
+		z *= 1.18
 	return [c, z]
 
 
