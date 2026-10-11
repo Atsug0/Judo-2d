@@ -32,23 +32,19 @@ attrs = {"POSITION": B.add(P.astype(np.float32), "VEC3", 5126, 34962, minmax=Tru
          "NORMAL": B.add(N.astype(np.float32), "VEC3", 5126, 34962),
          "TEXCOORD_0": B.add(UV, "VEC2", 5126, 34962)}
 ind = B.add(I, "SCALAR", 5125, 34963)
-imgs = []
-for im in js["images"]:
-    bv = js["bufferViews"][im["bufferView"]]
-    s0 = bv.get("byteOffset", 0)
-    pil = Image.open(io.BytesIO(binary[s0:s0 + bv["byteLength"]])).convert("RGBA")
-    buf = io.BytesIO()
-    pil.save(buf, "PNG", compress_level=6)
-    imgs.append(B.add_image(buf.getvalue(), "image/png"))
-tex = []
-for t in js["textures"]:
-    srcimg = t.get("source", t.get("extensions", {}).get("EXT_texture_webp", {}).get("source"))
-    tex.append({"source": imgs[srcimg], "sampler": 0})
-B.js["textures"] = tex
-B.js["samplers"] = [{"magFilter": 9729, "minFilter": 9987}]
 mat = js["materials"][prim.get("material", 0)]
 pbr = mat["pbrMetallicRoughness"]
-B.js["materials"] = [{"name": "judoka", "pbrMetallicRoughness": {"baseColorTexture": {"index": pbr["baseColorTexture"]["index"]},
+t = js["textures"][pbr["baseColorTexture"]["index"]]
+src_img = t.get("source", t.get("extensions", {}).get("EXT_texture_webp", {}).get("source"))
+bv = js["bufferViews"][js["images"][src_img]["bufferView"]]
+s0 = bv.get("byteOffset", 0)
+pil = Image.open(io.BytesIO(binary[s0:s0 + bv["byteLength"]])).convert("RGB")
+buf = io.BytesIO()
+pil.save(buf, "PNG", compress_level=6)
+B.add_image(buf.getvalue(), "image/png")   # seule la couleur de base est gardée
+B.js["textures"] = [{"source": 0, "sampler": 0}]
+B.js["samplers"] = [{"magFilter": 9729, "minFilter": 9987}]
+B.js["materials"] = [{"name": "judoka", "pbrMetallicRoughness": {"baseColorTexture": {"index": 0},
                       "metallicFactor": 0.0, "roughnessFactor": 0.9}, "doubleSided": True}]
 B.js["meshes"] = [{"name": "corps", "primitives": [{"attributes": attrs, "indices": ind, "material": 0}]}]
 B.js["nodes"] = [{"name": "Object_01", "mesh": 0}]

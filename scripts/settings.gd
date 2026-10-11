@@ -18,6 +18,7 @@ const DEFAULTS := {
 	"hints": true,             # barre d'aide des commandes en combat
 	"feed": true,              # fil des événements en combat
 	"readout": true,
+	"judokas": "3d",           # rendu des judokas en combat : "3d" (modèles riggés) ou "dessin"
 	"format": "bo3",           # "bo3" : deux manches gagnantes ; "single" : un seul combat
 	"match_minutes": 2,        # durée réglementaire d'une manche
 	"golden_limit": 1,         # golden score : 0 = illimité, sinon minutes avant décision
