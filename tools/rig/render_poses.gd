@@ -40,6 +40,7 @@ func _run() -> void:
 			print("échec : ", w)
 			continue
 		m.actors[1].node.visible = false
+		m.instant_turn = true
 		m.vp.size = Vector2i(W, H)
 		m.vp.msaa_3d = Viewport.MSAA_4X
 		m.cam.size = H / PX_PER_M

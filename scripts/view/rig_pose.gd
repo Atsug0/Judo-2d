@@ -98,7 +98,31 @@ static func _arc(from: Vector3, to: Vector3) -> Basis:
 	return Basis(Quaternion(f, t))
 
 
+## Repère d'un segment : axe Y = direction de l'os, axe X = normale du plan de flexion.
+static func _seg(dir: Vector3, n: Vector3) -> Basis:
+	return _basis_from(n, dir)
+
+
+## Point d'une courbe de Bézier quadratique.
+static func _bez(a: Vector3, c: Vector3, b: Vector3, t: float) -> Vector3:
+	return a.lerp(c, t).lerp(c.lerp(b, t), t)
+
+
+## Normale du plan de flexion d'un membre (a → b → c). Membre tendu : on garde l'orientation
+## de repos portée par le parent (fallback), sans vrille brutale.
+static func _bend_normal(a: Vector3, b: Vector3, c: Vector3, fallback: Vector3) -> Vector3:
+	var u := b - a
+	var f := c - b
+	var n := u.cross(f)
+	var k := u.length() * f.length()
+	if k < 1e-8:
+		return fallback
+	return n / k + fallback * 0.12
+
+
 ## Pose le modèle. M : articulations (m) dans le repère du parent du modèle.
+## M["haut"] (facultatif) : vertical du corps (sans la flexion du buste) ; la colonne se
+## courbe alors entre le bassin (qui suit les jambes) et la poitrine (qui suit le buste).
 ## ground : pose la plante des pieds sur le sol (y = 0) quand un pied est bas ;
 ## shift_in : décalage vertical imposé (judoka en l'air, suit celui qui le projette).
 ## Renvoie le décalage vertical appliqué.
@@ -106,26 +130,74 @@ static func _arc(from: Vector3, to: Vector3) -> Basis:
 func pose(M: Dictionary, ground: bool = true, shift_in = null, grips: Dictionary = {}) -> float:
 	var G := {}
 	var torso: Vector3 = M["cou"] - M["bassin"]
-	G["hips"] = _basis_from(M["hanche.L"] - M["hanche.R"], torso) * _basis_from(J["hanche.L"] - J["hanche.R"], J["dos"] - J["bassin"]).inverse()
-	G["chest"] = _basis_from(M["epaule.L"] - M["epaule.R"], torso) * _basis_from(J["epaule.L"] - J["epaule.R"], J["cou"] - J["poitrine"]).inverse()
-	G["spine"] = Basis(Quaternion(G["hips"].orthonormalized()).slerp(Quaternion(G["chest"].orthonormalized()), 0.5))
-	var targets := {
-		"neck": M["tete"] - M["cou"], "head": M["tete"] - M["cou"],
-		"upper_arm.L": M["coude.L"] - M["epaule.L"], "forearm.L": M["main.L"] - M["coude.L"],
-		"upper_arm.R": M["coude.R"] - M["epaule.R"], "forearm.R": M["main.R"] - M["coude.R"],
-		"thigh.L": M["genou.L"] - M["hanche.L"], "shin.L": M["pied.L"] - M["genou.L"],
-		"thigh.R": M["genou.R"] - M["hanche.R"], "shin.R": M["pied.R"] - M["genou.R"],
-	}
+	var tdir := torso.normalized()
+	var up: Vector3 = M.get("haut", tdir)
+	# --- colonne : bassin peu fléchi, courbure répartie sur spine / spine2, poitrine dans l'axe du buste
+	var bend_ang := up.angle_to(tdir)
+	var up_h: Vector3 = up if bend_ang < 1e-3 else up.slerp(tdir, 0.35)
+	var up_c: Vector3 = tdir if bend_ang < 1e-3 else up.slerp(tdir, 1.25 if bend_ang < 1.2 else 1.0).normalized()
+	var lat_h: Vector3 = M["hanche.L"] - M["hanche.R"]
+	var lat_c: Vector3 = M["epaule.L"] - M["epaule.R"]
+	var Jlat := Vector3.RIGHT
+	var spine_chain := ["hips", "spine", "spine2", "chest"]
+	var spine_j := ["bassin", "dos", "milieu", "poitrine", "cou"]
+	if not idx.has("spine2") or idx["spine2"] < 0:
+		spine_chain = ["hips", "spine", "chest"]
+		spine_j = ["bassin", "dos", "poitrine", "cou"]
+	var rest_len := 0.0
+	var acc := [0.0]
+	for k in spine_chain.size():
+		rest_len += (J[spine_j[k + 1]] - J[spine_j[k]]).length()
+		acc.append(rest_len)
+	var a0: Vector3 = M["bassin"]
+	var a2: Vector3 = M["cou"]
+	var L := torso.length()
+	# point de contrôle : intersection des tangentes de départ (up_h) et d'arrivée (up_c)
+	var ctrl: Vector3 = a0 + up_h * L * 0.5
+	ctrl = ctrl.lerp(a2 - up_c * L * 0.5, 0.5)
+	var prev := a0
+	for k in spine_chain.size():
+		var t: float = acc[k + 1] / rest_len
+		var pt := _bez(a0, ctrl, a2, t)
+		var w := (float(k) + 0.5) / spine_chain.size()
+		var lat: Vector3 = lat_h.slerp(lat_c, clampf((w - 0.15) / 0.7, 0.0, 1.0)) if lat_h.length() > 1e-5 and lat_c.length() > 1e-5 else lat_h
+		var rest_dir: Vector3 = J[spine_j[k + 1]] - J[spine_j[k]]
+		G[spine_chain[k]] = _seg(pt - prev, lat) * _seg(rest_dir, Jlat).inverse()
+		prev = pt
+	G["neck"] = _arc(G["chest"] * (J["tete"] - J["cou"]), M["tete"] - M["cou"]) * G["chest"]
+	G["head"] = G["neck"]
+	# --- bras : plan de flexion du coude imposé (le pli du coude suit le coude du jeu)
+	for s in ["L", "R"]:
+		var sg := 1.0 if s == "L" else -1.0
+		var rest_n := Vector3(0, -sg, 0)
+		var e: Vector3 = M["epaule." + s]
+		var c: Vector3 = M["coude." + s]
+		var h: Vector3 = M["main." + s]
+		var n := _bend_normal(e, c, h, G["chest"] * rest_n)
+		# clavicule : se soulève et s'avance un peu avec le bras
+		var cl_rest: Vector3 = G["chest"] * (J["epaule." + s] - J["clavicule." + s])
+		var arm_dir := (c - e).normalized()
+		var lift := clampf(arm_dir.dot(G["chest"] * Vector3.UP) + 0.15, 0.0, 1.0)
+		var cl_to := cl_rest.normalized().slerp(arm_dir, 0.08 + 0.17 * lift)
+		G["shoulder." + s] = _arc(cl_rest, cl_to) * G["chest"]
+		G["upper_arm." + s] = _seg(c - e, n) * _seg(J["coude." + s] - J["epaule." + s], rest_n).inverse()
+		G["forearm." + s] = _seg(h - c, n) * _seg(J["poignet." + s] - J["coude." + s], rest_n).inverse()
+		G["hand." + s] = G["forearm." + s]
+	# --- jambes : plan de flexion du genou imposé (le genou part toujours vers l'avant)
+	for s in ["L", "R"]:
+		var hp: Vector3 = M["hanche." + s]
+		var kn: Vector3 = M["genou." + s]
+		var ft: Vector3 = M["pied." + s]
+		var n := _bend_normal(hp, kn, ft, G["hips"] * Vector3.RIGHT)
+		G["thigh." + s] = _seg(kn - hp, n) * _seg(J["genou." + s] - J["hanche." + s], Vector3.RIGHT).inverse()
+		G["shin." + s] = _seg(ft - kn, n) * _seg(J["cheville." + s] - J["genou." + s], Vector3.RIGHT).inverse()
+		G["foot." + s] = G["shin." + s]
+		G["toes." + s] = G["shin." + s]
+	# os non pilotés (autres rigs) : suivent leur parent
 	for b in bones:
-		var name: String = b[0]
-		if G.has(name):
-			continue
-		var pg: Basis = G[b[3]]
-		if targets.has(name) and targets[name].length() > 1e-5:
-			G[name] = _arc(pg * (J[b[2]] - J[b[1]]), targets[name]) * pg
-		else:
-			G[name] = pg
-	# mains : les doigts s'enroulent vers la paume (paume vers le bas en pose T), le pouce se replie
+		if not G.has(b[0]):
+			G[b[0]] = G[b[3]] if b[3] != "" else Basis()
+	# --- mains : les doigts s'enroulent vers la paume (paume vers le bas en pose T), le pouce se replie
 	for s in ["L", "R"]:
 		if not idx.has("fingers1." + s) or idx["fingers1." + s] < 0:
 			continue
@@ -134,13 +206,19 @@ func pose(M: Dictionary, ground: bool = true, shift_in = null, grips: Dictionary
 		G["fingers1." + s] = G["hand." + s] * Basis(Vector3.BACK, sg * 1.35 * g)
 		G["fingers2." + s] = G["fingers1." + s] * Basis(Vector3.BACK, sg * 1.45 * g)
 		G["thumb." + s] = G["hand." + s] * Basis(Vector3.RIGHT, 0.9 * g) * Basis(Vector3.UP, sg * -0.5 * g)
-	# pied posé : à plat sur le tatami, orienté comme le bassin (pas de pointe tendue)
-	var flat := _basis_from(M["hanche.L"] - M["hanche.R"], Vector3.UP) * _basis_from(J["hanche.L"] - J["hanche.R"], Vector3.UP).inverse()
+	# --- pieds : à plat sur le tatami quand ils sont bas ; les orteils restent au sol
+	# un peu plus longtemps (talon décollé = appui sur l'avant du pied)
+	var flat := _basis_from(lat_h, Vector3.UP) * _basis_from(J["hanche.L"] - J["hanche.R"], Vector3.UP).inverse()
+	var has_toes: bool = idx.has("toes.L") and idx["toes.L"] >= 0
 	for s in ["L", "R"]:
 		var h: float = M["pied." + s].y
 		if h < 0.16:
 			var k := clampf((0.16 - h) / 0.08, 0.0, 1.0)
 			G["foot." + s] = Basis(Quaternion(G["foot." + s].orthonormalized()).slerp(Quaternion(flat.orthonormalized()), k))
+		G["toes." + s] = G["foot." + s]
+		if has_toes and h < 0.24:
+			var kt := clampf((0.24 - h) / 0.08, 0.0, 1.0)
+			G["toes." + s] = Basis(Quaternion(G["foot." + s].orthonormalized()).slerp(Quaternion(flat.orthonormalized()), kt))
 	var hips_pos: Vector3 = M["bassin"]
 	var shift := 0.0
 	if ground and minf(M["pied.L"].y, M["pied.R"].y) < 0.12:
@@ -155,7 +233,12 @@ func pose(M: Dictionary, ground: bool = true, shift_in = null, grips: Dictionary
 		var low := INF
 		for s in ["L", "R"]:
 			var ankle: Vector3 = origin["foot." + s]
-			var toe: Vector3 = ankle + G["foot." + s] * (J["orteils." + s] - J["cheville." + s])
+			var toe: Vector3
+			if has_toes:
+				toe = origin["toes." + s] + G["toes." + s] * (J["orteils." + s] - J["plante." + s])
+				low = minf(low, origin["toes." + s].y - 0.035)
+			else:
+				toe = ankle + G["foot." + s] * (J["orteils." + s] - J["cheville." + s])
 			var sole: Vector3 = ankle + G["foot." + s] * Vector3(0, -FLOOR_SOLE, 0)
 			low = minf(low, minf(sole.y, toe.y - 0.015))
 		shift = -low

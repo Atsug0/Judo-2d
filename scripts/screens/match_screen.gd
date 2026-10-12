@@ -887,6 +887,7 @@ func _update_camera() -> void:
 		layer_fx.transform = layer_world.transform
 	if m3d != null:
 		m3d.update_camera(cam_c, cam_z, off)
+		m3d.clock = frame
 	if layer_bg != null:
 		# parallaxe : le décor bouge et zoome moins que le tatami
 		var zb = 1.0 + (cam_z - 1.0) * 0.45
@@ -1324,8 +1325,14 @@ func _hands_world(i: int, rigs: Array, th: Dictionary, throwing: bool) -> Array:
 			var sleeve = Art.torso_point(orig.xf, orig.pose, Art.GRIP_POINTS["sleeve"])
 			var lapel = Art.torso_point(orig.xf, orig.pose, Art.GRIP_POINTS["lapel"])
 			return [[sleeve, lapel if p < 0.85 else null], [0.6, 0.6 if p < 0.85 else -1.0]]
+		# uke ne lâche pas tout de suite : il tient la manche de tori pendant la chute
+		# (et le revers au début), puis la main libre part frapper le tapis (ukemi)
+		var u_sleeve = Art.torso_point(orig.xf, orig.pose, Art.GRIP_POINTS["sleeve"])
+		var u_lapel = Art.torso_point(orig.xf, orig.pose, Art.GRIP_POINTS["lapel"])
 		if p < 0.25:
-			return [[Art.torso_point(orig.xf, orig.pose, Art.GRIP_POINTS["sleeve"]), null], [-1.0, -1.0]]
+			return [[u_sleeve, u_lapel], [0.4, 0.4]]
+		if p < 0.8:
+			return [[u_sleeve, null], [0.5, -1.0]]
 		return [[null, null], [-1.0, -1.0]]
 	var me: Dictionary = rigs[i]
 	var hands = [null, null]

@@ -87,7 +87,8 @@ static func _mocap_keys(data: Dictionary, d: float, k0: Dictionary) -> Array:
 static func keys(tech: String, d: float) -> Array:
 	var stand = Art.pose_stand(0.5)
 	var uke_stand = Art.pose_stand(0.4)
-	var lying = _p(Vector2(0, -47), 0.0, Vector2(-8, -6), Vector2(10, -8), Vector2(10, -44), Vector2(24, -64), 0.2)
+	# au sol : une main tient encore la manche de tori, l'autre frappe le tapis (ukemi)
+	var lying = _p(Vector2(0, -47), 0.0, Vector2(-8, -6), Vector2(10, -8), Vector2(18, -62), Vector2(-14, -46), 0.2)
 	var k0 = {"p": 0.0, "tori": _actor(Vector2(0, -47), 0.0, 1, stand), "uke": _actor(Vector2(d, -47), 0.0, -1, uke_stand)}
 	var mc = _mocap_data(tech)
 	if mc != null:
@@ -144,11 +145,11 @@ static func _keys_fauche(tech: String, d: float, k0: Dictionary, lying: Dictiona
 	# fauchage : la jambe arrière de tori passe derrière celle d'uke
 	var reap = Vector2(38, -38) if high else (Vector2(32, -14) if inner else Vector2(36, -5))
 	var t2 = _p(Vector2(0, -46), 0.55 if high else 0.4, reap, Vector2(14, -4), Vector2(26, -56), Vector2(30, -66))
-	var u2 = _p(Vector2(0, -47), -0.25, Vector2(-14, -6), Vector2(22, -30 if high else -16), Vector2(24, -70), Vector2(30, -78), 0.25)
+	var u2 = _p(Vector2(0, -47), -0.25, Vector2(-14, -6), Vector2(22, -30 if high else -16), Vector2(24, -70), Vector2(18, -64), 0.25)
 	var t3 = t2.duplicate()
 	t3.fb = Vector2(30, -62) if high else reap + Vector2(4, -6)
 	t3.bow = 0.85 if high else 0.55
-	var u3 = _p(Vector2(0, -47), -0.1, Vector2(-8, -16), Vector2(18, -38), Vector2(20, -80), Vector2(30, -82), 0.3)
+	var u3 = _p(Vector2(0, -47), -0.1, Vector2(-8, -16), Vector2(18, -38), Vector2(20, -80), Vector2(8, -60), 0.3)
 	var t4 = _p(Vector2(0, -44), 0.5, Vector2(10, -10), Vector2(14, -4), Vector2(24, -42), Vector2(28, -52))
 	var lift = 1.0 if high else 0.75
 	return [
@@ -165,10 +166,10 @@ static func _keys_balaye(tech: String, d: float, k0: Dictionary, lying: Dictiona
 	var t1 = _p(Vector2(0, -47), -0.05, Vector2(-12, -4), Vector2(14, -4), Vector2(28, -66), Vector2(32, -76))
 	var u1 = uke_step()
 	var t2 = _p(Vector2(0, -47), -0.15, Vector2(d * 0.55, -8), Vector2(10, -4), Vector2(26, -76), Vector2(30, -86))
-	var u2 = _p(Vector2(0, -47), -0.2, Vector2(-6, -24), Vector2(24, -34), Vector2(22, -74), Vector2(26, -80), 0.2)
+	var u2 = _p(Vector2(0, -47), -0.2, Vector2(-6, -24), Vector2(24, -34), Vector2(22, -74), Vector2(16, -64), 0.2)
 	var t3 = t2.duplicate()
 	t3.fb = Vector2(d * 0.6, -14)
-	var u3 = _p(Vector2(0, -47), -0.1, Vector2(4, -30), Vector2(26, -40), Vector2(18, -80), Vector2(28, -84), 0.3)
+	var u3 = _p(Vector2(0, -47), -0.1, Vector2(4, -30), Vector2(26, -40), Vector2(18, -80), Vector2(6, -60), 0.3)
 	var t4 = _p(Vector2(0, -46), 0.2, Vector2(-8, -4), Vector2(14, -4), Vector2(26, -46), Vector2(30, -56))
 	return [
 		k0,

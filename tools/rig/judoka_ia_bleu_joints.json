@@ -1,5 +1,5 @@
 {
- "_doc": "Squelette du judoka bleu généré (TRELLIS) depuis art/personnages/*/pose_t.png, après tools/rig/normalize.py : mètres, Y vers le haut, tourné vers +Z, sa gauche vers +X, pose T. Proportions stylisées (grosse tête, garde large). Mains : paume, doigts en deux phalanges (fingers1/2) et pouce, pour fermer la main sur le judogi.",
+ "_doc": "Squelette du judoka bleu généré (TRELLIS) depuis art/personnages/*/pose_t.png, après tools/rig/normalize.py : mètres, Y vers le haut, tourné vers +Z, sa gauche vers +X, pose T. Proportions stylisées (grosse tête, garde large). Mains : paume, doigts en deux phalanges (fingers1/2) et pouce, pour fermer la main sur le judogi. Colonne en trois segments (spine, spine2, chest) et orteils (toes) pour des courbes et des appuis plus propres.",
  "joints": {
   "bassin": [
    0,
@@ -170,6 +170,21 @@
    -0.85,
    0.53,
    0.065
+  ],
+  "milieu": [
+   0.0,
+   0.25,
+   -0.015
+  ],
+  "plante.L": [
+   0.3224,
+   -0.91,
+   0.1064
+  ],
+  "plante.R": [
+   -0.3224,
+   -0.91,
+   0.1064
   ]
  },
  "bones": [
@@ -183,15 +198,22 @@
   [
    "spine",
    "dos",
-   "poitrine",
+   "milieu",
    "hips",
    0.17
+  ],
+  [
+   "spine2",
+   "milieu",
+   "poitrine",
+   "spine",
+   0.175
   ],
   [
    "chest",
    "poitrine",
    "cou",
-   "spine",
+   "spine2",
    0.18
   ],
   [
@@ -281,9 +303,16 @@
   [
    "foot.L",
    "cheville.L",
-   "orteils.L",
+   "plante.L",
    "shin.L",
    0.08
+  ],
+  [
+   "toes.L",
+   "plante.L",
+   "orteils.L",
+   "foot.L",
+   0.05
   ],
   [
    "thigh.R",
@@ -302,9 +331,16 @@
   [
    "foot.R",
    "cheville.R",
-   "orteils.R",
+   "plante.R",
    "shin.R",
    0.08
+  ],
+  [
+   "toes.R",
+   "plante.R",
+   "orteils.R",
+   "foot.R",
+   0.05
   ],
   [
    "fingers1.L",

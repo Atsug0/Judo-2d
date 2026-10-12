@@ -20,6 +20,14 @@ var cam: Camera3D
 var actors := [null, null]
 var ppm := 1.0          # pixels (monde 2D) par mètre
 var feet_y := 0.0
+# Demi-tour : quand le jeu retourne un judoka (face +1 ↔ -1, ex. entrée de seoi-nage), le
+# modèle pivote en quelques images face à la caméra au lieu de s'inverser d'un coup, et
+# ses articulations passent en fondu de l'ancienne à la nouvelle pose.
+const TURN_FRAMES := 9.0
+const BLEND_FRAMES := 8.0
+var turn := [{}, {}]
+var instant_turn := false   # outils de rendu image par image : pas de demi-tour progressif
+var clock := -1             # horloge du jeu (images de simulation) ; -1 = images du moteur
 
 
 func setup(dir: String, who: Array, k: float, floor_y: float) -> bool:
@@ -126,24 +134,39 @@ func pose_rig(i: int, xf: Transform2D, pose: Dictionary, hands: Array, ground: b
 	var inv := xf.affine_inverse()
 	var face := -1 if xf.determinant() < 0.0 else 1
 	var side_of := {"f": "R", "b": "L"} if face > 0 else {"f": "L", "b": "R"}
-	var M := {"bassin": _m(xf * hip, 0.0), "cou": _m(xf * neck, 0.0), "tete": _m(xf * head, 0.0)}
+	# repère anatomique (pose locale) : a = vers l'avant, y = vers le haut, r = vers la droite (m)
+	var s := xf.x.length() / ppm
+	var A := {"bassin": _an(hip, hip, s, 0.0), "cou": _an(neck, hip, s, 0.0), "tete": _an(head, hip, s, 0.0)}
 	var hand_local := [pose.get("hb", Art.REST_HANDS[0]), pose.get("hf", Art.REST_HANDS[1])]
 	for k in 2:
 		if hands.size() > k and hands[k] != null:
 			hand_local[k] = inv * Vector2(hands[k])
-	for s in ["b", "f"]:
-		var a: String = side_of[s]
-		var z := 1.0 if s == "f" else -1.0
-		var foot: Vector2 = pose["f" + s]
-		var knee: Vector2 = pose["k" + s] if pose.has("k" + s) else Art.ik_knee(torso.call(Vector2(-6 if s == "b" else 6, -47)), foot)
-		var hand: Vector2 = hand_local[0 if s == "b" else 1]
+	for sd in ["b", "f"]:
+		var a: String = side_of[sd]
+		var r := HALF.duplicate()
+		var z := 1.0 if a == "R" else -1.0
+		var foot: Vector2 = pose["f" + sd]
+		var knee: Vector2 = pose["k" + sd] if pose.has("k" + sd) else Art.ik_knee(torso.call(Vector2(-6 if sd == "b" else 6, -47)), foot)
+		var hand: Vector2 = hand_local[0 if sd == "b" else 1]
 		var elbow := _ik(sh, hand, Art.ARM_UPPER, Art.ARM_FORE, true)
-		M["hanche." + a] = _m(xf * hip, z * HALF.hanche)
-		M["genou." + a] = _m(xf * knee, z * HALF.genou)
-		M["pied." + a] = _m(xf * foot, z * HALF.pied)
-		M["epaule." + a] = _m(xf * sh, z * HALF.epaule)
-		M["coude." + a] = _m(xf * elbow, z * HALF.coude)
-		M["main." + a] = _m(xf * hand, z * HALF.main)
+		A["hanche." + a] = _an(hip, hip, s, z * r.hanche)
+		A["genou." + a] = _an(knee, hip, s, z * r.genou)
+		A["pied." + a] = _an(foot, hip, s, z * r.pied)
+		A["epaule." + a] = _an(sh, hip, s, z * r.epaule)
+		A["coude." + a] = _an(elbow, hip, s, z * r.coude)
+		A["main." + a] = _an(hand, hip, s, z * r.main)
+	A = _turn_blend(i, face, A)
+	var phi: float = turn[i].phi
+	# repère du corps dans la scène : e1 = avant pour face +1, eu = vertical du corps
+	var e1 := _dir3(xf.basis_xform(Vector2(face, 0)))
+	var eu := _dir3(xf.basis_xform(Vector2(0, -1)))
+	var fwd := e1 * cos(phi) + Vector3.BACK * sin(phi)
+	var right := -e1 * sin(phi) + Vector3.BACK * cos(phi)
+	var o := _m(xf * Vector2(hip.x, hip.y), 0.0)
+	var M := {"haut": eu}
+	for k in A:
+		var v: Vector3 = A[k]
+		M[k] = o + fwd * v.x + eu * v.y + right * v.z
 	var closed := {}
 	for k in 2:
 		var g: float = float(grips[k]) if grips.size() > k and grips[k] != null else -1.0
@@ -151,6 +174,46 @@ func pose_rig(i: int, xf: Transform2D, pose: Dictionary, hands: Array, ground: b
 	if pose.has("fist"):
 		closed = {"L": float(pose.fist), "R": float(pose.fist)}
 	return actors[i].pose(M, ground, shift_in, closed)
+
+
+## Point de la pose locale (unités du jeu, y vers le bas) → repère anatomique (m) autour du bassin.
+static func _an(p: Vector2, hip: Vector2, s: float, r: float) -> Vector3:
+	return Vector3((p.x - hip.x) * s, -(p.y - hip.y) * s, r)
+
+
+static func _dir3(v: Vector2) -> Vector3:
+	return Vector3(v.x, -v.y, 0.0).normalized()
+
+
+## Suit l'orientation (phi : 0 = face +1, PI = face -1, en passant face caméra) et fond
+## les articulations pendant BLEND_FRAMES images après un retournement.
+func _turn_blend(i: int, face: int, A: Dictionary) -> Dictionary:
+	var st: Dictionary = turn[i]
+	var frame: int = clock if clock >= 0 else Engine.get_process_frames()
+	var target := 0.0 if face > 0 else PI
+	var dt := float(frame - int(st.get("frame", -1000)))
+	if instant_turn or not st.has("phi") or dt > 20.0 or dt < 0.0:
+		st.phi = target
+		st.blend = BLEND_FRAMES
+		st.face = face
+		st.from = {}
+		dt = 0.0
+	dt = minf(dt, 20.0)
+	st.frame = frame
+	if face != int(st.face):
+		st.face = face
+		st.from = st.get("last", {}).duplicate()
+		st.blend = 0.0
+	st.phi = move_toward(float(st.phi), target, PI / TURN_FRAMES * dt)
+	st.blend = minf(float(st.blend) + dt, BLEND_FRAMES)
+	var out := A
+	if float(st.blend) < BLEND_FRAMES and not st.from.is_empty():
+		var w := smoothstep(0.0, 1.0, float(st.blend) / BLEND_FRAMES)
+		out = {}
+		for k in A:
+			out[k] = st.from[k].lerp(A[k], w) if st.from.has(k) else A[k]
+	st.last = out
+	return out
 
 
 ## Judoka au sol (ne-waza) : repère 2D et articulations de fighter_art.ground_poses().
