@@ -1,5 +1,5 @@
 {
- "_doc": "Squelette des judokas g\u00e9n\u00e9r\u00e9s (TRELLIS) depuis art/personnages/*/pose_t.png, apr\u00e8s tools/rig/normalize.py : m\u00e8tres, Y vers le haut, tourn\u00e9 vers +Z, sa gauche vers +X, pose T. Proportions stylis\u00e9es (grosse t\u00eate, garde large).",
+ "_doc": "Squelette des judokas générés (TRELLIS) depuis art/personnages/*/pose_t.png, après tools/rig/normalize.py : mètres, Y vers le haut, tourné vers +Z, sa gauche vers +X, pose T. Proportions stylisées (grosse tête, garde large). Mains : paume, doigts en deux phalanges (fingers1/2) et pouce, pour fermer la main sur le judogi.",
  "joints": {
   "bassin": [
    0,
@@ -47,12 +47,12 @@
    -0.04
   ],
   "poignet.L": [
-   0.74,
+   0.75,
    0.485,
    -0.03
   ],
   "doigts.L": [
-   0.95,
+   0.985,
    0.485,
    -0.03
   ],
@@ -92,12 +92,12 @@
    -0.04
   ],
   "poignet.R": [
-   -0.74,
+   -0.75,
    0.485,
    -0.03
   ],
   "doigts.R": [
-   -0.95,
+   -0.985,
    0.485,
    -0.03
   ],
@@ -120,6 +120,56 @@
    -0.33,
    -0.93,
    0.19
+  ],
+  "jointure.L": [
+   0.885,
+   0.485,
+   -0.03
+  ],
+  "doigt_mi.L": [
+   0.935,
+   0.485,
+   -0.03
+  ],
+  "doigt_bout.L": [
+   0.985,
+   0.485,
+   -0.03
+  ],
+  "pouce_base.L": [
+   0.78,
+   0.48,
+   0.03
+  ],
+  "pouce_bout.L": [
+   0.87,
+   0.475,
+   0.065
+  ],
+  "jointure.R": [
+   -0.885,
+   0.485,
+   -0.03
+  ],
+  "doigt_mi.R": [
+   -0.935,
+   0.485,
+   -0.03
+  ],
+  "doigt_bout.R": [
+   -0.985,
+   0.485,
+   -0.03
+  ],
+  "pouce_base.R": [
+   -0.78,
+   0.48,
+   0.03
+  ],
+  "pouce_bout.R": [
+   -0.87,
+   0.475,
+   0.065
   ]
  },
  "bones": [
@@ -182,9 +232,9 @@
   [
    "hand.L",
    "poignet.L",
-   "doigts.L",
+   "jointure.L",
    "forearm.L",
-   0.06
+   0.035
   ],
   [
    "shoulder.R",
@@ -210,9 +260,9 @@
   [
    "hand.R",
    "poignet.R",
-   "doigts.R",
+   "jointure.R",
    "forearm.R",
-   0.06
+   0.035
   ],
   [
    "thigh.L",
@@ -255,6 +305,48 @@
    "orteils.R",
    "shin.R",
    0.08
+  ],
+  [
+   "fingers1.L",
+   "jointure.L",
+   "doigt_mi.L",
+   "hand.L",
+   0.022
+  ],
+  [
+   "fingers2.L",
+   "doigt_mi.L",
+   "doigt_bout.L",
+   "fingers1.L",
+   0.02
+  ],
+  [
+   "thumb.L",
+   "pouce_base.L",
+   "pouce_bout.L",
+   "hand.L",
+   0.022
+  ],
+  [
+   "fingers1.R",
+   "jointure.R",
+   "doigt_mi.R",
+   "hand.R",
+   0.022
+  ],
+  [
+   "fingers2.R",
+   "doigt_mi.R",
+   "doigt_bout.R",
+   "fingers1.R",
+   0.02
+  ],
+  [
+   "thumb.R",
+   "pouce_base.R",
+   "pouce_bout.R",
+   "hand.R",
+   0.022
   ]
  ]
 }

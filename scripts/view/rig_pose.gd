@@ -102,7 +102,8 @@ static func _arc(from: Vector3, to: Vector3) -> Basis:
 ## ground : pose la plante des pieds sur le sol (y = 0) quand un pied est bas ;
 ## shift_in : décalage vertical imposé (judoka en l'air, suit celui qui le projette).
 ## Renvoie le décalage vertical appliqué.
-func pose(M: Dictionary, ground: bool = true, shift_in = null) -> float:
+## grips : fermeture des mains {"L": 0..1, "R": 0..1} (0 = main ouverte, 1 = poing serré).
+func pose(M: Dictionary, ground: bool = true, shift_in = null, grips: Dictionary = {}) -> float:
 	var G := {}
 	var torso: Vector3 = M["cou"] - M["bassin"]
 	G["hips"] = _basis_from(M["hanche.L"] - M["hanche.R"], torso) * _basis_from(J["hanche.L"] - J["hanche.R"], J["dos"] - J["bassin"]).inverse()
@@ -124,6 +125,15 @@ func pose(M: Dictionary, ground: bool = true, shift_in = null) -> float:
 			G[name] = _arc(pg * (J[b[2]] - J[b[1]]), targets[name]) * pg
 		else:
 			G[name] = pg
+	# mains : les doigts s'enroulent vers la paume (paume vers le bas en pose T), le pouce se replie
+	for s in ["L", "R"]:
+		if not idx.has("fingers1." + s) or idx["fingers1." + s] < 0:
+			continue
+		var g := clampf(float(grips.get(s, 0.3)), 0.0, 1.0)
+		var sg := -1.0 if s == "L" else 1.0
+		G["fingers1." + s] = G["hand." + s] * Basis(Vector3.BACK, sg * 1.35 * g)
+		G["fingers2." + s] = G["fingers1." + s] * Basis(Vector3.BACK, sg * 1.45 * g)
+		G["thumb." + s] = G["hand." + s] * Basis(Vector3.RIGHT, 0.9 * g) * Basis(Vector3.UP, sg * -0.5 * g)
 	# pied posé : à plat sur le tatami, orienté comme le bassin (pas de pointe tendue)
 	var flat := _basis_from(M["hanche.L"] - M["hanche.R"], Vector3.UP) * _basis_from(J["hanche.L"] - J["hanche.R"], Vector3.UP).inverse()
 	for s in ["L", "R"]:

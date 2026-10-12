@@ -23,6 +23,8 @@ func _poses() -> Dictionary:
 	var victoire := Art.pose_stand(0.15)
 	victoire.hb = Vector2(-14, -126)
 	victoire.hf = Vector2(18, -66)
+	victoire.fist = 1.0
+	garde.fist = 0.35
 	return {"garde": garde, "victoire": victoire}
 
 

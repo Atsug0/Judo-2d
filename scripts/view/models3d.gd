@@ -114,7 +114,8 @@ static func _ik(a: Vector2, b: Vector2, l1: float, l2: float, down: bool) -> Vec
 
 
 ## Judoka debout ou projeté : repère 2D (monde), pose « debout » du jeu, mains (monde) ou null.
-func pose_rig(i: int, xf: Transform2D, pose: Dictionary, hands: Array, ground: bool = true, shift_in = null) -> float:
+## grips : [main arrière, main avant] du jeu, -1 = pas de prise, 0..1 = force de la prise.
+func pose_rig(i: int, xf: Transform2D, pose: Dictionary, hands: Array, ground: bool = true, shift_in = null, grips: Array = []) -> float:
 	var hip: Vector2 = pose.get("hip", Art.HIP0)
 	var bow := float(pose.get("bow", 0.0))
 	var tilt := float(pose.get("tilt", 0.0))
@@ -143,7 +144,13 @@ func pose_rig(i: int, xf: Transform2D, pose: Dictionary, hands: Array, ground: b
 		M["epaule." + a] = _m(xf * sh, z * HALF.epaule)
 		M["coude." + a] = _m(xf * elbow, z * HALF.coude)
 		M["main." + a] = _m(xf * hand, z * HALF.main)
-	return actors[i].pose(M, ground, shift_in)
+	var closed := {}
+	for k in 2:
+		var g: float = float(grips[k]) if grips.size() > k and grips[k] != null else -1.0
+		closed[side_of["b" if k == 0 else "f"]] = 0.3 if g < 0.0 else 0.8 + 0.2 * clampf(g, 0.0, 1.0)
+	if pose.has("fist"):
+		closed = {"L": float(pose.fist), "R": float(pose.fist)}
+	return actors[i].pose(M, ground, shift_in, closed)
 
 
 ## Judoka au sol (ne-waza) : repère 2D et articulations de fighter_art.ground_poses().
@@ -163,4 +170,4 @@ func pose_ground(i: int, xf: Transform2D, j: Dictionary) -> void:
 		M["epaule." + a] = _m(xf * sh, z * HALF.epaule)
 		M["coude." + a] = _m(xf * Vector2(j["elbow_" + s]), z * HALF.coude)
 		M["main." + a] = _m(xf * Vector2(j["hand_" + s]), z * HALF.main)
-	actors[i].pose(M, false)
+	actors[i].pose(M, false, null, {"L": 0.75, "R": 0.75})  # au sol : on tient le judogi

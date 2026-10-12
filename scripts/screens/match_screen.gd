@@ -1141,7 +1141,7 @@ func _draw_fighters() -> void:
 		for i in [first, 1 - first]:
 			var hw3: Array = _hands_world(i, rigs, th, throwing)
 			var airborne: bool = throwing and i == th.uke
-			var sh = m3d.pose_rig(i, rigs[i].xf, rigs[i].pose, hw3[0], not airborne, shift if airborne else null)
+			var sh = m3d.pose_rig(i, rigs[i].xf, rigs[i].pose, hw3[0], not airborne, shift if airborne else null, hw3[1])
 			if i == first:
 				shift = sh
 			if not throwing:
