@@ -698,11 +698,8 @@ func _draw_layer_world(ci: CanvasItem) -> void:
 func _use_models3d(p: Dictionary) -> bool:
 	if app == null or String(p.get("sprites", "")) != "":
 		return false
-	if app.args.has("models3d"):
-		return true
-	if app.args.has("dessin") or DisplayServer.get_name() == "headless":
-		return false
-	return FileAccess.file_exists("res://assets/judokas/homme_blanc/rig.glb")
+	# 3D seulement sur demande (--models3d) : par défaut, judokas dessinés (artwork découpé)
+	return app.args.has("models3d") and DisplayServer.get_name() != "headless"
 
 
 func _draw_layer_3d(ci: CanvasItem) -> void:
@@ -1150,7 +1147,10 @@ func _draw_fighters() -> void:
 		return
 	for i in order:
 		var hw: Array = _hands_world(i, rigs, th, throwing)
-		Art.draw_fighter(_ci, rigs[i].xf, _pal(i), rigs[i].pose, hw[0], hw[1])
+		var gr: Array = hw[1]
+		if throwing:
+			gr = gr.map(func(g): return 2.0 if g >= 0.0 else g)  # main fermée, sans anneau de force
+		Art.draw_fighter(_ci, rigs[i].xf, _pal(i), rigs[i].pose, hw[0], gr)
 		if not throwing:
 			_draw_callout(i, _base_xf(i))
 

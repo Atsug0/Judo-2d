@@ -28,6 +28,10 @@ Préférences d'Hugo (à respecter sans qu'il ait à le redire) :
 - Noms des légendes **fictifs** (droit à l'image) ; ne jamais copier un personnage protégé.
 - La vidéo YouTube d'uchi-mata (« Uchi-mata - Demo ») est utilisée **avec l'accord de son auteur**.
 - Il préfère que je fasse le maximum en autonomie puis que je présente le résultat, plutôt que de poser des questions.
+- **Direction visuelle (13/10/2026)** : Hugo n'aime pas le rendu des modèles 3D. On garde **ses artworks dessinés**
+  (fiches ChatGPT) en **2D façon Street Fighter**, animés par **découpage** (§5.0). La 3D reste dans le dépôt,
+  désactivée (`--models3d` pour la voir). Prochaine étape possible : remplacer les moments clés par de vraies
+  images dessinées (sprites) quand il y en aura.
 
 ---
 
@@ -119,6 +123,34 @@ Les fichiers `*.gd.uid` **doivent être commités** avec leur script (Godot 4.4)
 
 ## 5. Rendu du combat
 
+### 5.0 Judokas dessinés par découpage (rendu par défaut)
+`scripts/view/cutout.gd` pose les morceaux de l'artwork (tête, buste, jupe de veste, bras, avant-bras,
+main ouverte ou poing qui tient le judogi, cuisse, tibia, pied) entre les articulations du squelette 2D (§5.1).
+Branché dans `fighter_art.gd` : `draw_fighter` (debout, kumikata, projections), `draw_figure` (ne-waza),
+`draw_body` (menus, `next_pose = "victoire"` → bras levés), `draw_model_bust` (portraits = tête dessinée) ;
+`draw_arm` ne fait rien quand le judoka est découpé (les bras sont déjà dessinés).
+`pal.cutout` = `homme_blanc` (P1) / `homme_bleu` (P2). `--dessin` revient aux judokas vectoriels d'origine.
+- Chaque morceau a deux articulations A (pivot) et B ; il est posé de A→B sur P→Q du squelette (longueur ajustée,
+  largeur fixe `wu/wpx`, ou échelle uniforme `scale` pour tête, poing, pied, jupe).
+- Ordre : bras loin (teinté `FAR_TINT`), jambe loin, jambe près, jupe, tête, buste, bras près.
+  Bras : avant-bras puis main, manche par-dessus (cache le raccord du coude). Jambe : pied, tibia, cuisse.
+- Épaule = emmanchure du buste dessiné (`points.shoulder`), bras allongés de `ARM_K` pour garder la portée.
+- La jupe de la veste suit à moitié les cuisses (sinon elle reste raide quand le buste se penche).
+- Pendant une projection, les mains qui tiennent sont fermées sans anneau de force (grip = 2.0).
+
+Pipeline (voir aussi §6 bis) :
+```
+art/personnages/<j>/decoupe.png (planche de morceaux ChatGPT, profil vers la droite, fond gris uni)
+  → tools/cutout/<j>.json (annotation : box, clip, A, B, échelle, plugs = ouvertures grises à boucher)
+  → python3 tools/cutout/cut_parts.py tools/cutout/homme_blanc.json assets/cutout/homme_blanc --bleu assets/cutout/homme_bleu
+  → assets/cutout/<j>/<morceau>.png + parts.json (la variante bleue est recolorée automatiquement)
+```
+Prompts ChatGPT qui ont donné la planche : « CUT-OUT PUPPET PARTS SHEET » (tête, buste sans bras avec ceinture,
+bras dans la manche, avant-bras avec main, main ouverte, main qui serre un morceau de judogi, cuisse, tibia, pied,
+tous de profil vers la droite, même échelle, séparés, fond gris #BDBDBD), avec la fiche du personnage en référence.
+`profil_ecarte.png` (profil bras tendus, jambes écartées) sert de référence de proportions.
+Contrôle : `godot --path . -- --screen=art` (garde, kuzushi) et `--screen=art --anim=<tech>` (projection).
+
 ### 5.1 Squelette 2D (la référence de toutes les poses)
 `fighter_art.gd` : repère local **pieds en (0,0), avant = +x, haut = −y**, 100 unités = un judoka (1,80 m).
 Constantes : `HIP0 (0,-47)`, `NECK0 (1,-86)`, `HEAD_CENTER (1,-98)`, `SHOULDER_FRONT/BACK`, `ARM_UPPER 20`,
@@ -135,9 +167,8 @@ Familles : `hanche` (seoi-nage, o-goshi, harai-goshi, uchi-mata, tai-otoshi : to
 Pendant une projection, les mains viennent de `match_screen._hands_world` : tori tient manche + revers,
 uke garde la manche de tori jusqu'à p = 0.8 puis la main libre fait l'ukemi.
 
-### 5.3 Judokas 3D en combat (par défaut)
-`match_screen._use_models3d` : 3D si `assets/judokas/homme_blanc/rig.glb` existe, sauf `--dessin`, headless,
-ou sprites forcés. **P1 = judogi blanc, P2 = bleu** ; homme/femme selon `look.body3d` (0/1) →
+### 5.3 Judokas 3D (désactivés, `--models3d` pour les voir)
+`match_screen._use_models3d` et `Art.use_3d()` : 3D seulement avec `--models3d` (et pas en headless). **P1 = judogi blanc, P2 = bleu** ; homme/femme selon `look.body3d` (0/1) →
 `Models3D.who_for(look, player)` → `homme_blanc|homme_bleu|femme_blanc|femme_bleu`.
 
 `models3d.gd` :
@@ -171,7 +202,7 @@ Les écrans de menu n'affichent pas de 3D en direct : ils utilisent des **sprite
 
 ---
 
-## 6. Pipeline des modèles 3D (TRELLIS → jeu)
+## 6. Pipeline des modèles 3D (TRELLIS → jeu) — en sommeil (rendu écarté par Hugo)
 
 ```
 art/personnages/<j>/pose_t.png ──TRELLIS (HF, démo officielle microsoft/TRELLIS, gratuit)──► art/modeles3d/<j>.glb
@@ -243,8 +274,8 @@ Autres pistes conservées : `tools/blender/` (scène toon + rendu de sprites dep
 | `--quit_results=N` | quitte N images après les résultats |
 | `--demo=f.json` | pilotage scripté des menus (vidéos) |
 | `--lesson=<id>` / `--training --partner=garde` | leçon du dojo / entraînement libre |
-| `--dessin` | judokas dessinés 2D au lieu de la 3D |
-| `--models3d=<dossier> --models3d_who=a,b` | autres modèles 3D |
+| `--dessin` | judokas vectoriels d'origine au lieu de l'artwork découpé |
+| `--models3d[=<dossier>] --models3d_who=a,b` | active les judokas 3D (désactivés par défaut) |
 | `--anim=<tech>` (`--zoom`, `--ground`, `--count`) | (écran art) planche d'une chorégraphie |
 | `--bo3`, `--replay`, `--demo_round=n`, `--readout`, `--cursor`, `--dojo_lesson=n` | options de capture / démo |
 
@@ -252,6 +283,7 @@ Autres pistes conservées : `tools/blender/` (scène toon + rendu de sprites dep
 
 ## 9. Catalogue des outils (`tools/`)
 
+Découpage : `cutout/cut_parts.py` + `cutout/<judoka>.json` (annotation de la planche de morceaux).
 Tests : `smoke_test.gd`, `sim_test.gd`, `legends_rr.gd`, `challenge_test.gd`, `list_lessons.gd`.
 Captures : `capture_all.sh [écran…]` (régénère `screenshots/`), `capture_texts.sh <dossier>`.
 3D / rig : `rig/rebuild_models.sh`, `normalize.py`, `autorig.py`, `decimate.py`, `glb_io.py`,
@@ -308,12 +340,20 @@ godot --rendering-driver opengl3 --path . --write-movie x.avi --fixed-fps 60 --q
 
 ## 12. État au 12/10/2026 et suite
 
-Fait : jeu jouable de bout en bout (titre → menu → tournoi / versus / dojo / défis → combat debout et sol →
+Fait (13/10) : judokas dessinés par découpage à partir de l'artwork d'Hugo (homme blanc, bleu recoloré),
+partout (combat, sol, projections, menus, portraits) ; la 3D est désactivée.
+
+Fait avant : jeu jouable de bout en bout (titre → menu → tournoi / versus / dojo / défis → combat debout et sol →
 résultats), BO3, 10 légendes, personnalisation complète, son, judokas 3D partout (combat, dojo, menus),
 mains articulées, squelette 28 os avec colonne courbée et demi-tours progressifs, uchi-mata filmé,
 vidéos de présentation.
 
 À faire / pistes :
+- Planches de morceaux pour les autres judokas (homme bleu dédié, femmes blanche et bleue) : même prompt,
+  nouvelle annotation `tools/cutout/<j>.json`, puis `pal.cutout` selon `look.body3d` (homme / femme).
+  Aujourd'hui les légendes féminines s'affichent avec l'homme.
+- Arbitre encore en vectoriel : lui faire une planche aussi.
+- Images dessinées pour les moments clés (garde, chute d'uke, ippon) en complément du découpage.
 - Modèle **femme en judogi blanc** dédié (attendre le GLB d'Hugo → `art/modeles3d/femme_blanc.glb`).
 - Plus de **techniques filmées** (§7) : c'est ce qui rendra les projections naturelles.
 - Retoucher les chorégraphies dessinées les plus raides (uke en planche dans `hanche`, bras d'uke).

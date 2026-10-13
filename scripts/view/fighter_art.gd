@@ -5,6 +5,7 @@ extends RefCounted
 ## Coordonnées locales : pieds en (0, 0), avant = +x, haut = -y.
 
 const Style := preload("res://scripts/ui/style.gd")
+const Cutout := preload("res://scripts/view/cutout.gd")
 
 const HEIGHT := 100.0
 const SHOULDER_FRONT := Vector2(9, -79)
@@ -77,6 +78,8 @@ static func palette(player: int, look: Dictionary = {}) -> Dictionary:
 	else:
 		pal.trim = pal.accent
 	pal.model3d = ("femme" if int(lk.get("body3d", 0)) == 1 else "homme") + ("_blanc" if player == 0 else "_bleu")
+	# artwork découpé (assets/cutout) : judogi blanc pour P1, bleu pour P2
+	pal.cutout = "homme_blanc" if player == 0 else "homme_bleu"
 	return pal
 
 
@@ -91,12 +94,16 @@ static var _sprites := {}
 static var next_pose := ""   # pose du prochain draw_body (ex. "victoire"), consommée au dessin
 
 
-## Les judokas sont-ils affichés en 3D ? (modèles présents, écran réel, pas de --dessin)
+## Les judokas sont-ils affichés en 3D ? Seulement sur demande (--models3d) : par défaut,
+## les judokas sont dessinés (artwork découpé, scripts/view/cutout.gd).
 static func use_3d() -> bool:
 	if _on3d < 0:
 		_on3d = 0
-		if DisplayServer.get_name() != "headless" and not OS.get_cmdline_user_args().has("--dessin") \
-				and FileAccess.file_exists(MODELS_DIR + "/homme_blanc/poses/garde.png"):
+		var has_flag := false
+		for a in OS.get_cmdline_user_args():
+			if a.begins_with("--models3d"):
+				has_flag = true
+		if has_flag and DisplayServer.get_name() != "headless" and FileAccess.file_exists(MODELS_DIR + "/homme_blanc/poses/garde.png"):
 			_on3d = 1
 	return _on3d == 1
 
@@ -127,7 +134,7 @@ static func pose_sprite(model: String, pose: String) -> Array:
 ## Buste du judoka 3D (tête et épaules) dans un cadre, pour les vignettes. Renvoie false si indisponible.
 static func draw_model_bust(ci: CanvasItem, rect: Rect2, pal: Dictionary) -> bool:
 	if not use_3d() or not pal.has("model3d"):
-		return false
+		return Cutout.draw_bust(ci, rect, pal)
 	var sp: Array = pose_sprite(String(pal.model3d), "garde")
 	if sp.is_empty():
 		return false
@@ -202,6 +209,14 @@ static func draw_body(ci: CanvasItem, xf: Transform2D, pal: Dictionary, stance: 
 	next_pose = ""
 	if draw_model(ci, xf, pal, pose):
 		return
+	if Cutout.has(pal):
+		var p := pose_stand(stance)
+		if pose == "victoire":
+			p.hb = Vector2(-10, -122)
+			p.hf = Vector2(14, -124)
+			p.fist = 1.0
+		Cutout.draw_stand(ci, xf, pal, p, [], [-1.0, -1.0], [SHIN_ANGLE_B, SHIN_ANGLE_F])
+		return
 	ci.draw_set_transform_matrix(xf)
 	var ink := Style.INK
 	var acc: Color = pal.accent
@@ -268,8 +283,8 @@ static func _draw_torso(ci: CanvasItem, pal: Dictionary, ow: float) -> void:
 ## Bras en coordonnées écran : manche large du judogi avec plis et ourlet,
 ## avant-bras musclé, main en poing orientée selon l'avant-bras.
 static func draw_arm(ci: CanvasItem, shoulder: Vector2, hand: Vector2, pal: Dictionary, back: bool, scale: float, grip_strength: float = -1.0, elbow_at: Vector2 = Vector2.INF) -> void:
-	if pal.has("model3d") and use_3d():
-		return  # le judoka 3D a déjà ses bras
+	if (pal.has("model3d") and use_3d()) or Cutout.has(pal):
+		return  # le judoka 3D / découpé a déjà ses bras
 	var elbow := elbow_at
 	if elbow_at == Vector2.INF:
 		# bras à deux segments de longueur fixe (IK) : le coude plie au lieu que le bras s'étire
@@ -333,7 +348,7 @@ static func draw_arm(ci: CanvasItem, shoulder: Vector2, hand: Vector2, pal: Dict
 	# ourlet de la manche
 	ci.draw_line(cuff + n2 * 5.0 * k - u2 * 1.4 * k, cuff - n2 * 5.0 * k - u2 * 1.4 * k, gi_sh, 1.8, true)
 	_pline(ci, sleeve, ink_w)
-	if grip_strength >= 0.0:
+	if grip_strength >= 0.0 and grip_strength <= 1.0:
 		var c := Style.GOOD.lerp(Style.DANGER, clampf(grip_strength, 0.0, 1.0))
 		ci.draw_arc(wrist + u2 * 3.4 * k, 6.2 * k, 0, TAU, 24, c, 3.0, true)
 
@@ -549,6 +564,9 @@ const HEAD_CENTER := Vector2(1, -98)  # centre de la tête dans le repère « de
 
 
 static func draw_figure(ci: CanvasItem, xf: Transform2D, pal: Dictionary, j: Dictionary, grip: float = -1.0) -> void:
+	if Cutout.has(pal):
+		Cutout.draw_ground(ci, xf, pal, j, grip)
+		return
 	var sc := maxf(0.5, absf(xf.get_scale().y))
 	var ow := 4.2 / sc
 	var dw := 2.6 / sc
@@ -730,6 +748,9 @@ static func torso_point(xf: Transform2D, pose: Dictionary, p: Vector2) -> Vector
 ## écran (saisies), sinon les mains de la pose. grip : force de chaque main (-1 = pas de prise).
 static func draw_fighter(ci: CanvasItem, xf: Transform2D, pal: Dictionary, pose: Dictionary,
 		hands_world: Array = [], grip: Array = [-1.0, -1.0]) -> void:
+	if Cutout.has(pal):
+		Cutout.draw_stand(ci, xf, pal, pose, hands_world, grip, [SHIN_ANGLE_B, SHIN_ANGLE_F])
+		return
 	var k := absf(xf.get_scale().y)
 	var sc := maxf(0.5, k)
 	var ow := 4.2 / sc

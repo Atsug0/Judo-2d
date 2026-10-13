@@ -1,0 +1,314 @@
+{
+ "_doc": "Annotation de la planche de morceaux (art/personnages/homme_blanc/decoupe.png, générée par ChatGPT, vue de profil tournée vers la droite). Coordonnées en pixels de la planche. A = articulation proche (pivot), B = articulation éloignée ; box = rectangle à découper ; clip = polygone facultatif ; plugs = points de remplissage des ouvertures grises (épaule, hanche…) ; wpx / wu = largeur du morceau en pixels / en unités de jeu (sinon échelle uniforme 'scale' en unités par pixel, ou A→B).",
+ "sheet": "art/personnages/homme_blanc/decoupe.png",
+ "gi_fill": [
+  240,
+  240,
+  246
+ ],
+ "skin_fill": [
+  226,
+  158,
+  112
+ ],
+ "parts": {
+  "head": {
+   "box": [
+    95,
+    35,
+    315,
+    322
+   ],
+   "A": [
+    165,
+    282
+   ],
+   "B": [
+    195,
+    165
+   ],
+   "scale": 0.1,
+   "plugs": [
+    [
+     150,
+     300,
+     "skin"
+    ]
+   ]
+  },
+  "torso": {
+   "box": [
+    40,
+    335,
+    345,
+    930
+   ],
+   "A": [
+    200,
+    688
+   ],
+   "B": [
+    175,
+    362
+   ],
+   "points": {
+    "shoulder": [
+     108,
+     470
+    ]
+   },
+   "plugs": [
+    [
+     105,
+     485,
+     "gi"
+    ]
+   ],
+   "clip": [
+    [
+     40,
+     335
+    ],
+    [
+     345,
+     335
+    ],
+    [
+     345,
+     707
+    ],
+    [
+     40,
+     707
+    ]
+   ]
+  },
+  "skirt": {
+   "box": [
+    40,
+    662,
+    345,
+    930
+   ],
+   "clip": [
+    [
+     40,
+     668
+    ],
+    [
+     345,
+     668
+    ],
+    [
+     345,
+     930
+    ],
+    [
+     40,
+     930
+    ]
+   ],
+   "A": [
+    200,
+    688
+   ],
+   "B": [
+    200,
+    900
+   ],
+   "scale": 0.119
+  },
+  "upper_arm": {
+   "box": [
+    370,
+    255,
+    826,
+    452
+   ],
+   "A": [
+    398,
+    343
+   ],
+   "B": [
+    775,
+    368
+   ],
+   "wpx": 190,
+   "wu": 13.0,
+   "plugs": [
+    [
+     392,
+     345,
+     "gi"
+    ]
+   ]
+  },
+  "forearm_open": {
+   "box": [
+    390,
+    486,
+    816,
+    638
+   ],
+   "A": [
+    425,
+    560
+   ],
+   "B": [
+    650,
+    547
+   ],
+   "wpx": 145,
+   "wu": 10.0,
+   "plugs": [
+    [
+     402,
+     560,
+     "gi"
+    ]
+   ]
+  },
+  "forearm": {
+   "box": [
+    390,
+    486,
+    668,
+    638
+   ],
+   "A": [
+    425,
+    560
+   ],
+   "B": [
+    650,
+    547
+   ],
+   "wpx": 145,
+   "wu": 10.0,
+   "plugs": [
+    [
+     402,
+     560,
+     "gi"
+    ]
+   ]
+  },
+  "fist": {
+   "box": [
+    1106,
+    432,
+    1256,
+    552
+   ],
+   "A": [
+    1122,
+    505
+   ],
+   "B": [
+    1190,
+    495
+   ],
+   "scale": 0.06
+  },
+  "thigh": {
+   "box": [
+    413,
+    688,
+    676,
+    990
+   ],
+   "clip": [
+    [
+     413,
+     688
+    ],
+    [
+     676,
+     688
+    ],
+    [
+     690,
+     884
+    ],
+    [
+     650,
+     950
+    ],
+    [
+     535,
+     990
+    ],
+    [
+     413,
+     990
+    ]
+   ],
+   "A": [
+    445,
+    750
+   ],
+   "B": [
+    600,
+    925
+   ],
+   "wpx": 185,
+   "wu": 14.0,
+   "plugs": [
+    [
+     440,
+     750,
+     "gi"
+    ]
+   ]
+  },
+  "shin": {
+   "box": [
+    730,
+    720,
+    890,
+    1114
+   ],
+   "A": [
+    800,
+    795
+   ],
+   "B": [
+    815,
+    1098
+   ],
+   "wpx": 150,
+   "wu": 11.5,
+   "plugs": [
+    [
+     757,
+     772,
+     "gi"
+    ]
+   ]
+  },
+  "foot": {
+   "box": [
+    994,
+    988,
+    1232,
+    1154
+   ],
+   "A": [
+    1040,
+    1085
+   ],
+   "B": [
+    1140,
+    1085
+   ],
+   "scale": 0.066,
+   "plugs": [
+    [
+     1040,
+     1000,
+     "skin"
+    ]
+   ]
+  }
+ }
+}

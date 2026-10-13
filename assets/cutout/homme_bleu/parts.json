@@ -1,0 +1,135 @@
+{
+ "_doc": "Morceaux du judoka (pixels de chaque image) : A, B = articulations ; wpx / wu, scale : \u00e9chelle. G\u00e9n\u00e9r\u00e9 par tools/cutout/cut_parts.py.",
+ "parts": {
+  "head": {
+   "file": "head.png",
+   "A": [
+    69.0,
+    244.0
+   ],
+   "B": [
+    99.0,
+    127.0
+   ],
+   "scale": 0.1
+  },
+  "torso": {
+   "file": "torso.png",
+   "A": [
+    155.0,
+    351.0
+   ],
+   "B": [
+    130.0,
+    25.0
+   ],
+   "points": {
+    "shoulder": [
+     63.0,
+     133.0
+    ]
+   }
+  },
+  "skirt": {
+   "file": "skirt.png",
+   "A": [
+    160.0,
+    23.0
+   ],
+   "B": [
+    160.0,
+    235.0
+   ],
+   "scale": 0.119
+  },
+  "upper_arm": {
+   "file": "upper_arm.png",
+   "A": [
+    28.0,
+    84.0
+   ],
+   "B": [
+    405.0,
+    109.0
+   ],
+   "wpx": 190,
+   "wu": 13.0
+  },
+  "forearm_open": {
+   "file": "forearm_open.png",
+   "A": [
+    35.0,
+    70.0
+   ],
+   "B": [
+    260.0,
+    57.0
+   ],
+   "wpx": 145,
+   "wu": 10.0
+  },
+  "forearm": {
+   "file": "forearm.png",
+   "A": [
+    35.0,
+    70.0
+   ],
+   "B": [
+    260.0,
+    57.0
+   ],
+   "wpx": 145,
+   "wu": 10.0
+  },
+  "fist": {
+   "file": "fist.png",
+   "A": [
+    13.0,
+    70.0
+   ],
+   "B": [
+    81.0,
+    60.0
+   ],
+   "scale": 0.06
+  },
+  "thigh": {
+   "file": "thigh.png",
+   "A": [
+    31.0,
+    61.0
+   ],
+   "B": [
+    186.0,
+    236.0
+   ],
+   "wpx": 185,
+   "wu": 14.0
+  },
+  "shin": {
+   "file": "shin.png",
+   "A": [
+    69.0,
+    73.0
+   ],
+   "B": [
+    84.0,
+    376.0
+   ],
+   "wpx": 150,
+   "wu": 11.5
+  },
+  "foot": {
+   "file": "foot.png",
+   "A": [
+    46.0,
+    92.0
+   ],
+   "B": [
+    146.0,
+    92.0
+   ],
+   "scale": 0.066
+  }
+ }
+}
