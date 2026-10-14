@@ -1,0 +1,388 @@
+{
+ "_doc": "Squelette d'un judoka importé de Tripo (tools/rig/import_tripo.py) : mètres, Y vers le haut, tourné vers +Z, sa gauche vers +X, 1,90 m (pieds à −0,95). Os au repos sans rotation : rig_pose.gd pose des orientations globales.",
+ "joints": {
+  "bassin": [
+   0.0037,
+   0.0408,
+   -0.0316
+  ],
+  "cheville.L": [
+   0.308,
+   -0.8201,
+   -0.091
+  ],
+  "cheville.R": [
+   -0.3006,
+   -0.8201,
+   -0.091
+  ],
+  "clavicule.L": [
+   0.0556,
+   0.5603,
+   -0.0464
+  ],
+  "clavicule.R": [
+   -0.0483,
+   0.5603,
+   -0.0464
+  ],
+  "cou": [
+   0.0037,
+   0.6048,
+   -0.039
+  ],
+  "coude.L": [
+   0.4712,
+   0.5009,
+   -0.0464
+  ],
+  "coude.R": [
+   -0.4639,
+   0.5009,
+   -0.0464
+  ],
+  "doigt_bout.L": [
+   0.9225,
+   0.4929,
+   0.0294
+  ],
+  "doigt_bout.R": [
+   -0.9244,
+   0.4922,
+   0.0305
+  ],
+  "doigt_mi.L": [
+   0.881,
+   0.4954,
+   0.0172
+  ],
+  "doigt_mi.R": [
+   -0.8807,
+   0.496,
+   0.018
+  ],
+  "doigts.L": [
+   0.9225,
+   0.4929,
+   0.0294
+  ],
+  "doigts.R": [
+   -0.9244,
+   0.4922,
+   0.0305
+  ],
+  "dos": [
+   0.0037,
+   0.1002,
+   -0.0167
+  ],
+  "epaule.L": [
+   0.2263,
+   0.5455,
+   -0.039
+  ],
+  "epaule.R": [
+   -0.219,
+   0.5455,
+   -0.039
+  ],
+  "genou.L": [
+   0.1966,
+   -0.4119,
+   -0.0093
+  ],
+  "genou.R": [
+   -0.1893,
+   -0.4119,
+   -0.0093
+  ],
+  "hanche.L": [
+   0.1224,
+   -0.0112,
+   -0.0019
+  ],
+  "hanche.R": [
+   -0.1151,
+   -0.0112,
+   -0.0019
+  ],
+  "jointure.L": [
+   0.8285,
+   0.5002,
+   0.0026
+  ],
+  "jointure.R": [
+   -0.827,
+   0.4997,
+   0.0056
+  ],
+  "milieu": [
+   0.0037,
+   0.1892,
+   -0.0019
+  ],
+  "orteils.L": [
+   0.37,
+   -0.9018,
+   0.182
+  ],
+  "orteils.R": [
+   -0.3626,
+   -0.9018,
+   0.182
+  ],
+  "plante.L": [
+   0.3451,
+   -0.9018,
+   0.0723
+  ],
+  "plante.R": [
+   -0.3377,
+   -0.9018,
+   0.0723
+  ],
+  "poignet.L": [
+   0.7077,
+   0.499,
+   -0.0169
+  ],
+  "poignet.R": [
+   -0.7145,
+   0.4997,
+   -0.0119
+  ],
+  "poitrine": [
+   0.0037,
+   0.3154,
+   -0.0019
+  ],
+  "pouce_base.L": [
+   0.7431,
+   0.5173,
+   0.0148
+  ],
+  "pouce_base.R": [
+   -0.7408,
+   0.5197,
+   0.0193
+  ],
+  "pouce_bout.L": [
+   0.8127,
+   0.5564,
+   0.0758
+  ],
+  "pouce_bout.R": [
+   -0.8095,
+   0.5597,
+   0.0755
+  ],
+  "sommet": [
+   0.0037,
+   1.082,
+   0.0615
+  ],
+  "tete": [
+   0.0037,
+   0.7458,
+   -0.0093
+  ]
+ },
+ "bones": [
+  [
+   "hips",
+   "bassin",
+   "dos",
+   "",
+   0.16
+  ],
+  [
+   "spine",
+   "dos",
+   "milieu",
+   "hips",
+   0.17
+  ],
+  [
+   "spine2",
+   "milieu",
+   "poitrine",
+   "spine",
+   0.175
+  ],
+  [
+   "chest",
+   "poitrine",
+   "cou",
+   "spine2",
+   0.18
+  ],
+  [
+   "neck",
+   "cou",
+   "tete",
+   "chest",
+   0.07
+  ],
+  [
+   "head",
+   "tete",
+   "sommet",
+   "neck",
+   0.15
+  ],
+  [
+   "shoulder.L",
+   "clavicule.L",
+   "epaule.L",
+   "chest",
+   0.06
+  ],
+  [
+   "upper_arm.L",
+   "epaule.L",
+   "coude.L",
+   "shoulder.L",
+   0.11
+  ],
+  [
+   "forearm.L",
+   "coude.L",
+   "poignet.L",
+   "upper_arm.L",
+   0.11
+  ],
+  [
+   "hand.L",
+   "poignet.L",
+   "jointure.L",
+   "forearm.L",
+   0.035
+  ],
+  [
+   "thigh.L",
+   "hanche.L",
+   "genou.L",
+   "hips",
+   0.13
+  ],
+  [
+   "shin.L",
+   "genou.L",
+   "cheville.L",
+   "thigh.L",
+   0.12
+  ],
+  [
+   "foot.L",
+   "cheville.L",
+   "plante.L",
+   "shin.L",
+   0.08
+  ],
+  [
+   "toes.L",
+   "plante.L",
+   "orteils.L",
+   "foot.L",
+   0.05
+  ],
+  [
+   "fingers1.L",
+   "jointure.L",
+   "doigt_mi.L",
+   "hand.L",
+   0.022
+  ],
+  [
+   "fingers2.L",
+   "doigt_mi.L",
+   "doigt_bout.L",
+   "fingers1.L",
+   0.02
+  ],
+  [
+   "thumb.L",
+   "pouce_base.L",
+   "pouce_bout.L",
+   "hand.L",
+   0.022
+  ],
+  [
+   "shoulder.R",
+   "clavicule.R",
+   "epaule.R",
+   "chest",
+   0.06
+  ],
+  [
+   "upper_arm.R",
+   "epaule.R",
+   "coude.R",
+   "shoulder.R",
+   0.11
+  ],
+  [
+   "forearm.R",
+   "coude.R",
+   "poignet.R",
+   "upper_arm.R",
+   0.11
+  ],
+  [
+   "hand.R",
+   "poignet.R",
+   "jointure.R",
+   "forearm.R",
+   0.035
+  ],
+  [
+   "thigh.R",
+   "hanche.R",
+   "genou.R",
+   "hips",
+   0.13
+  ],
+  [
+   "shin.R",
+   "genou.R",
+   "cheville.R",
+   "thigh.R",
+   0.12
+  ],
+  [
+   "foot.R",
+   "cheville.R",
+   "plante.R",
+   "shin.R",
+   0.08
+  ],
+  [
+   "toes.R",
+   "plante.R",
+   "orteils.R",
+   "foot.R",
+   0.05
+  ],
+  [
+   "fingers1.R",
+   "jointure.R",
+   "doigt_mi.R",
+   "hand.R",
+   0.022
+  ],
+  [
+   "fingers2.R",
+   "doigt_mi.R",
+   "doigt_bout.R",
+   "fingers1.R",
+   0.02
+  ],
+  [
+   "thumb.R",
+   "pouce_base.R",
+   "pouce_bout.R",
+   "hand.R",
+   0.022
+  ]
+ ]
+}

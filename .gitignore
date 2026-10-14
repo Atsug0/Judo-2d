@@ -14,3 +14,7 @@ export_presets.cfg
 __pycache__/
 # Textures extraites par l import Godot des modèles 3D
 assets/judokas/*/rig_*.png
+# Modèles bruts déposés depuis Tripo (lourds, non versionnés tant que git-lfs n'est pas
+# installé : les modèles utiles sont importés dans assets/judokas/ par tools/rig/import_tripo.py)
+/new asset/
+.DS_Store
