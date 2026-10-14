@@ -8,7 +8,7 @@ les outils ou les conventions changent.
 
 ## 1. Le projet et la façon de travailler
 
-**Jeu de combat de judo en 2D pour PC, 100 % manette**, fait avec **Godot 4.4.1** (moteur GL Compatibility).
+**Jeu de combat de judo en 2D pour PC**, manette **ou clavier** (§5.5), fait avec **Godot** (4.4.1 à l'origine, vérifié sur 4.7.2), moteur **Forward+** (il était en GL Compatibility jusqu'au 15/10/2026 : ce moteur ne sait rendre ni les ombres portées ni l'occlusion ambiante, et les judokas y restaient plats).
 Pas de barre de vie : on gagne par le **kumikata** (saisies), le **kuzushi** (déséquilibre), le **timing**,
 et au sol par le **ne-waza** (immobilisations, clés, étranglements). Format **BO3** façon jeu de combat.
 Direction artistique inspirée de **2XKO** (panneaux inclinés, encre épaisse, couleurs saturées, cel-shading).
@@ -217,10 +217,17 @@ comptent en ticks de simulation**, jamais en temps réel : les replays en dépen
 `{A}` `{LT}` `{RS}` dans les aides, le HUD et les 23 leçons du dojo — aucun texte n'a été réécrit.
 
 ### 5.5 bis Rendu des modèles
-Contour d'encre (coque inversée) + liseré, mais **éclairage doux** : `DIFFUSE_TOON` écrasait
-le relief du judogi en un aplat blanc, alors que c'est le relief qui fait la valeur des
-modèles (Hugo, 15/10/2026, capture à l'appui). L'import garde donc aussi la **normal map**,
-et l'ambiante de `models3d.gd` est descendue à 0,42 avec une clé chaude plus franche.
+Objectif : se rapprocher du rendu de l'aperçu Tripo, que les aplats écrasaient complètement
+(Hugo, 15/10/2026, captures comparées à l'appui). Quatre choses s'additionnent :
+- l'import garde la **normal map** (tissage, surpiqûres, plis) ;
+- **éclairage doux** (`DIFFUSE_BURLEY`) au lieu de `DIFFUSE_TOON`, qui quantifiait tout en
+  une seule bande : le judogi devenait un aplat blanc même avec la normal map ;
+- **trois points façon studio** dans `models3d.gd` : clé chaude qui **porte des ombres**,
+  déboucheuse froide sans ombre, contre-jour qui détache du décor ; ambiante à 0,22 ;
+- **SSAO** (`ssao_enabled`) qui creuse les emmanchures, le dessous du menton et les plis,
+  plus un léger spéculaire — d'où le passage en Forward+.
+Le **contour d'encre** est gardé mais affiné (0,012 → 0,007) : il marque la silhouette sans
+écraser le modelé. C'est lui qui donne le trait « jeu de combat », pas l'aplat.
 
 ### 5.6 Cadrage
 La caméra serre sur les judokas (zoom 1,7 à 2,0 en combat, jusqu'à 2,35 sur un ippon) : les

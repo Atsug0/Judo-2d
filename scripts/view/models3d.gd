@@ -45,17 +45,36 @@ func setup(dir: String, who: Array, k: float, floor_y: float, textures: Array = 
 	var e := Environment.new()
 	e.background_mode = Environment.BG_CLEAR_COLOR
 	e.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	e.ambient_light_color = Color("c4bcf0")
-	e.ambient_light_energy = 0.42
+	e.ambient_light_color = Color("b9c4ef")
+	e.ambient_light_energy = 0.22
 	e.tonemap_mode = Environment.TONE_MAPPER_FILMIC
+	# occlusion ambiante : creuse les plis, les emmanchures et le dessous du menton
+	e.ssao_enabled = true
+	e.ssao_radius = 0.28
+	e.ssao_intensity = 3.4
+	e.ssao_power = 1.6
+	e.ssao_detail = 0.6
 	env.environment = e
 	vp.add_child(env)
-	# clé chaude franche (le relief du judogi doit se lire), contre-jours discrets
-	for l in [[Color("fff4e4"), 1.75, Vector3(-38, -32, 0)], [Color("ff3fa0"), 0.5, Vector3(-10, 150, 0)], [Color("38d6ff"), 0.45, Vector3(-10, -150, 0)]]:
+	# Éclairage trois points façon studio : une clé chaude qui porte des ombres (c'est elle
+	# qui creuse les plis du judogi et pose les bras sur le buste), une déboucheuse froide
+	# sans ombre pour que le côté sombre ne soit pas noir, et un contre-jour qui détache
+	# la silhouette du décor.
+	for l in [
+			[Color("fff6e8"), 1.15, Vector3(-42, -34, 0), true],
+			
+			]:
 		var d := DirectionalLight3D.new()
 		d.light_color = l[0]
 		d.light_energy = l[1]
 		d.rotation_degrees = l[2]
+		if l[3]:
+			d.shadow_enabled = true
+			d.directional_shadow_mode = DirectionalLight3D.SHADOW_ORTHOGONAL
+			d.directional_shadow_max_distance = 4.0
+			d.shadow_bias = 0.02
+			d.shadow_normal_bias = 0.02
+			d.shadow_opacity = 0.78
 		vp.add_child(d)
 	cam = Camera3D.new()
 	cam.projection = Camera3D.PROJECTION_ORTHOGONAL

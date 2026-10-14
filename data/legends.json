@@ -174,7 +174,7 @@
     "sol": 3
    },
    "look": {
-    "modele": "basic_f",
+    "modele": "maya",
     "belt": 0,
     "trim": 3
    },
@@ -354,7 +354,7 @@
     "sol": 8
    },
    "look": {
-    "modele": "basic_f",
+    "modele": "amara",
     "belt": 0,
     "trim": 1
    },

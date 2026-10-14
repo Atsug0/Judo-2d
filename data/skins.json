@@ -111,6 +111,24 @@
    "blanc": "femme_veteran",
    "bleu": "femme_veteran",
    "gi": "blanc"
+  },
+  {
+   "id": "maya",
+   "nom": "TEMPÊTE",
+   "sexe": "f",
+   "tag": "Pression permanente",
+   "blanc": "maya",
+   "bleu": "maya",
+   "gi": "blanc"
+  },
+  {
+   "id": "amara",
+   "nom": "KESA",
+   "sexe": "f",
+   "tag": "Puissance au sol",
+   "blanc": "amara",
+   "bleu": "amara",
+   "gi": "blanc"
   }
  ]
 }

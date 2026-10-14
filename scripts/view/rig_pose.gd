@@ -62,18 +62,19 @@ static func load_model(glb: String, joints_path: String, texture: String = "", t
 ## tissage — qui est tout l'intérêt des modèles. Le contour suffit à garder le trait.
 static func _toon(m: StandardMaterial3D) -> void:
 	m.diffuse_mode = BaseMaterial3D.DIFFUSE_BURLEY
-	m.specular_mode = BaseMaterial3D.SPECULAR_DISABLED
+	m.specular_mode = BaseMaterial3D.SPECULAR_SCHLICK_GGX
+	m.specular = 0.28          # peau et tissu accrochent un peu la lumière
 	m.metallic = 0.0
-	m.roughness = 0.85
+	m.roughness = 0.72
 	m.rim_enabled = true
-	m.rim = 0.3
-	m.rim_tint = 0.7
+	m.rim = 0.22
+	m.rim_tint = 0.6
 	var ink := StandardMaterial3D.new()
 	ink.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	ink.albedo_color = Color("0b0a14")
 	ink.cull_mode = BaseMaterial3D.CULL_FRONT
 	ink.grow = true
-	ink.grow_amount = 0.012
+	ink.grow_amount = 0.007    # trait fin : il marque la silhouette sans écraser le modelé
 	m.next_pass = ink
 
 
