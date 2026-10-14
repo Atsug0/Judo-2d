@@ -168,6 +168,26 @@ def png(buf, w, h, path):
     open(path, "wb").write(out)
 
 
+def planche(dirs, pose, view, out, cw=230, ch=340):
+    """Planche de contrôle : tous les judokas côte à côte, même pose."""
+    cols = min(7, len(dirs))
+    rows = (len(dirs) + cols - 1) // cols
+    W, H = cols * cw, rows * ch
+    sheet = bytearray(W * H * 3)
+    for i in range(0, len(sheet), 3):
+        sheet[i], sheet[i + 1], sheet[i + 2] = 0x16, 0x11, 0x31
+    for k, src in enumerate(dirs):
+        V, VN, IDX = skin(src, pose)
+        buf, w, h = render(V, VN, IDX, view, cw, ch)
+        ox, oy = (k % cols) * cw, (k // cols) * ch
+        for y in range(h):
+            o = ((oy + y) * W + ox) * 3
+            sheet[o:o + w * 3] = buf[y * w * 3:(y + 1) * w * 3]
+        print("  ", os.path.basename(src))
+    png(sheet, W, H, out)
+    print(out)
+
+
 if __name__ == "__main__":
     a = sys.argv[1:]
     if not a:
@@ -176,7 +196,11 @@ if __name__ == "__main__":
     pose = a[a.index("--pose") + 1] if "--pose" in a else "garde"
     view = a[a.index("--vue") + 1] if "--vue" in a else "face"
     out = a[a.index("--out") + 1] if "--out" in a else "/tmp/preview.png"
-    V, VN, IDX = skin(src, pose)
-    buf, w, h = render(V, VN, IDX, view)
-    png(buf, w, h, out)
-    print(f"{out} ({pose}, vue {view})")
+    dirs = [x for x in a if os.path.isdir(x)]
+    if "--planche" in a:
+        planche(sorted(dirs), pose, view, out)
+    else:
+        V, VN, IDX = skin(src, pose)
+        buf, w, h = render(V, VN, IDX, view)
+        png(buf, w, h, out)
+        print(f"{out} ({pose}, vue {view})")

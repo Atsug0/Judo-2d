@@ -243,7 +243,7 @@ def convert(src, ident, outdir, repair=False):
     os.makedirs(outdir, exist_ok=True)
     write_joints(outdir, pos)
 
-    if repair:
+    if repair and faults:
         # peau inutilisable : on ne garde que le maillage et le squelette, et on
         # recalcule les poids avec l'auto-rig du projet (diffusion sur la surface).
         static = os.path.join(outdir, "_statique.glb")
