@@ -211,9 +211,38 @@ static func chip(ci: CanvasItem, r: Rect2, fill: Color, border: Color = INK) -> 
 
 
 ## Bouton de manette stylisé (A/B/X/Y, LT, RT…), couleurs façon Xbox.
-static func pad_button(ci: CanvasItem, c: Vector2, name: String, size: float = 13.0) -> void:
-	var col := MUTED
+## Le joueur humain joue-t-il au clavier ? Posé par main.gd. Les jetons de manette
+## ({A}, {LT}, {RS}…) des aides et des leçons affichent alors la touche correspondante.
+static var clavier := false
+
+const CLAVIER_ACTIONS := {
+	"LT": "main_g", "RT": "main_d", "LB": "cible_g", "RB": "cible_d",
+	"A": "technique", "B": "casser", "X": "jambe", "Y": "tokui",
+}
+
+
+## Libellé d'un jeton de manette pour le périphérique actif.
+static func token(name: String) -> String:
+	if not clavier:
+		return name
+	var Keys = load("res://scripts/key_reader.gd")
+	if CLAVIER_ACTIONS.has(name):
+		return Keys.nom_action(CLAVIER_ACTIONS[name])
 	match name:
+		"LS":
+			return "%s %s" % [Keys.nom_action("gauche"), Keys.nom_action("droite")]
+		"RS":
+			return "%s%s%s%s" % [Keys.nom_action("kuzushi_ar"), Keys.nom_action("kuzushi_g"),
+				Keys.nom_action("kuzushi_d"), Keys.nom_action("kuzushi_av")]
+		"START":
+			return "ÉCHAP"
+	return name
+
+
+static func pad_button(ci: CanvasItem, c: Vector2, raw: String, size: float = 13.0) -> void:
+	var name := token(raw)
+	var col := MUTED
+	match raw:
 		"A":
 			col = Color("47d16b")
 		"B":

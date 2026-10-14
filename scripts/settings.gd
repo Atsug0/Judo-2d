@@ -21,7 +21,9 @@ const DEFAULTS := {
 	"format": "bo3",           # "bo3" : deux manches gagnantes ; "single" : un seul combat
 	"match_minutes": 2,        # durée réglementaire d'une manche
 	"golden_limit": 1,         # golden score : 0 = illimité, sinon minutes avant décision
-	"replay": true,            # ralenti de la projection gagnante           # lecture des boutons A/X/Y et alerte de contre (joueurs humains)
+	"replay": true,            # ralenti de la projection gagnante
+	"peripherique": "auto",    # "auto" (manette si branchée, sinon clavier), "manette", "clavier"
+	"clavier": {},             # touches redéfinies : action → code touche (voir key_reader.gd)
 }
 
 
@@ -35,6 +37,8 @@ static func get_all() -> Dictionary:
 				for k in parsed:
 					if _data.has(k):
 						_data[k] = int(parsed[k]) if typeof(DEFAULTS[k]) == TYPE_INT else parsed[k]
+		if typeof(_data.get("clavier")) != TYPE_DICTIONARY:
+			_data["clavier"] = {}
 	return _data
 
 

@@ -109,7 +109,7 @@ func _ready() -> void:
 
 func default_match_params() -> Dictionary:
 	var pads := Input.get_connected_joypads()
-	var c1 := "pad0" if pads.size() >= 1 and not capture_mode else "ai"
+	var c1 := human_controller()
 	var c2 := "pad1" if pads.size() >= 2 and not capture_mode else "ai"
 	var BuildS = preload("res://scripts/build.gd")
 	var bs: Array = BuildS.defaults()
@@ -122,9 +122,20 @@ func default_match_params() -> Dictionary:
 		"sprites": String(args.get("sprites", "")), "seed": int(args.get("seed", "3")), "level": int(args.get("level", str(preload("res://scripts/settings.gd").value("ai_level")))), "mode": "demo"}
 
 
-## Contrôleur du joueur humain : manette 0 si branchée, sinon l'IA (démo).
+## Contrôleur du joueur humain : selon le réglage « périphérique », manette 0 si elle
+## est branchée, sinon le clavier. Toujours l'IA en mode capture (démos et vidéos).
 func human_controller() -> String:
-	return "pad0" if Input.get_connected_joypads().size() >= 1 and not capture_mode else "ai"
+	var choix := String(preload("res://scripts/settings.gd").value("peripherique"))
+	var pads := Input.get_connected_joypads().size()
+	# sans manette branchée, le clavier plutôt que la démo IA — sauf si le joueur impose la manette
+	var clavier := choix == "clavier" or (choix != "manette" and pads == 0)
+	# les aides en combat et les leçons affichent les touches plutôt que les boutons
+	preload("res://scripts/ui/style.gd").clavier = clavier
+	if capture_mode:
+		return "ai"
+	if clavier:
+		return "clavier"
+	return "pad0" if pads >= 1 else "ai"
 
 
 func goto(screen_name: String, params: Dictionary = {}) -> void:

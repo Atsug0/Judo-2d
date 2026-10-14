@@ -46,7 +46,8 @@ static func _split_tokens(word: String, size: int) -> Array:
 			var s = word.substr(pos, m.get_start() - pos)
 			parts.append({"kind": "t", "s": s, "w": Style.text_width(s, size, "bold")})
 		var b = m.get_string(1)
-		var bw: float = size * 1.3 if b.length() == 1 else maxf(size * 1.65, Style.text_width(b, int(size * 0.62), "black") + 12.0)
+		var aff := Style.token(b)        # au clavier, le jeton affiche la touche réglée
+		var bw: float = size * 1.3 if aff.length() == 1 else maxf(size * 1.65, Style.text_width(aff, int(size * 0.62), "black") + 12.0)
 		parts.append({"kind": "b", "s": b, "w": bw + 4.0})
 		pos = m.get_end()
 	if pos < word.length():

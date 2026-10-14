@@ -1,17 +1,20 @@
 #!/usr/bin/env python3
-"""Texture bleue des skins qui n'existent qu'en judogi blanc.
+"""Judogi blanc et bleu de chaque skin, pour respecter le blanc/bleu de compétition.
 
     python3 tools/rig/gi_variantes.py            # tous les skins de data/skins.json
     python3 tools/rig/gi_variantes.py colosse
 
-En compétition, un judoka est en blanc et l'autre en bleu : la couleur n'est donc pas un
-choix du joueur, elle dépend du côté. Les quatre modèles « basic » existent vraiment dans
-les deux couleurs ; pour les autres, on reteint la texture du modèle blanc et le jeu la
-plaque sur le même rig pour P2 (scripts/skins.gd → texture_for).
+En compétition, un judoka est en blanc et l'autre en bleu : la couleur n'est pas un choix
+du joueur, elle dépend du côté. Les quatre modèles « basic » existent vraiment dans les
+deux couleurs ; pour les autres, on reteint la texture du modèle et le jeu la plaque sur
+le même rig (scripts/skins.gd → texture_for). Selon la couleur d'origine du personnage,
+on génère la variante qui manque : `texture_bleu.jpg` pour un judogi blanc,
+`texture_blanc.jpg` pour un judogi bleu, noir ou gris.
 
-La texture de base est extraite du rig.glb, puis teintée avec l'algorithme de
-tools/rig/gi_bleu.py : les pixels peu saturés et clairs (le judogi) passent au bleu en
-gardant leurs ombres et leurs plis ; peau, cheveux et ceinture ne bougent pas.
+Le judogi ne se reconnaît pas à sa couleur — celui d'un vétéran est crème, des cheveux
+blancs sont tout aussi clairs et peu saturés, et un kimono noir est aussi sombre que des
+cheveux. Le masque est donc **construit depuis le squelette** : masque UV des triangles
+qui ne sont ni tête, ni cou, ni mains (voir masque_judogi).
 """
 import io
 import json
@@ -83,20 +86,33 @@ def masque_judogi(path, taille):
     return np.asarray(m).astype(np.float32) / 255.0
 
 
-def teinte(im, masque=None):
-    """Judogi blanc → bleu, ombres conservées (même algorithme que gi_bleu.py)."""
+def teinte(im, couleur, masque=None):
+    """Reteint le judogi en « bleu » ou « blanc », en gardant ombres et plis.
+
+    Dans la zone habillée, le tissu est tout ce qui n'est pas une peau orangée. On garde
+    la luminance relative du pixel (les plis et les ombres survivent) et on ne remplace
+    que la teinte et la saturation.
+    """
     a = np.asarray(im).astype(np.float32) / 255.0
     mx, mn = a.max(axis=2), a.min(axis=2)
     sat = (mx - mn) / np.maximum(mx, 1e-4)
-    # dans la zone habillée, le tissu est tout ce qui n'est pas une peau orangée
     peau = (sat > 0.26) & (a[..., 0] > a[..., 1]) & (a[..., 1] >= a[..., 2])
-    gi = np.clip((0.40 - sat) / 0.12, 0, 1) * np.clip((mx - 0.18) / 0.12, 0, 1)
-    gi = gi * (~peau)
+    gi = (~peau).astype(np.float32)
     if masque is not None:
         gi = gi * masque
-    shade = np.clip(mx / 0.9, 0.3, 1.1) ** 1.15
-    cible = np.clip(BLEU[None, None, :] * shade[..., None]
-                    + 0.03 * shade[..., None], 0, 1)
+    if couleur == "bleu":
+        shade = np.clip(mx / 0.9, 0.3, 1.1) ** 1.15
+        cible = np.clip(BLEU[None, None, :] * shade[..., None]
+                        + 0.03 * shade[..., None], 0, 1)
+    else:
+        # vers le blanc : on étire la luminance du tissu (un kimono bleu marine est
+        # sombre) et on désature presque complètement
+        lum = 0.299 * a[..., 0] + 0.587 * a[..., 1] + 0.114 * a[..., 2]
+        p = np.percentile(lum[gi > 0.5], [5, 95]) if (gi > 0.5).any() else [0.0, 1.0]
+        etire = np.clip((lum - p[0]) / max(1e-3, p[1] - p[0]), 0, 1)
+        v = 0.52 + 0.46 * etire
+        cible = np.stack([v, v, v * 1.01], axis=-1)
+        cible = np.clip(cible * 0.94 + a * 0.06, 0, 1)
     out = a * (1 - gi[..., None]) + cible * gi[..., None]
     return Image.fromarray((out * 255).astype(np.uint8)), float(gi.mean())
 
@@ -109,22 +125,21 @@ if __name__ == "__main__":
         if only and s["id"] not in only:
             continue
         if s["blanc"] != s["bleu"]:
-            continue                      # le modèle bleu existe pour de vrai
-        if s.get("gi") != "blanc":
-            print(f"– {s['id']:16s} judogi {s.get('gi')} : pas de teinte automatique")
-            continue                      # l'algorithme ne sait teinter qu'un judogi blanc
+            continue                      # les deux modèles existent pour de vrai
+        # on génère la couleur que le personnage n'a pas
+        couleur = "blanc" if s.get("gi") != "blanc" else "bleu"
         d = os.path.join(ROOT, "assets/judokas", s["blanc"])
         rig = os.path.join(d, "rig.glb")
         if not os.path.exists(rig):
             print(f"✗ {s['id']:16s} rig.glb absent")
             continue
-        out = os.path.join(d, "texture_bleu.jpg")
+        out = os.path.join(d, f"texture_{couleur}.jpg")
         src = basecolor(rig)
-        im, part = teinte(src, masque_judogi(rig, src.size[0]))
+        im, part = teinte(src, couleur, masque_judogi(rig, src.size[0]))
         if max(im.size) > MAX_PX:         # 2048 suffit : le judoka fait ~400 px à l'écran
             im = im.resize((MAX_PX, MAX_PX), Image.LANCZOS)
         im.save(out, quality=88)
         n += 1
-        print(f"✓ {s['id']:16s} {im.size[0]}×{im.size[1]}, "
-              f"{part * 100:.0f} % de la texture teintée → {os.path.relpath(out, ROOT)}")
-    print(f"\n{n} texture(s) bleue(s)")
+        print(f"✓ {s['id']:16s} judogi {s.get('gi'):10s} → {couleur:6s} "
+              f"({part * 100:.0f} % de la texture) {os.path.relpath(out, ROOT)}")
+    print(f"\n{n} variante(s) de judogi")

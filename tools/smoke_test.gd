@@ -29,7 +29,7 @@ func _run() -> void:
 	await _flow("menu → en ligne → retour", "menu", ["down", "down", "down", "accept", "back"], "menu")
 	await _flow("menu → personnalisation → retour", "menu", ["down", "down", "down", "down", "down", "accept", "next", "right", "next", "right", "x", "accept", "back"], "menu")
 	await _flow("menu → défis → combat", "menu", ["down", "down", "down", "accept", "down", "x", "accept"], "vs")
-	await _flow("menu → options → retour", "menu", ["down", "down", "down", "down", "down", "down", "accept", "right", "right", "left", "down", "right", "back", "back"], "menu")
+	await _flow("menu → options → retour", "menu", ["down", "down", "down", "down", "down", "down", "accept", "right", "right", "left", "down", "back", "back"], "menu")
 	await _flow("combat → pause → menu", "match", ["start", "down", "down", "down", "accept"], "menu")
 	await _flow("combat → pause → personnalisation", "match", ["start", "down", "down", "accept"], "customize")
 	await _flow("combat → pause → recommencer", "match", ["start", "down", "accept"], "match")

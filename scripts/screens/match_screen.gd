@@ -10,6 +10,7 @@ const GameData := preload("res://scripts/game_data.gd")
 const Sim := preload("res://scripts/sim/match_sim.gd")
 const Ai := preload("res://scripts/sim/ai_controller.gd")
 const Pad := preload("res://scripts/pad_reader.gd")
+const Keys := preload("res://scripts/key_reader.gd")
 const Settings := preload("res://scripts/settings.gd")
 const SpriteLib := preload("res://scripts/view/sprite_library.gd")
 const Anims := preload("res://scripts/view/throw_anims.gd")
@@ -27,7 +28,8 @@ var app  # main.gd
 var cfg: Dictionary
 var techs: Dictionary
 var sim
-var controllers = ["ai", "ai"]  # "pad0", "pad1" ou "ai"
+var controllers = ["ai", "ai"]  # "pad0", "pad1", "clavier", "dojo" ou "ai"
+var _claviers := {}             # lecteurs clavier (un par joueur : ils gardent leurs rampes)
 var ais = [null, null]
 var names = ["J1", "J2"]
 var feed: Array = []        # [{text, color, t}]
@@ -243,6 +245,10 @@ func _step_sim() -> void:
 				inputs.append(Pad.read(0))
 			"pad1":
 				inputs.append(Pad.read(1))
+			"clavier":
+				if not _claviers.has(i):
+					_claviers[i] = Keys.new()
+				inputs.append(_claviers[i].read())
 			"dojo":
 				inputs.append(dojo.partner_input(sim))
 			_:
@@ -1599,7 +1605,7 @@ func _draw_hud() -> void:
 	for i in 2:
 		_draw_player_hud(i)
 		if sim.state.phase == "fight" and dojo == null and Settings.value("readout") \
-				and (String(controllers[i]).begins_with("pad") or app != null and app.args.has("readout")):
+				and (String(controllers[i]) in ["pad0", "pad1", "clavier"] or app != null and app.args.has("readout")):
 			_draw_readout(i)
 	if dojo == null:
 		_draw_timer()
@@ -1885,7 +1891,9 @@ func _draw_hints() -> void:
 	var y = 694.0
 	var x = 28.0
 	if sim.state.phase == "newaza":
-		var nitems = [["A", "Contrôler"], ["X", "Clé de bras"], ["Y", "Étranglement"], ["B", "Se dégager"], ["R", "Stick gauche : gigoter (dessous)"]]
+		var gigoter := ("%s : gigoter (dessous)" % Style.token("LS")) if Style.clavier \
+			else "Stick gauche : gigoter (dessous)"
+		var nitems = [["A", "Contrôler"], ["X", "Clé de bras"], ["Y", "Étranglement"], ["B", "Se dégager"], ["R", gigoter]]
 		var nwh: Dictionary = sim.state.newaza
 		if not nwh.is_empty() and nwh.osae and nwh.has("ct"):
 			nitems = [["A", "Dessus : tenir, quand ton curseur est dans ta zone"], ["B", "Dessous : sortir, même principe"], ["X", "Clé"], ["Y", "Étranglement"], ["R", "Centre doré = parfait · raté = bloqué"]]
@@ -1902,7 +1910,12 @@ func _draw_hints() -> void:
 			Style.label(_ci, Vector2(x, y + 6), it[1], 15, Style.MUTED, "bold")
 			x += Style.text_width(it[1], 15, "bold") + 26
 		return
-	var items = [["LT", "RT", "Saisir"], ["LB", "RB", "Cible"], ["R", "", "Stick D : kuzushi"], ["R", "", "Pichenette stick G : dash"], ["A", "", "Technique"],
+	var kuzushi := "Stick D : kuzushi"
+	var dash := "Pichenette stick G : dash"
+	if Style.clavier:
+		kuzushi = "%s : kuzushi" % Style.token("RS")
+		dash = "%s + direction : dash" % Keys.nom_action("dash")
+	var items = [["LT", "RT", "Saisir"], ["LB", "RB", "Cible"], ["R", "", kuzushi], ["R", "", dash], ["A", "", "Technique"],
 		["X", "", "Jambe"], ["Y", "", "Tokui"], ["B", "", "Chasser / casser / contrer"]]
 	for it in items:
 		if it[0] == "R":
