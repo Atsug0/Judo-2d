@@ -115,15 +115,40 @@ def apply(m, v):
     return [sum(m[i][j] * v[j] for j in range(3)) for i in range(3)]
 
 
+def bind_positions(js, d, binoff):
+    """Position au repos de chaque os, lue dans les inverse bind matrices.
+
+    Rattrape les exports Tripo dont les nœuds n'ont aucune transformation : la pose de
+    repos y est quand même présente, cachée dans les matrices de la peau.
+    """
+    ibm = accessor(js, d, binoff, js["skins"][0]["inverseBindMatrices"])
+    out = {}
+    for j, m in zip(js["skins"][0]["joints"], ibm):
+        rot = [[m[0], m[4], m[8]], [m[1], m[5], m[9]], [m[2], m[6], m[10]]]
+        t = [m[12], m[13], m[14]]
+        out[js["nodes"][j].get("name", "")] = [
+            -sum(rot[k][i] * t[k] for k in range(3)) for i in range(3)]
+    return out
+
+
 def source_joints(js, d, binoff):
     """Position au repos de chaque articulation du jeu, dans le repère du modèle."""
     gl, _ = globals_of(js)
+    posed = sum(1 for n in js["nodes"]
+                if "translation" in n or "rotation" in n or "matrix" in n)
+    bind = None if posed >= len(js["skins"][0]["joints"]) * 0.8 \
+        else bind_positions(js, d, binoff)
     pos = {}
     for i, n in enumerate(js["nodes"]):
         name = n.get("name", "")
         if not name.startswith("mixamorig:"):
             continue
-        p = [gl[i][r][3] for r in range(3)]
+        if bind is not None:
+            if name not in bind:
+                continue
+            p = bind[name]
+        else:
+            p = [gl[i][r][3] for r in range(3)]
         n = name[len("mixamorig:"):]
         if n in JOINT_OF:
             pos[JOINT_OF[n]] = p
@@ -155,21 +180,24 @@ def orientation(pos):
     return -ang_left
 
 
-def convert(src, ident, outdir):
+def convert(src, ident, outdir, repair=False):
     js, d, binoff = read_glb(src)
     name, faults, _ = check(src)
-    if faults:
-        print(f"✗ {ident} : modèle défectueux, import refusé")
+    fatal = [f for f in faults if f.startswith("inverse bind")
+             or f.startswith("aucun squelette")]
+    if faults and not repair:
+        print(f"✗ {ident} : modèle défectueux, import refusé "
+              "(--reparer pour recalculer la peau)")
         for f in faults:
+            print(f"    - {f}")
+        return False
+    if fatal:
+        print(f"✗ {ident} : irréparable, la pose de repos elle-même est perdue")
+        for f in fatal:
             print(f"    - {f}")
         return False
 
     pos = source_joints(js, d, binoff)
-    missing = {j for b in BONES for j in (b[1], b[2])} - set(pos)
-    if missing:
-        print(f"✗ {ident} : articulations manquantes {sorted(missing)}")
-        return False
-
     prim = js["meshes"][0]["primitives"][0]
     P = [list(v) for v in accessor(js, d, binoff, prim["attributes"]["POSITION"])]
     N = [list(v) for v in accessor(js, d, binoff, prim["attributes"]["NORMAL"])]
@@ -177,6 +205,23 @@ def convert(src, ident, outdir):
     JA = accessor(js, d, binoff, prim["attributes"]["JOINTS_0"])
     WA = accessor(js, d, binoff, prim["attributes"]["WEIGHTS_0"])
     IDX = [v[0] for v in accessor(js, d, binoff, prim["indices"])]
+
+    if "sommet" not in pos:        # HeadTop_End absent de la peau : sommet du crâne
+        top = max(v[1] for v in P)
+        pos["sommet"] = [pos["tete"][0], top, pos["tete"][2]]
+    for s in ("L", "R"):           # Toe_End absent : bout du pied dans l'axe cheville→plante
+        if f"orteils.{s}" in pos:
+            continue
+        a, b = pos[f"cheville.{s}"], pos[f"plante.{s}"]
+        fwd = [b[0] - a[0], b[2] - a[2]]
+        n = math.hypot(*fwd) or 1.0
+        step = 0.045 * (max(v[1] for v in P) - min(v[1] for v in P))
+        pos[f"orteils.{s}"] = [b[0] + fwd[0] / n * step, b[1] - step * 0.25,
+                               b[2] + fwd[1] / n * step]
+    missing = {j for b in BONES for j in (b[1], b[2])} - set(pos)
+    if missing:
+        print(f"✗ {ident} : articulations manquantes {sorted(missing)}")
+        return False
 
     # --- repère du jeu : rotation, échelle, pieds à −0,95
     R = rot_y(orientation(pos))
@@ -194,6 +239,41 @@ def convert(src, ident, outdir):
     P = [place(v) for v in P]
     for key in pos:
         pos[key] = place(pos[key])
+
+    os.makedirs(outdir, exist_ok=True)
+    write_joints(outdir, pos)
+
+    if repair:
+        # peau inutilisable : on ne garde que le maillage et le squelette, et on
+        # recalcule les poids avec l'auto-rig du projet (diffusion sur la surface).
+        static = os.path.join(outdir, "_statique.glb")
+        B = Builder()
+        attrs = {"POSITION": B.add_floats([v for p in P for v in p], "VEC3", P, 34962),
+                 "NORMAL": B.add_floats([v for p in N for v in p], "VEC3", None, 34962),
+                 "TEXCOORD_0": B.add_floats([v for p in UV for v in p], "VEC2", None,
+                                            34962)}
+        ind = B.add_uints(IDX)
+        B.add_image(*basecolor(js, d, binoff))
+        B.js.update(COMMON_MATERIAL)
+        B.js["meshes"] = [{"name": "corps", "primitives": [
+            {"attributes": attrs, "indices": ind, "material": 0}]}]
+        B.js["nodes"] = [{"name": "corps", "mesh": 0}]
+        B.js["scenes"] = [{"nodes": [0]}]
+        B.js["scene"] = 0
+        B.save(static)
+        rig = os.path.join(outdir, "rig.glb")
+        cmd = [sys.executable, os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                            "autorig.py"),
+               static, os.path.join(outdir, "joints.json"), rig]
+        import subprocess
+        r = subprocess.run(cmd, capture_output=True, text=True)
+        os.remove(static)
+        if r.returncode != 0:
+            print(f"✗ {ident} : auto-rig en échec\n{r.stderr.strip()[-600:]}")
+            return False
+        size = os.path.getsize(rig) / 1e6
+        print(f"✓ {ident:16s} {len(P)} sommets, peau recalculée, {size:.1f} Mo")
+        return True
 
     # --- squelette du jeu : os au repos sans rotation, translation seule
     order = [b[0] for b in BONES]
@@ -235,11 +315,7 @@ def convert(src, ident, outdir):
         ibm += m
     ibm_acc = B.add_floats(ibm, "MAT4", None, None)
 
-    tex = js["textures"][prim_basecolor(js)]
-    img = js["images"][tex.get("source", 0)]
-    bv = js["bufferViews"][img["bufferView"]]
-    s0 = binoff + bv.get("byteOffset", 0)
-    B.add_image(d[s0:s0 + bv["byteLength"]], img.get("mimeType", "image/jpeg"))
+    B.add_image(*basecolor(js, d, binoff))
 
     nodes = [{"name": "judoka", "children": [1, 2]},
              {"name": "corps", "mesh": 0, "skin": 0}]
@@ -261,15 +337,35 @@ def convert(src, ident, outdir):
                    "inverseBindMatrices": ibm_acc, "skeleton": index["hips"]}],
         "meshes": [{"name": "corps", "primitives": [
             {"attributes": attrs, "indices": ind, "material": 0}]}],
-        "textures": [{"source": 0, "sampler": 0}],
-        "samplers": [{"magFilter": 9729, "minFilter": 9987}],
-        "materials": [{"name": "judoka", "doubleSided": True, "pbrMetallicRoughness": {
-            "baseColorTexture": {"index": 0}, "metallicFactor": 0.0,
-            "roughnessFactor": 0.9}}],
     })
-    os.makedirs(outdir, exist_ok=True)
+    B.js.update(COMMON_MATERIAL)
     B.save(os.path.join(outdir, "rig.glb"))
+    size = os.path.getsize(os.path.join(outdir, "rig.glb")) / 1e6
+    print(f"✓ {ident:16s} {len(P)} sommets, {len(order)} os, {size:.1f} Mo "
+          f"(tête {pos['sommet'][1]:.2f} m, pieds {pos['cheville.L'][1]:.2f} m)")
+    return True
 
+
+COMMON_MATERIAL = {
+    "textures": [{"source": 0, "sampler": 0}],
+    "samplers": [{"magFilter": 9729, "minFilter": 9987}],
+    "materials": [{"name": "judoka", "doubleSided": True, "pbrMetallicRoughness": {
+        "baseColorTexture": {"index": 0}, "metallicFactor": 0.0,
+        "roughnessFactor": 0.9}}],
+}
+
+
+def basecolor(js, d, binoff):
+    """Octets et type MIME de la texture de couleur de base."""
+    mat = js["materials"][js["meshes"][0]["primitives"][0].get("material", 0)]
+    tex = js["textures"][mat["pbrMetallicRoughness"]["baseColorTexture"]["index"]]
+    img = js["images"][tex.get("source", 0)]
+    bv = js["bufferViews"][img["bufferView"]]
+    s0 = binoff + bv.get("byteOffset", 0)
+    return d[s0:s0 + bv["byteLength"]], img.get("mimeType", "image/jpeg")
+
+
+def write_joints(outdir, pos):
     doc = ("Squelette d'un judoka importé de Tripo (tools/rig/import_tripo.py) : mètres, "
            "Y vers le haut, tourné vers +Z, sa gauche vers +X, 1,90 m (pieds à −0,95). "
            "Os au repos sans rotation : rig_pose.gd pose des orientations globales.")
@@ -277,15 +373,6 @@ def convert(src, ident, outdir):
         json.dump({"_doc": doc,
                    "joints": {k: [round(v, 4) for v in p] for k, p in sorted(pos.items())},
                    "bones": BONES}, f, ensure_ascii=False, indent=1)
-    size = os.path.getsize(os.path.join(outdir, "rig.glb")) / 1e6
-    print(f"✓ {ident:16s} {len(P)} sommets, {len(order)} os, {size:.1f} Mo "
-          f"(tête {pos['sommet'][1]:.2f} m, pieds {pos['cheville.L'][1]:.2f} m)")
-    return True
-
-
-def prim_basecolor(js):
-    mat = js["materials"][js["meshes"][0]["primitives"][0].get("material", 0)]
-    return mat["pbrMetallicRoughness"]["baseColorTexture"]["index"]
 
 
 class Builder:
@@ -349,14 +436,16 @@ class Builder:
 
 if __name__ == "__main__":
     args = [a for a in sys.argv[1:] if not a.startswith("--")]
+    rep = "--reparer" in sys.argv
     root = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..")
     if "--tous" in sys.argv:
         ok = sum(convert(p, os.path.basename(p)[:-4],
-                         os.path.join(root, "assets/judokas", os.path.basename(p)[:-4]))
+                         os.path.join(root, "assets/judokas", os.path.basename(p)[:-4]),
+                         rep)
                  for p in args)
         print(f"\n{ok}/{len(args)} modèles importés")
         sys.exit(0 if ok == len(args) else 1)
     if len(args) != 2:
         sys.exit(__doc__)
     sys.exit(0 if convert(args[0], args[1],
-                          os.path.join(root, "assets/judokas", args[1])) else 1)
+                          os.path.join(root, "assets/judokas", args[1]), rep) else 1)
