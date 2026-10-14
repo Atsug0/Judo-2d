@@ -28,10 +28,10 @@ Préférences d'Hugo (à respecter sans qu'il ait à le redire) :
 - Noms des légendes **fictifs** (droit à l'image) ; ne jamais copier un personnage protégé.
 - La vidéo YouTube d'uchi-mata (« Uchi-mata - Demo ») est utilisée **avec l'accord de son auteur**.
 - Il préfère que je fasse le maximum en autonomie puis que je présente le résultat, plutôt que de poser des questions.
-- **Direction visuelle (13/10/2026)** : Hugo n'aime pas le rendu des modèles 3D. On garde **ses artworks dessinés**
-  (fiches ChatGPT) en **2D façon Street Fighter**, animés par **découpage** (§5.0). La 3D reste dans le dépôt,
-  désactivée (`--models3d` pour la voir). Prochaine étape possible : remplacer les moments clés par de vraies
-  images dessinées (sprites) quand il y en aura.
+- **Direction visuelle (15/10/2026)** : retour à la **3D**, avec un nouveau casting généré sur **Tripo**
+  (14 modèles, §6). Les judokas 3D sont **affichés par défaut** ; `--dessin` (ou `--decoupe`) repasse à
+  l'artwork découpé (§5.0), conservé comme solution de repli. L'ancien lot (TRELLIS, 13/10) avait été
+  écarté par Hugo faute de qualité.
 
 ---
 
@@ -66,6 +66,7 @@ data/                  réglages et contenu (JSON, entiers → convertis en int 
   legends.json         10 judokas pré-configurés (noms fictifs) : mur, lame, seoi, tempete, eclair,
                        ours, sambiste, kesa, tacticienne, professeur (look.body3d = 1 → modèle femme)
   challenges.json      défis
+  skins.json           catalogue des 12 personnages 3D : dossier de modèle par couleur de judogi
   shotlist.json        liste de tournage au dojo (48 plans) générée depuis les techniques
   anims/<tech>.json    chorégraphies filmées (rotoscopie) ; existe : uchi_mata.json
 scripts/
@@ -73,6 +74,7 @@ scripts/
   sim/match_sim.gd     SIMULATION déterministe (voir §4)
   sim/ai_controller.gd IA (entrées manette générées, PRNG à graine, niveaux 1..3)
   build.gd             build d'un judoka (techniques, garde, style, physique, look) → user://builds.json
+  skins.gd             catalogue des skins : look.modele → dossier assets/judokas/ + texture
   game_data.gd         chargement des JSON (int !)
   settings.gd          réglages joueur → user://settings.json (format bo3, durée, golden, volume…)
   records.gd           palmarès → user://records.json
@@ -167,9 +169,11 @@ Familles : `hanche` (seoi-nage, o-goshi, harai-goshi, uchi-mata, tai-otoshi : to
 Pendant une projection, les mains viennent de `match_screen._hands_world` : tori tient manche + revers,
 uke garde la manche de tori jusqu'à p = 0.8 puis la main libre fait l'ukemi.
 
-### 5.3 Judokas 3D (désactivés, `--models3d` pour les voir)
-`match_screen._use_models3d` et `Art.use_3d()` : 3D seulement avec `--models3d` (et pas en headless). **P1 = judogi blanc, P2 = bleu** ; homme/femme selon `look.body3d` (0/1) →
-`Models3D.who_for(look, player)` → `homme_blanc|homme_bleu|femme_blanc|femme_bleu`.
+### 5.3 Judokas 3D (affichage par défaut)
+`match_screen._use_models3d` et `Art.use_3d()` : 3D dès que les modèles sont là (et pas en headless) ;
+`--dessin` / `--decoupe` repassent au découpage. **P1 = judogi blanc, P2 = bleu** ; le personnage vient du
+skin choisi → `Models3D.who_for(look, player)` → `Skins.dir_for(look.modele, player)`. Quand un skin n'existe
+qu'en blanc, `Skins.texture_for` renvoie `texture_bleu.jpg` et `setup(..., textures)` la plaque pour P2.
 
 `models3d.gd` :
 - SubViewport transparent 1280×720, lumières (clé chaude, contre-jours rose et cyan), caméra **orthographique**
@@ -202,43 +206,46 @@ Les écrans de menu n'affichent pas de 3D en direct : ils utilisent des **sprite
 
 ---
 
-## 6. Pipeline des modèles 3D (TRELLIS → jeu) — en sommeil (rendu écarté par Hugo)
+## 6. Pipeline des modèles 3D (Tripo → jeu)
+
+Les personnages sont générés sur **Tripo** : maillage, texture et squelette **Mixamo** (65 os,
+identique sur tous les modèles — un seul retargeting pour tout le casting, présent et à venir).
 
 ```
-art/personnages/<j>/pose_t.png ──TRELLIS (HF, démo officielle microsoft/TRELLIS, gratuit)──► art/modeles3d/<j>.glb
-   └─► tools/rig/rebuild_models.sh <j> :
-         normalize.py   1,90 m, pieds à y = −0,95, textures WebP → PNG, couleur de base seule, non métallique
-         autorig.py     squelette (tools/rig/<…>_joints.json) + poids de peau par diffusion harmonique sur la surface
-         decimate.py    --voxel 0.012 --uvq 48 --tex 1024 (~9,5 Mo par modèle)
-         → assets/judokas/<j>/rig.glb + joints.json, puis render_poses.gd (sprites de menu)
-```
-La chaîne est **déterministe** (relancer donne des fichiers identiques). ~45 s par modèle.
-
-Modèles : `homme_blanc` ← `judoka_ia_joints.json`, `homme_bleu` ← `judoka_ia_bleu_joints.json`,
-`femme_bleu` ← `judokate_ia_joints.json`. **`femme_blanc` est provisoire** : `modele.json` emprunte le rig
-de `femme_bleu` + `texture.png` repeinte (`tools/rig/gi_blanc.py`). Hugo doit fournir le vrai GLB.
-
-Format des joints (`*_joints.json`) — repère du modèle : mètres, **Y haut, tourné vers +Z, sa gauche vers +X, pose T** :
-- `joints` : bassin, dos, milieu, poitrine, cou, tete, sommet ; et par côté `.L/.R` : clavicule, epaule, coude,
-  poignet, jointure, doigt_mi, doigt_bout, doigts, pouce_base, pouce_bout, hanche, genou, cheville, plante, orteils.
-- `bones` : `[nom, articulation tête, articulation queue, parent, rayon de graine]` — **28 os** :
-  hips, spine, spine2, chest, neck, head ; shoulder, upper_arm, forearm, hand, fingers1, fingers2, thumb (×2) ;
-  thigh, shin, foot, toes (×2).
-- Options autorig facultatives : `fold_cut`, `protect` (skin_ok…), `belt_free`, `drop_bridges`.
-- Pour ajouter un os : ajouter l'articulation et l'os dans les 3 JSON, relancer `rebuild_models.sh`,
-  puis le piloter dans `rig_pose.gd` (un os non piloté suit son parent).
-
-Conseils génération : fiches « style jeu de combat, cel-shading », judogi **judo** (pas karaté : mains ouvertes,
-revers croisé, ceinture), vue de face en pose T fond blanc pour TRELLIS. Les modèles réalistes (scan) ont été
-**rejetés** par Hugo : on garde ce style stylisé.
-
-Contrôle visuel : `tools/rig/compare_anim.gd` (dessin 2D en haut, 3D en bas, par avancement) :
-```
-godot --path . -s tools/rig/compare_anim.gd -- --tech=seoi_nage --out=/tmp/cmp --steps=0,0.3,0.45,0.6,0.8,1 \
-      [--zoom=2 --cx=700 --cy=470 --crop=340,140,600,560 --cw=420] [--who=homme_blanc,homme_bleu]
+new asset/<perso>.glb       dépôt brut (non versionné, voir .gitignore)
+  ├─ python3 tools/rig/check_tripo.py "new asset"/*.glb       contrôle AVANT import
+  ├─ python3 tools/rig/import_tripo.py "new asset"/*.glb --tous --reparer
+  │     → assets/judokas/<perso>/{rig.glb, joints.json}
+  ├─ python3 tools/rig/gi_variantes.py                        texture_bleu.jpg (judogi de P2)
+  └─ godot --path . -s tools/rig/render_poses.gd              vignettes de menu
 ```
 
----
+`import_tripo.py` redresse le modèle (repère du jeu : +Z devant, sa gauche en +X), le normalise à
+1,90 m (pieds à −0,95), réduit le squelette aux **28 os du jeu** (les quatre doigts Mixamo fondus dans
+fingers1/fingers2), laisse les **os au repos sans rotation** pour que `rig_pose.gd` les pilote sans
+changement, et ne garde que la couleur de base (9,5 Mo → 3,5 Mo par modèle).
+
+**Les exports Tripo sont souvent défectueux**, et le défaut ne se voit pas dans un visualiseur, qui
+affiche le modèle au repos. `check_tripo.py` détecte les trois cas (bon export : `os=65 bassin%≈5`) :
+- *squelette plat* : les os n'ont aucune transformation, tout est tassé à l'origine ;
+- *peau morte* : 68 à 100 % des sommets accrochés au seul bassin ;
+- *fichier tronqué* : la fin du binaire est écrasée par du texte — **seul cas irrécupérable**, retélécharger.
+
+`--reparer` rattrape les deux premiers : la pose de repos survit dans les *inverse bind matrices*, on la
+relit là, puis **`tools/rig/autorig.py` recalcule les poids** (diffusion harmonique sur la surface). Sur
+ces exports le squelette des matrices est en plus **tourné d'un quart de tour par rapport au maillage** :
+`align_to_mesh()` essaie les quatre quarts de tour, garde celui qui place les extrémités dans la matière,
+et tranche l'avant/arrière avec le sens des pieds (une silhouette debout est presque symétrique).
+
+`tools/rig/gi_variantes.py` teint en bleu le judogi des skins blancs. Le masque n'est pas colorimétrique
+mais **construit depuis le squelette** (masque UV des triangles qui ne sont ni tête, ni cou, ni mains),
+sinon des cheveux blancs virent au bleu avec le kimono.
+
+`tools/rig/preview.py` rend un judoka posé en PNG **sans Godot** (Python pur, ni numpy ni Pillow) :
+`--pose garde|repos|torsion`, `--vue cote|face|dos`, `--planche` pour tout le casting.
+
+Les outils TRELLIS (`normalize.py`, `decimate.py`, `rebuild_models.sh`, `gi_bleu.py`, `gi_blanc.py`)
+restent pour les quatre modèles historiques (`homme_blanc`, `homme_bleu`, `femme_blanc`, `femme_bleu`).
 
 ## 7. Animations depuis une vidéo (rotoscopie)
 
@@ -274,7 +281,7 @@ Autres pistes conservées : `tools/blender/` (scène toon + rendu de sprites dep
 | `--quit_results=N` | quitte N images après les résultats |
 | `--demo=f.json` | pilotage scripté des menus (vidéos) |
 | `--lesson=<id>` / `--training --partner=garde` | leçon du dojo / entraînement libre |
-| `--dessin` | judokas vectoriels d'origine au lieu de l'artwork découpé |
+| `--dessin` / `--decoupe` | artwork découpé au lieu des judokas 3D (affichés par défaut) |
 | `--models3d[=<dossier>] --models3d_who=a,b` | active les judokas 3D (désactivés par défaut) |
 | `--anim=<tech>` (`--zoom`, `--ground`, `--count`) | (écran art) planche d'une chorégraphie |
 | `--bo3`, `--replay`, `--demo_round=n`, `--readout`, `--cursor`, `--dojo_lesson=n` | options de capture / démo |
