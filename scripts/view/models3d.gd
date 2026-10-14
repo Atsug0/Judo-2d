@@ -6,6 +6,7 @@ extends Node
 ## Par défaut : res://assets/judokas/<homme_blanc|homme_bleu>/rig.glb et joints.json
 ## (option « Judokas » des réglages d'affichage). --models3d=<dossier> --models3d_who=a,b pour tester.
 
+const Skins := preload("res://scripts/skins.gd")
 const RigPose := preload("res://scripts/view/rig_pose.gd")
 const Art := preload("res://scripts/view/fighter_art.gd")
 
@@ -30,7 +31,7 @@ var instant_turn := false   # outils de rendu image par image : pas de demi-tour
 var clock := -1             # horloge du jeu (images de simulation) ; -1 = images du moteur
 
 
-func setup(dir: String, who: Array, k: float, floor_y: float) -> bool:
+func setup(dir: String, who: Array, k: float, floor_y: float, textures: Array = []) -> bool:
 	ppm = k / M_PER_UNIT
 	feet_y = floor_y
 	vp = SubViewport.new()
@@ -67,7 +68,8 @@ func setup(dir: String, who: Array, k: float, floor_y: float) -> bool:
 			f = model_files(dir, DEFAULT_WHO[i])
 		if f.is_empty():
 			return false
-		var a = RigPose.load_model(f[0], f[1], f[2], true)
+		var tex: String = String(textures[i]) if i < textures.size() else ""
+		var a = RigPose.load_model(f[0], f[1], tex if tex != "" else f[2], true)
 		if a == null:
 			return false
 		vp.add_child(a.node)
@@ -76,6 +78,7 @@ func setup(dir: String, who: Array, k: float, floor_y: float) -> bool:
 
 
 ## Fichiers d'un modèle : [rig.glb, joints.json, texture de remplacement ou ""].
+## `textures` (setup) surcharge la texture, pour reteindre un judogi en bleu pour P2.
 ## Un dossier peut emprunter le rig d'un autre (modele.json : {"rig": "femme_bleu", "texture": "texture.png"}).
 static func model_files(dir: String, w: String) -> Array:
 	var base := dir.path_join(w)
@@ -89,9 +92,14 @@ static func model_files(dir: String, w: String) -> Array:
 	return []
 
 
-## Modèle d'un judoka : homme / femme (look.body3d), judogi blanc pour P1 et bleu pour P2.
+## Modèle d'un judoka : le skin choisi (look.modele), judogi blanc pour P1 et bleu pour P2.
 static func who_for(look: Dictionary, player: int) -> String:
-	return ("femme" if int(look.get("body3d", 0)) == 1 else "homme") + ("_blanc" if player == 0 else "_bleu")
+	return Skins.dir_for(Skins.of(look), player)
+
+
+## Texture de remplacement du judogi (bleu de P2 sur un skin qui n'existe qu'en blanc).
+static func texture_for(look: Dictionary, player: int) -> String:
+	return Skins.texture_for(Skins.of(look), player)
 
 
 func texture() -> Texture2D:

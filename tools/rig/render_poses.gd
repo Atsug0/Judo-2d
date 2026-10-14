@@ -6,7 +6,20 @@ extends SceneTree
 
 const Models3D := preload("res://scripts/view/models3d.gd")
 const Art := preload("res://scripts/view/fighter_art.gd")
-const MODELS := ["homme_blanc", "homme_bleu", "femme_blanc", "femme_bleu"]
+const Skins := preload("res://scripts/skins.gd")
+## Tous les dossiers de modèle référencés par le catalogue des skins (les deux couleurs),
+## ou ceux passés en argument : godot --path . -s tools/rig/render_poses.gd -- colosse modern
+static func _models() -> Array:
+	var args := OS.get_cmdline_user_args()
+	if args.size() > 0:
+		return Array(args)
+	var out := []
+	for s in Skins.all():
+		for k in ["blanc", "bleu"]:
+			var d := String(s.get(k, ""))
+			if d != "" and not out.has(d):
+				out.append(d)
+	return out
 const W := 600
 const H := 900
 const FEET_ROW := 860.0
@@ -30,7 +43,7 @@ func _poses() -> Dictionary:
 
 func _run() -> void:
 	var dir := Models3D.DEFAULT_DIR
-	for w in MODELS:
+	for w in _models():
 		if Models3D.model_files(dir, w).is_empty():
 			print("absent : ", w)
 			continue

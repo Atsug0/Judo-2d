@@ -1,0 +1,116 @@
+{
+ "_doc": "Catalogue des personnages 3D (skins). Remplace l'ancienne personnalisation du visage, des cheveux et de la carrure : on ne règle plus que le personnage. `gi` est la couleur du judogi portée par le modèle tel qu'il a été généré — seuls les « basic » existent en blanc ET en bleu, les autres gardent la leur. Pour imposer le blanc/bleu de compétition sur un skin nommé, générer une texture de remplacement avec tools/rig/gi_variantes.py (texture_bleu.jpg à côté du rig) : scripts/skins.gd la détecte toute seule.",
+ "defaut": "basic_h",
+ "skins": [
+  {
+   "id": "basic_h",
+   "nom": "CLASSIQUE",
+   "sexe": "h",
+   "base": true,
+   "tag": "Le judoka de base",
+   "blanc": "men_basic_white",
+   "bleu": "men_basic_blue",
+   "gi": "blanc/bleu"
+  },
+  {
+   "id": "basic_f",
+   "nom": "CLASSIQUE",
+   "sexe": "f",
+   "base": true,
+   "tag": "La judoka de base",
+   "blanc": "women_basic_white",
+   "bleu": "women_basic_blue",
+   "gi": "blanc/bleu"
+  },
+  {
+   "id": "colosse",
+   "nom": "LE COLOSSE",
+   "sexe": "h",
+   "tag": "Poids lourd massif",
+   "blanc": "colosse",
+   "bleu": "colosse",
+   "gi": "blanc"
+  },
+  {
+   "id": "brute",
+   "nom": "LA BRUTE",
+   "sexe": "h",
+   "tag": "Épaules larges, garde basse",
+   "blanc": "brute",
+   "bleu": "brute",
+   "gi": "bleu"
+  },
+  {
+   "id": "veteran",
+   "nom": "LE VÉTÉRAN",
+   "sexe": "h",
+   "tag": "Kimono usé, vieille école",
+   "blanc": "veteran",
+   "bleu": "veteran",
+   "gi": "blanc"
+  },
+  {
+   "id": "jeune",
+   "nom": "LE JEUNE",
+   "sexe": "h",
+   "tag": "Léger et nerveux",
+   "blanc": "jeune",
+   "bleu": "jeune",
+   "gi": "bleu"
+  },
+  {
+   "id": "modern",
+   "nom": "LE MODERNE",
+   "sexe": "h",
+   "tag": "Judo de compétition actuel",
+   "blanc": "modern",
+   "bleu": "modern",
+   "gi": "noir"
+  },
+  {
+   "id": "newaza",
+   "nom": "L'HOMME DU SOL",
+   "sexe": "h",
+   "tag": "Spécialiste du ne-waza",
+   "blanc": "newaza",
+   "bleu": "newaza",
+   "gi": "bleu"
+  },
+  {
+   "id": "zen",
+   "nom": "LE ZEN",
+   "sexe": "h",
+   "tag": "Calme et posé",
+   "blanc": "zen",
+   "bleu": "zen",
+   "gi": "gris"
+  },
+  {
+   "id": "free_mind",
+   "nom": "L'ESPRIT LIBRE",
+   "sexe": "h",
+   "tag": "Judo instinctif",
+   "blanc": "free_mind",
+   "bleu": "free_mind",
+   "gi": "blanc"
+  },
+  {
+   "id": "femme_aero",
+   "nom": "L'AÉRIENNE",
+   "sexe": "f",
+   "tag": "Vitesse et légèreté",
+   "blanc": "femme_aero",
+   "bleu": "femme_aero",
+   "gi": "blanc"
+  },
+  {
+   "id": "femme_veteran",
+   "nom": "LA VÉTÉRANE",
+   "sexe": "f",
+   "tag": "Expérience et timing",
+   "blanc": "femme_veteran",
+   "bleu": "femme_veteran",
+   "gi": "blanc"
+  }
+ ]
+}

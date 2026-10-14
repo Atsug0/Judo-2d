@@ -163,6 +163,65 @@ def source_joints(js, d, binoff):
     return pos
 
 
+def _mesh_forward(P):
+    """Direction de l'avant, lue sur le maillage : les pieds dépassent en avant du mollet."""
+    ys = sorted(v[1] for v in P)
+    bas = ys[int(len(ys) * 0.04)]
+    haut = ys[0] + (ys[-1] - ys[0]) * 0.22
+    pieds = [v for v in P if v[1] <= bas + (ys[-1] - ys[0]) * 0.02]
+    jambes = [v for v in P if bas < v[1] <= haut]
+    if not pieds or not jambes:
+        return (0.0, 1.0)
+    cp = (sum(v[0] for v in pieds) / len(pieds), sum(v[2] for v in pieds) / len(pieds))
+    cj = (sum(v[0] for v in jambes) / len(jambes), sum(v[2] for v in jambes) / len(jambes))
+    d = (cp[0] - cj[0], cp[1] - cj[1])
+    n = math.hypot(*d) or 1.0
+    return (d[0] / n, d[1] / n)
+
+
+def align_to_mesh(pos, P):
+    """Recale le squelette sur le maillage (rotation d'un quart de tour près).
+
+    Les exports Tripo défectueux livrent un squelette tourné de 90° par rapport au
+    maillage : la pose de repos lue dans les matrices est juste, mais exprimée dans un
+    autre repère. On essaie les quatre quarts de tour et on garde celui qui place le
+    mieux les extrémités (poignets, chevilles, sommet du crâne) dans la matière.
+    """
+    ech = P[::max(1, len(P) // 3000)]
+    cles = [k for k in ("poignet.L", "poignet.R", "cheville.L", "cheville.R", "tete")
+            if k in pos]
+    fits = []
+    for q in range(4):
+        ang = q * math.pi / 2
+        R = rot_y(ang)
+        total = 0.0
+        for k in cles:
+            j = apply(R, pos[k])
+            total += min((j[0] - v[0]) ** 2 + (j[1] - v[1]) ** 2 + (j[2] - v[2]) ** 2
+                         for v in ech)
+        fits.append((total, ang))
+    # un quart de tour sur deux colle aussi bien (une silhouette debout est presque
+    # symétrique avant/arrière) : on tranche avec le sens des pieds, qui dépassent
+    # toujours vers l'avant de la jambe.
+    best = min(f[0] for f in fits)
+    proches = [f for f in fits if f[0] <= best * 2.5 + 1e-6]
+    avant = _mesh_forward(P)
+    pieds = [0.0, 0.0]
+    for s in ("L", "R"):
+        pieds[0] += pos[f"orteils.{s}"][0] - pos[f"cheville.{s}"][0]
+        pieds[1] += pos[f"orteils.{s}"][2] - pos[f"cheville.{s}"][2]
+    def accord(ang):
+        R = rot_y(ang)
+        v = apply(R, [pieds[0], 0.0, pieds[1]])
+        return v[0] * avant[0] + v[2] * avant[1]
+    best_ang = max(proches, key=lambda f: accord(f[1]))[1]
+    if best_ang != 0.0:
+        print(f"   squelette recalé de {math.degrees(best_ang):.0f}° sur le maillage")
+        for k in pos:
+            pos[k] = apply(rot_y(best_ang), pos[k])
+    return pos
+
+
 def orientation(pos):
     """Angle de rotation autour de Y qui met sa gauche en +X et son regard en +Z."""
     left = [pos["epaule.L"][i] - pos["epaule.R"][i] for i in range(3)]
@@ -224,6 +283,7 @@ def convert(src, ident, outdir, repair=False):
         return False
 
     # --- repère du jeu : rotation, échelle, pieds à −0,95
+    align_to_mesh(pos, P)
     R = rot_y(orientation(pos))
     P = [apply(R, v) for v in P]
     N = [apply(R, v) for v in N]

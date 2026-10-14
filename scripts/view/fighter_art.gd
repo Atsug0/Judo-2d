@@ -4,6 +4,7 @@ extends RefCounted
 ## En attendant les sprites issus du pipeline Blender.
 ## Coordonnées locales : pieds en (0, 0), avant = +x, haut = -y.
 
+const Skins := preload("res://scripts/skins.gd")
 const Style := preload("res://scripts/ui/style.gd")
 const Cutout := preload("res://scripts/view/cutout.gd")
 
@@ -77,7 +78,9 @@ static func palette(player: int, look: Dictionary = {}) -> Dictionary:
 		pal.accent = Color(tc)
 	else:
 		pal.trim = pal.accent
-	pal.model3d = ("femme" if int(lk.get("body3d", 0)) == 1 else "homme") + ("_blanc" if player == 0 else "_bleu")
+	pal.modele = Skins.of(lk)
+	pal.model3d = Skins.dir_for(pal.modele, player)
+	pal.texture3d = Skins.texture_for(pal.modele, player)
 	# artwork découpé (assets/cutout) : judogi blanc pour P1, bleu pour P2
 	pal.cutout = "homme_blanc" if player == 0 else "homme_bleu"
 	return pal
@@ -88,22 +91,23 @@ static func palette(player: int, look: Dictionary = {}) -> Dictionary:
 # =============================================================================
 
 const MODELS_DIR := "res://assets/judokas"
-const BODY3D_NAMES := ["Homme", "Femme"]
+
 static var _on3d := -1
 static var _sprites := {}
 static var next_pose := ""   # pose du prochain draw_body (ex. "victoire"), consommée au dessin
 
 
-## Les judokas sont-ils affichés en 3D ? Seulement sur demande (--models3d) : par défaut,
-## les judokas sont dessinés (artwork découpé, scripts/view/cutout.gd).
+## Les judokas sont-ils affichés en 3D ? Oui dès que les modèles sont présents ;
+## `--dessin` (ou `--decoupe`) repasse à l'artwork découpé (scripts/view/cutout.gd).
 static func use_3d() -> bool:
 	if _on3d < 0:
 		_on3d = 0
-		var has_flag := false
+		var off := false
 		for a in OS.get_cmdline_user_args():
-			if a.begins_with("--models3d"):
-				has_flag = true
-		if has_flag and DisplayServer.get_name() != "headless" and FileAccess.file_exists(MODELS_DIR + "/homme_blanc/poses/garde.png"):
+			if a == "--dessin" or a == "--decoupe":
+				off = true
+		if not off and DisplayServer.get_name() != "headless" \
+				and FileAccess.file_exists(MODELS_DIR + "/" + Skins.dir_for(Skins.default_id(), 0) + "/rig.glb"):
 			_on3d = 1
 	return _on3d == 1
 

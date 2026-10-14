@@ -120,12 +120,15 @@ func on_enter(p: Dictionary) -> void:
 		m3d = M3d.new()
 		add_child(m3d)
 		var who: Array = Array(String(app.args.get("models3d_who", "")).split(",", false))
+		var texs: Array = []
 		if who.is_empty():
 			var bl: Array = p.get("builds", [])
 			for i in 2:
 				var b = bl[i] if i < bl.size() else {}
-				who.append(M3d.who_for(b.get("look", {}) if b is Dictionary else {}, i))
-		if m3d.setup(String(app.args.get("models3d", M3d.DEFAULT_DIR)), who, K, FEET_Y):
+				var lk: Dictionary = b.get("look", {}) if b is Dictionary else {}
+				who.append(M3d.who_for(lk, i))
+				texs.append(M3d.texture_for(lk, i))
+		if m3d.setup(String(app.args.get("models3d", M3d.DEFAULT_DIR)), who, K, FEET_Y, texs):
 			for spec in [["3d", "_draw_layer_3d"], ["fx", "_draw_layer_fx"]]:
 				var n = Node2D.new()
 				n.set_script(Proxy)
@@ -698,8 +701,8 @@ func _draw_layer_world(ci: CanvasItem) -> void:
 func _use_models3d(p: Dictionary) -> bool:
 	if app == null or String(p.get("sprites", "")) != "":
 		return false
-	# 3D seulement sur demande (--models3d) : par défaut, judokas dessinés (artwork découpé)
-	return app.args.has("models3d") and DisplayServer.get_name() != "headless"
+	# judokas 3D par défaut (Art.use_3d) ; --dessin / --decoupe repassent à l'artwork découpé
+	return (app.args.has("models3d") or Art.use_3d()) and DisplayServer.get_name() != "headless"
 
 
 func _draw_layer_3d(ci: CanvasItem) -> void:

@@ -1,535 +1,455 @@
 {
-  "_doc": "Judokas pré-configurés (personnages fictifs dont le style s'inspire des grands champions). Budgets respectés : set ≤ 15, physique ≤ 14.",
-  "legends": [
-    {
-      "id": "mur",
-      "name": "BASTIEN",
-      "nick": "LE MUR",
-      "tag": "Poids lourd dominateur",
-      "inspiration": "Les grands poids lourds qui écrasent le kumikata",
-      "garde": "gaucher",
-      "style": "haute",
-      "slots": {
-        "tokui": [
-          "harai_goshi"
-        ],
-        "main": [
-          "o_soto_gari",
-          "uchi_mata",
-          "",
-          ""
-        ],
-        "combo": [
-          "o_uchi_o_soto",
-          ""
-        ],
-        "counter": [
-          "o_soto_gaeshi",
-          ""
-        ],
-        "ground": [
-          "kesa_gatame",
-          ""
-        ]
-      },
-      "physique": {
-        "explosivite": 3,
-        "endurance": 6,
-        "poigne": 8,
-        "sol": 4
-      },
-      "look": {
-        "skin": 4,
-        "hair": 2,
-        "hair_color": 0,
-        "build": 2,
-        "face": 1,
-        "brow": 1,
-        "beard": 2,
-        "ears": 1,
-        "belt": 0,
-        "trim": 2,
-        "body3d": 0
-      },
-      "bio": "Il prend le col, il ne le lâche plus. Sa garde haute écrase la posture adverse jusqu'à ce que le harai-goshi parte tout seul.",
-      "legend": true
-    },
-    {
-      "id": "lame",
-      "name": "KAITO",
-      "nick": "LA LAME",
-      "tag": "Uchi-mata foudroyant",
-      "inspiration": "Les virtuoses japonais de l'uchi-mata",
-      "garde": "droitier",
-      "style": "haute",
-      "slots": {
-        "tokui": [
-          "uchi_mata"
-        ],
-        "main": [
-          "o_uchi_gari",
-          "ko_uchi_gari",
-          "sasae_tsurikomi_ashi",
-          ""
-        ],
-        "combo": [
-          "ko_uchi_uchi_mata",
-          ""
-        ],
-        "counter": [
-          "uchi_mata_sukashi",
-          ""
-        ],
-        "ground": [
-          "yoko_shiho_gatame",
-          ""
-        ]
-      },
-      "physique": {
-        "explosivite": 8,
-        "endurance": 5,
-        "poigne": 5,
-        "sol": 3
-      },
-      "look": {
-        "skin": 0,
-        "hair": 1,
-        "hair_color": 0,
-        "build": 0,
-        "face": 2,
-        "brow": 2,
-        "beard": 0,
-        "ears": 0,
-        "belt": 0,
-        "trim": 5,
-        "body3d": 0
-      },
-      "bio": "Un ko-uchi pour faire reculer, et la jambe monte. Son uchi-mata ne marque pas waza-ari : il marque ippon.",
-      "legend": true
-    },
-    {
-      "id": "seoi",
-      "name": "REN",
-      "nick": "SEOI",
-      "tag": "Le roi de l'épaule",
-      "inspiration": "Les spécialistes légendaires du seoi-nage",
-      "garde": "gaucher",
-      "style": "courte",
-      "slots": {
-        "tokui": [
-          "seoi_nage"
-        ],
-        "main": [
-          "ippon_seoi_nage",
-          "ko_uchi_gari",
-          "o_uchi_gari",
-          ""
-        ],
-        "combo": [
-          "o_uchi_seoi",
-          "ko_uchi_seoi"
-        ],
-        "counter": [
-          "tsubame_gaeshi",
-          ""
-        ],
-        "ground": [
-          "kesa_gatame",
-          "okuri_eri_jime"
-        ]
-      },
-      "physique": {
-        "explosivite": 8,
-        "endurance": 6,
-        "poigne": 4,
-        "sol": 3
-      },
-      "look": {
-        "skin": 1,
-        "hair": 0,
-        "hair_color": 0,
-        "build": 0,
-        "face": 0,
-        "brow": 1,
-        "beard": 1,
-        "ears": 1,
-        "belt": 0,
-        "trim": 1,
-        "body3d": 0
-      },
-      "bio": "Petit gabarit, centre de gravité au ras du tatami. Il passe sous la garde avant qu'on ait compris.",
-      "legend": true
-    },
-    {
-      "id": "tempete",
-      "name": "MAYA",
-      "nick": "TEMPÊTE",
-      "tag": "Pression permanente",
-      "inspiration": "Les championnes au rythme infernal",
-      "garde": "droitier",
-      "style": "courte",
-      "slots": {
-        "tokui": [
-          "tai_otoshi"
-        ],
-        "main": [
-          "o_uchi_gari",
-          "ko_uchi_gari",
-          "de_ashi_barai",
-          "o_soto_gari"
-        ],
-        "combo": [
-          "o_uchi_o_soto",
-          ""
-        ],
-        "counter": [
-          "ura_nage",
-          ""
-        ],
-        "ground": [
-          "kesa_gatame",
-          "yoko_shiho_gatame"
-        ]
-      },
-      "physique": {
-        "explosivite": 6,
-        "endurance": 7,
-        "poigne": 6,
-        "sol": 3
-      },
-      "look": {
-        "skin": 3,
-        "hair": 5,
-        "hair_color": 0,
-        "build": 1,
-        "face": 0,
-        "brow": 0,
-        "beard": 0,
-        "ears": 0,
-        "belt": 0,
-        "trim": 3,
-        "body3d": 1
-      },
-      "bio": "Elle ne recule jamais. Attaque, réattaque, enchaîne : au bout de deux minutes, ses adversaires n'ont plus de jambes.",
-      "legend": true
-    },
-    {
-      "id": "eclair",
-      "name": "YUNA",
-      "nick": "ÉCLAIR",
-      "tag": "Vitesse pure",
-      "inspiration": "Les prodiges de la vitesse d'exécution",
-      "garde": "droitier",
-      "style": "haute",
-      "slots": {
-        "tokui": [
-          "uchi_mata"
-        ],
-        "main": [
-          "harai_goshi",
-          "o_uchi_gari",
-          "ko_uchi_gari",
-          ""
-        ],
-        "combo": [
-          "ko_uchi_uchi_mata",
-          ""
-        ],
-        "counter": [
-          "tsubame_gaeshi",
-          ""
-        ],
-        "ground": [
-          "kesa_gatame",
-          ""
-        ]
-      },
-      "physique": {
-        "explosivite": 9,
-        "endurance": 4,
-        "poigne": 4,
-        "sol": 3
-      },
-      "look": {
-        "skin": 0,
-        "hair": 4,
-        "hair_color": 0,
-        "build": 0,
-        "face": 2,
-        "brow": 2,
-        "beard": 0,
-        "ears": 0,
-        "belt": 0,
-        "trim": 4,
-        "body3d": 1
-      },
-      "bio": "Personne n'entre plus vite. Le moindre déséquilibre suffit : elle est déjà dessous.",
-      "legend": true
-    },
-    {
-      "id": "ours",
-      "name": "NIKOS",
-      "nick": "L'OURS",
-      "tag": "Le maître des contres",
-      "inspiration": "Les colosses des contre-prises et du ramassage",
-      "garde": "droitier",
-      "style": "classique",
-      "slots": {
-        "tokui": [
-          "o_goshi"
-        ],
-        "main": [
-          "sumi_gaeshi",
-          "o_soto_gari",
-          "",
-          ""
-        ],
-        "combo": [
-          "",
-          ""
-        ],
-        "counter": [
-          "ura_nage",
-          "utsuri_goshi"
-        ],
-        "ground": [
-          "kesa_gatame",
-          "yoko_shiho_gatame"
-        ]
-      },
-      "physique": {
-        "explosivite": 3,
-        "endurance": 4,
-        "poigne": 9,
-        "sol": 4
-      },
-      "look": {
-        "skin": 2,
-        "hair": 6,
-        "hair_color": 1,
-        "build": 2,
-        "face": 1,
-        "brow": 1,
-        "beard": 2,
-        "ears": 1,
-        "belt": 0,
-        "trim": 0,
-        "body3d": 0
-      },
-      "bio": "Attaque-le et tu voles. Il attend l'erreur, ceinture en main, et ses ura-nage font trembler la salle.",
-      "legend": true
-    },
-    {
-      "id": "sambiste",
-      "name": "IGOR",
-      "nick": "LE SAMBISTE",
-      "tag": "Tout passe par le sol",
-      "inspiration": "Les lutteurs venus du sambo",
-      "garde": "droitier",
-      "style": "courte",
-      "slots": {
-        "tokui": [
-          "sumi_gaeshi"
-        ],
-        "main": [
-          "tomoe_nage",
-          "ko_uchi_gari",
-          "",
-          ""
-        ],
-        "combo": [
-          "ko_uchi_seoi",
-          ""
-        ],
-        "counter": [
-          "o_soto_gaeshi",
-          ""
-        ],
-        "ground": [
-          "juji_gatame",
-          "sankaku_jime"
-        ]
-      },
-      "physique": {
-        "explosivite": 5,
-        "endurance": 6,
-        "poigne": 5,
-        "sol": 7
-      },
-      "look": {
-        "skin": 0,
-        "hair": 2,
-        "hair_color": 4,
-        "build": 1,
-        "face": 1,
-        "brow": 1,
-        "beard": 3,
-        "ears": 1,
-        "belt": 0,
-        "trim": 2,
-        "body3d": 0
-      },
-      "bio": "Debout, il cherche juste à t'amener au sol. Une fois là, la clé de bras arrive avant le matte.",
-      "legend": true
-    },
-    {
-      "id": "kesa",
-      "name": "AMARA",
-      "nick": "KESA",
-      "tag": "La reine de l'immobilisation",
-      "inspiration": "Les championnes du contrôle au sol",
-      "garde": "droitier",
-      "style": "classique",
-      "slots": {
-        "tokui": [
-          "o_soto_gari"
-        ],
-        "main": [
-          "o_uchi_gari",
-          "de_ashi_barai",
-          "sasae_tsurikomi_ashi",
-          ""
-        ],
-        "combo": [
-          "o_uchi_o_soto",
-          ""
-        ],
-        "counter": [
-          "tsubame_gaeshi",
-          "ura_nage"
-        ],
-        "ground": [
-          "kesa_gatame",
-          "kami_shiho_gatame"
-        ]
-      },
-      "physique": {
-        "explosivite": 3,
-        "endurance": 6,
-        "poigne": 4,
-        "sol": 8
-      },
-      "look": {
-        "skin": 4,
-        "hair": 3,
-        "hair_color": 0,
-        "build": 2,
-        "face": 0,
-        "brow": 0,
-        "beard": 0,
-        "ears": 0,
-        "belt": 0,
-        "trim": 1,
-        "body3d": 1
-      },
-      "bio": "Un waza-ari, et c'est fini : elle te plaque au sol et tient les vingt secondes.",
-      "legend": true
-    },
-    {
-      "id": "tacticienne",
-      "name": "LÉA",
-      "nick": "LA TACTICIENNE",
-      "tag": "Timing et balayages",
-      "inspiration": "Les techniciennes du pied et du timing",
-      "garde": "gaucher",
-      "style": "classique",
-      "slots": {
-        "tokui": [
-          "de_ashi_barai"
-        ],
-        "main": [
-          "sasae_tsurikomi_ashi",
-          "ko_uchi_gari",
-          "o_uchi_gari",
-          "tai_otoshi"
-        ],
-        "combo": [
-          "de_ashi_harai",
-          ""
-        ],
-        "counter": [
-          "tsubame_gaeshi",
-          "ura_nage"
-        ],
-        "ground": [
-          "kesa_gatame",
-          ""
-        ]
-      },
-      "physique": {
-        "explosivite": 6,
-        "endurance": 7,
-        "poigne": 5,
-        "sol": 4
-      },
-      "look": {
-        "skin": 1,
-        "hair": 4,
-        "hair_color": 5,
-        "build": 0,
-        "face": 2,
-        "brow": 2,
-        "beard": 0,
-        "ears": 0,
-        "belt": 0,
-        "trim": 3,
-        "body3d": 1
-      },
-      "bio": "Elle te fait marcher, te tire, attend que tu suives… et balaye le pied pile au moment où il se pose.",
-      "legend": true
-    },
-    {
-      "id": "professeur",
-      "name": "HIRO",
-      "nick": "LE PROFESSEUR",
-      "tag": "Judo complet",
-      "inspiration": "Les grands maîtres au judo complet debout et au sol",
-      "garde": "droitier",
-      "style": "classique",
-      "slots": {
-        "tokui": [
-          "o_soto_gari"
-        ],
-        "main": [
-          "o_uchi_gari",
-          "ko_uchi_gari",
-          "seoi_nage",
-          ""
-        ],
-        "combo": [
-          "o_uchi_o_soto",
-          ""
-        ],
-        "counter": [
-          "o_soto_gaeshi",
-          ""
-        ],
-        "ground": [
-          "kesa_gatame",
-          "okuri_eri_jime"
-        ]
-      },
-      "physique": {
-        "explosivite": 3,
-        "endurance": 6,
-        "poigne": 6,
-        "sol": 7
-      },
-      "look": {
-        "skin": 1,
-        "hair": 6,
-        "hair_color": 4,
-        "build": 1,
-        "face": 0,
-        "brow": 1,
-        "beard": 3,
-        "ears": 1,
-        "belt": 1,
-        "trim": 6,
-        "body3d": 0
-      },
-      "bio": "Rien de spectaculaire, rien d'inutile. Une garde parfaite, un o-soto imparable, et un sol d'une précision chirurgicale.",
-      "legend": true
-    }
-  ]
+ "_doc": "Judokas pré-configurés (personnages fictifs dont le style s'inspire des grands champions). Budgets respectés : set ≤ 15, physique ≤ 14. look.modele = skin 3D du catalogue data/skins.json.",
+ "legends": [
+  {
+   "id": "mur",
+   "name": "BASTIEN",
+   "nick": "LE MUR",
+   "tag": "Poids lourd dominateur",
+   "inspiration": "Les grands poids lourds qui écrasent le kumikata",
+   "garde": "gaucher",
+   "style": "haute",
+   "slots": {
+    "tokui": [
+     "harai_goshi"
+    ],
+    "main": [
+     "o_soto_gari",
+     "uchi_mata",
+     "",
+     ""
+    ],
+    "combo": [
+     "o_uchi_o_soto",
+     ""
+    ],
+    "counter": [
+     "o_soto_gaeshi",
+     ""
+    ],
+    "ground": [
+     "kesa_gatame",
+     ""
+    ]
+   },
+   "physique": {
+    "explosivite": 3,
+    "endurance": 6,
+    "poigne": 8,
+    "sol": 4
+   },
+   "look": {
+    "modele": "colosse",
+    "belt": 0,
+    "trim": 2
+   },
+   "bio": "Il prend le col, il ne le lâche plus. Sa garde haute écrase la posture adverse jusqu'à ce que le harai-goshi parte tout seul.",
+   "legend": true
+  },
+  {
+   "id": "lame",
+   "name": "KAITO",
+   "nick": "LA LAME",
+   "tag": "Uchi-mata foudroyant",
+   "inspiration": "Les virtuoses japonais de l'uchi-mata",
+   "garde": "droitier",
+   "style": "haute",
+   "slots": {
+    "tokui": [
+     "uchi_mata"
+    ],
+    "main": [
+     "o_uchi_gari",
+     "ko_uchi_gari",
+     "sasae_tsurikomi_ashi",
+     ""
+    ],
+    "combo": [
+     "ko_uchi_uchi_mata",
+     ""
+    ],
+    "counter": [
+     "uchi_mata_sukashi",
+     ""
+    ],
+    "ground": [
+     "yoko_shiho_gatame",
+     ""
+    ]
+   },
+   "physique": {
+    "explosivite": 8,
+    "endurance": 5,
+    "poigne": 5,
+    "sol": 3
+   },
+   "look": {
+    "modele": "modern",
+    "belt": 0,
+    "trim": 5
+   },
+   "bio": "Un ko-uchi pour faire reculer, et la jambe monte. Son uchi-mata ne marque pas waza-ari : il marque ippon.",
+   "legend": true
+  },
+  {
+   "id": "seoi",
+   "name": "REN",
+   "nick": "SEOI",
+   "tag": "Le roi de l'épaule",
+   "inspiration": "Les spécialistes légendaires du seoi-nage",
+   "garde": "gaucher",
+   "style": "courte",
+   "slots": {
+    "tokui": [
+     "seoi_nage"
+    ],
+    "main": [
+     "ippon_seoi_nage",
+     "ko_uchi_gari",
+     "o_uchi_gari",
+     ""
+    ],
+    "combo": [
+     "o_uchi_seoi",
+     "ko_uchi_seoi"
+    ],
+    "counter": [
+     "tsubame_gaeshi",
+     ""
+    ],
+    "ground": [
+     "kesa_gatame",
+     "okuri_eri_jime"
+    ]
+   },
+   "physique": {
+    "explosivite": 8,
+    "endurance": 6,
+    "poigne": 4,
+    "sol": 3
+   },
+   "look": {
+    "modele": "jeune",
+    "belt": 0,
+    "trim": 1
+   },
+   "bio": "Petit gabarit, centre de gravité au ras du tatami. Il passe sous la garde avant qu'on ait compris.",
+   "legend": true
+  },
+  {
+   "id": "tempete",
+   "name": "MAYA",
+   "nick": "TEMPÊTE",
+   "tag": "Pression permanente",
+   "inspiration": "Les championnes au rythme infernal",
+   "garde": "droitier",
+   "style": "courte",
+   "slots": {
+    "tokui": [
+     "tai_otoshi"
+    ],
+    "main": [
+     "o_uchi_gari",
+     "ko_uchi_gari",
+     "de_ashi_barai",
+     "o_soto_gari"
+    ],
+    "combo": [
+     "o_uchi_o_soto",
+     ""
+    ],
+    "counter": [
+     "ura_nage",
+     ""
+    ],
+    "ground": [
+     "kesa_gatame",
+     "yoko_shiho_gatame"
+    ]
+   },
+   "physique": {
+    "explosivite": 6,
+    "endurance": 7,
+    "poigne": 6,
+    "sol": 3
+   },
+   "look": {
+    "modele": "basic_f",
+    "belt": 0,
+    "trim": 3
+   },
+   "bio": "Elle ne recule jamais. Attaque, réattaque, enchaîne : au bout de deux minutes, ses adversaires n'ont plus de jambes.",
+   "legend": true
+  },
+  {
+   "id": "eclair",
+   "name": "YUNA",
+   "nick": "ÉCLAIR",
+   "tag": "Vitesse pure",
+   "inspiration": "Les prodiges de la vitesse d'exécution",
+   "garde": "droitier",
+   "style": "haute",
+   "slots": {
+    "tokui": [
+     "uchi_mata"
+    ],
+    "main": [
+     "harai_goshi",
+     "o_uchi_gari",
+     "ko_uchi_gari",
+     ""
+    ],
+    "combo": [
+     "ko_uchi_uchi_mata",
+     ""
+    ],
+    "counter": [
+     "tsubame_gaeshi",
+     ""
+    ],
+    "ground": [
+     "kesa_gatame",
+     ""
+    ]
+   },
+   "physique": {
+    "explosivite": 9,
+    "endurance": 4,
+    "poigne": 4,
+    "sol": 3
+   },
+   "look": {
+    "modele": "femme_aero",
+    "belt": 0,
+    "trim": 4
+   },
+   "bio": "Personne n'entre plus vite. Le moindre déséquilibre suffit : elle est déjà dessous.",
+   "legend": true
+  },
+  {
+   "id": "ours",
+   "name": "NIKOS",
+   "nick": "L'OURS",
+   "tag": "Le maître des contres",
+   "inspiration": "Les colosses des contre-prises et du ramassage",
+   "garde": "droitier",
+   "style": "classique",
+   "slots": {
+    "tokui": [
+     "o_goshi"
+    ],
+    "main": [
+     "sumi_gaeshi",
+     "o_soto_gari",
+     "",
+     ""
+    ],
+    "combo": [
+     "",
+     ""
+    ],
+    "counter": [
+     "ura_nage",
+     "utsuri_goshi"
+    ],
+    "ground": [
+     "kesa_gatame",
+     "yoko_shiho_gatame"
+    ]
+   },
+   "physique": {
+    "explosivite": 3,
+    "endurance": 4,
+    "poigne": 9,
+    "sol": 4
+   },
+   "look": {
+    "modele": "brute",
+    "belt": 0,
+    "trim": 0
+   },
+   "bio": "Attaque-le et tu voles. Il attend l'erreur, ceinture en main, et ses ura-nage font trembler la salle.",
+   "legend": true
+  },
+  {
+   "id": "sambiste",
+   "name": "IGOR",
+   "nick": "LE SAMBISTE",
+   "tag": "Tout passe par le sol",
+   "inspiration": "Les lutteurs venus du sambo",
+   "garde": "droitier",
+   "style": "courte",
+   "slots": {
+    "tokui": [
+     "sumi_gaeshi"
+    ],
+    "main": [
+     "tomoe_nage",
+     "ko_uchi_gari",
+     "",
+     ""
+    ],
+    "combo": [
+     "ko_uchi_seoi",
+     ""
+    ],
+    "counter": [
+     "o_soto_gaeshi",
+     ""
+    ],
+    "ground": [
+     "juji_gatame",
+     "sankaku_jime"
+    ]
+   },
+   "physique": {
+    "explosivite": 5,
+    "endurance": 6,
+    "poigne": 5,
+    "sol": 7
+   },
+   "look": {
+    "modele": "newaza",
+    "belt": 0,
+    "trim": 2
+   },
+   "bio": "Debout, il cherche juste à t'amener au sol. Une fois là, la clé de bras arrive avant le matte.",
+   "legend": true
+  },
+  {
+   "id": "kesa",
+   "name": "AMARA",
+   "nick": "KESA",
+   "tag": "La reine de l'immobilisation",
+   "inspiration": "Les championnes du contrôle au sol",
+   "garde": "droitier",
+   "style": "classique",
+   "slots": {
+    "tokui": [
+     "o_soto_gari"
+    ],
+    "main": [
+     "o_uchi_gari",
+     "de_ashi_barai",
+     "sasae_tsurikomi_ashi",
+     ""
+    ],
+    "combo": [
+     "o_uchi_o_soto",
+     ""
+    ],
+    "counter": [
+     "tsubame_gaeshi",
+     "ura_nage"
+    ],
+    "ground": [
+     "kesa_gatame",
+     "kami_shiho_gatame"
+    ]
+   },
+   "physique": {
+    "explosivite": 3,
+    "endurance": 6,
+    "poigne": 4,
+    "sol": 8
+   },
+   "look": {
+    "modele": "basic_f",
+    "belt": 0,
+    "trim": 1
+   },
+   "bio": "Un waza-ari, et c'est fini : elle te plaque au sol et tient les vingt secondes.",
+   "legend": true
+  },
+  {
+   "id": "tacticienne",
+   "name": "LÉA",
+   "nick": "LA TACTICIENNE",
+   "tag": "Timing et balayages",
+   "inspiration": "Les techniciennes du pied et du timing",
+   "garde": "gaucher",
+   "style": "classique",
+   "slots": {
+    "tokui": [
+     "de_ashi_barai"
+    ],
+    "main": [
+     "sasae_tsurikomi_ashi",
+     "ko_uchi_gari",
+     "o_uchi_gari",
+     "tai_otoshi"
+    ],
+    "combo": [
+     "de_ashi_harai",
+     ""
+    ],
+    "counter": [
+     "tsubame_gaeshi",
+     "ura_nage"
+    ],
+    "ground": [
+     "kesa_gatame",
+     ""
+    ]
+   },
+   "physique": {
+    "explosivite": 6,
+    "endurance": 7,
+    "poigne": 5,
+    "sol": 4
+   },
+   "look": {
+    "modele": "femme_veteran",
+    "belt": 0,
+    "trim": 3
+   },
+   "bio": "Elle te fait marcher, te tire, attend que tu suives… et balaye le pied pile au moment où il se pose.",
+   "legend": true
+  },
+  {
+   "id": "professeur",
+   "name": "HIRO",
+   "nick": "LE PROFESSEUR",
+   "tag": "Judo complet",
+   "inspiration": "Les grands maîtres au judo complet debout et au sol",
+   "garde": "droitier",
+   "style": "classique",
+   "slots": {
+    "tokui": [
+     "o_soto_gari"
+    ],
+    "main": [
+     "o_uchi_gari",
+     "ko_uchi_gari",
+     "seoi_nage",
+     ""
+    ],
+    "combo": [
+     "o_uchi_o_soto",
+     ""
+    ],
+    "counter": [
+     "o_soto_gaeshi",
+     ""
+    ],
+    "ground": [
+     "kesa_gatame",
+     "okuri_eri_jime"
+    ]
+   },
+   "physique": {
+    "explosivite": 3,
+    "endurance": 6,
+    "poigne": 6,
+    "sol": 7
+   },
+   "look": {
+    "modele": "veteran",
+    "belt": 1,
+    "trim": 6
+   },
+   "bio": "Rien de spectaculaire, rien d'inutile. Une garde parfaite, un o-soto imparable, et un sol d'une précision chirurgicale.",
+   "legend": true
+  }
+ ]
 }

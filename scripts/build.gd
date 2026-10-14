@@ -2,6 +2,7 @@ extends RefCounted
 ## Build d'un combattant : set de techniques (budget 15), garde, style de kumikata,
 ## profil physique (budget à rendements décroissants). Sauvegarde dans user://builds.json.
 
+const Skins := preload("res://scripts/skins.gd")
 const GameData := preload("res://scripts/game_data.gd")
 const SAVE_PATH := "user://builds.json"
 
@@ -89,9 +90,9 @@ static func _normalize(b: Dictionary, k: int) -> void:
 	if not b.has("id"):
 		b.id = "u%d_%s" % [k, String(b.get("name", "J")).to_lower()]
 	if not b.has("look"):
-		b.look = {"skin": [1, 3, 2, 0][k % 4], "hair": [0, 1, 3, 2][k % 4], "hair_color": [1, 0, 0, 2][k % 4]}
-	if not b.look.has("body3d"):
-		b.look.body3d = 1 if String(b.get("name", "")).to_upper() in ["AYA"] else 0
+		b.look = {}
+	if not b.look.has("modele"):
+		b.look.modele = Skins.of(b.look)
 	if not b.has("nick"):
 		b.nick = ""
 	if not b.has("tag"):
@@ -131,7 +132,7 @@ static func new_judoka(from: Dictionary = {}, index: int = 0) -> Dictionary:
 	b.nick = "" if from.is_empty() else String(from.get("nick", ""))
 	b.tag = "Mon judoka"
 	if not b.has("look"):
-		b.look = {"skin": 1, "hair": 0, "hair_color": 1}
+		b.look = {"modele": Skins.default_id()}
 	return b
 
 

@@ -2,6 +2,7 @@ extends Node2D
 ## Création et personnalisation des judokas : profil (nom, surnom, apparence), set de
 ## techniques (15 points), garde et style, profil physique. Plusieurs judokas par joueur.
 
+const Skins := preload("res://scripts/skins.gd")
 const Style := preload("res://scripts/ui/style.gd")
 const Records := preload("res://scripts/records.gd")
 const Rich := preload("res://scripts/ui/rich.gd")
@@ -12,7 +13,7 @@ const TABS := ["PROFIL", "APPARENCE", "TECHNIQUES", "GARDE & STYLE", "PHYSIQUE"]
 const PROFILE_ROWS := ["NOM", "SURNOM", "NOUVEAU JUDOKA", "COPIER UNE LÉGENDE", "SUPPRIMER"]
 ## Apparence : [clé du look, libellé, liste des noms d'options]
 ## Apparence : le modèle 3D (homme / femme) ; le judogi suit le côté (blanc P1, bleu P2).
-const LOOK_ROWS := [["body3d", "MODÈLE", "BODY3D_NAMES"]]
+const LOOK_ROWS := [["modele", "PERSONNAGE", "SKINS"]]
 const KB_ROWS := [["A", "B", "C", "D", "E", "F", "G", "H", "I", "J"], ["K", "L", "M", "N", "O", "P", "Q", "R", "S", "T"],
 	["U", "V", "W", "X", "Y", "Z", "É", "È", "-", "'"], ["ESPACE", "EFFACER", "OK"]]
 const MAX_JUDOKAS := 12
@@ -186,7 +187,11 @@ func _change(delta: int) -> void:
 			var lk: Dictionary = b.look
 			var lr: Array = LOOK_ROWS[row]
 			var names: Array = _look_names(lr[2])
-			lk[lr[0]] = (int(lk.get(lr[0], 0)) + delta + names.size()) % names.size()
+			var i := (_look_index(lk, lr) + delta + names.size()) % names.size()
+			if lr[2] == "SKINS":
+				lk[lr[0]] = Skins.ids()[i]
+			else:
+				lk[lr[0]] = i
 		2:
 			var slot_id: String = rows[row][0]
 			var k: int = rows[row][1]
@@ -322,10 +327,20 @@ func _draw_profile(b: Dictionary) -> void:
 	_draw_preview(b)
 
 
+## Index courant d'une ligne d'apparence (les skins sont stockés par identifiant).
+func _look_index(lk: Dictionary, lr: Array) -> int:
+	if lr[2] == "SKINS":
+		return maxi(0, Skins.ids().find(Skins.of(lk)))
+	return int(lk.get(lr[0], 0))
+
+
 func _look_names(list_name: String) -> Array:
 	match list_name:
-		"BODY3D_NAMES":
-			return Art.BODY3D_NAMES
+		"SKINS":
+			var out := []
+			for id in Skins.ids():
+				out.append(Skins.label(id))
+			return out
 		"SKIN_NAMES":
 			return Art.SKIN_NAMES
 		"HAIR_STYLES":
@@ -347,7 +362,8 @@ func _look_names(list_name: String) -> Array:
 	return Art.TRIM_NAMES
 
 
-## Onglet apparence : visage, cheveux, carrure, barbe, ceinture, liseré.
+## Onglet apparence : le personnage (skin 3D). Les réglages de visage, cheveux et
+## carrure ont été retirés — un judoka, c'est un modèle entier.
 func _draw_look(b: Dictionary) -> void:
 	var lk: Dictionary = b.look
 	var y = 204.0
@@ -358,7 +374,7 @@ func _draw_look(b: Dictionary) -> void:
 		Style.panel(self, r, Style.NIGHT_3 if sel else Style.NIGHT_2, Style.P1 if sel else Style.INK, 3.0, 4.0)
 		Style.label(self, Vector2(r.position.x + 22, r.position.y + 25), lr[1], 14, Style.P1 if sel else Style.MUTED, "black")
 		var names: Array = _look_names(lr[2])
-		var v = clampi(int(lk.get(lr[0], 0)), 0, names.size() - 1)
+		var v = clampi(_look_index(lk, lr), 0, names.size() - 1)
 		Style.label(self, Vector2(r.position.x + 230, r.position.y + 26), String(names[v]).to_upper(), 18, Style.PAPER, "black", HORIZONTAL_ALIGNMENT_LEFT, 300)
 		Style.label(self, Vector2(r.end.x - 70, r.position.y + 25), "%d/%d" % [v + 1, names.size()], 12, Style.MUTED, "black", HORIZONTAL_ALIGNMENT_RIGHT, 50)
 		if sel:
