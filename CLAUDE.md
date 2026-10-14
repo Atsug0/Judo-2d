@@ -67,6 +67,7 @@ data/                  réglages et contenu (JSON, entiers → convertis en int 
                        ours, sambiste, kesa, tacticienne, professeur (look.body3d = 1 → modèle femme)
   challenges.json      défis
   skins.json           catalogue des 12 personnages 3D : dossier de modèle par couleur de judogi
+  stages.json          décors de combat (images de stage/) : horizon et bandeau LED
   shotlist.json        liste de tournage au dojo (48 plans) générée depuis les techniques
   anims/<tech>.json    chorégraphies filmées (rotoscopie) ; existe : uchi_mata.json
 scripts/
@@ -75,6 +76,8 @@ scripts/
   sim/ai_controller.gd IA (entrées manette générées, PRNG à graine, niveaux 1..3)
   build.gd             build d'un judoka (techniques, garde, style, physique, look) → user://builds.json
   skins.gd             catalogue des skins : look.modele → dossier assets/judokas/ + texture
+  stages.gd            décors : image du haut de la scène, calée par son horizon
+  key_reader.gd        clavier → entrées de la sim (rampes en ticks, voir §5.5)
   game_data.gd         chargement des JSON (int !)
   settings.gd          réglages joueur → user://settings.json (format bo3, durée, golden, volume…)
   records.gd           palmarès → user://records.json
@@ -198,6 +201,28 @@ du corps), hanche/genou/pied/epaule/coude/main `.L/.R`) :
 - Pied à plat quand il est bas (< 0.16 m), orteils à plat un peu plus longtemps (talon décollé).
 - Calage au sol : la semelle / les orteils les plus bas posés à y = 0 ; en l'air, `shift_in` imposé (uke suit tori).
 
+### 5.5 Clavier (`scripts/key_reader.gd`)
+Le jeu se joue à la manette **ou entièrement au clavier** (Options → COMMANDES : périphérique
+et réassignation des 15 touches). `key_reader.gd` produit le même tableau d'entiers que
+`pad_reader.gd` : la simulation ignore le périphérique et le déterminisme est intact.
+
+Trois signaux analogiques manquent au clavier, et le piège est le **dash** : la sim le lit
+quand `|MX|` passe de moins de 85 à plus de 85 en moins de `dash_flick_ticks` (3) ticks. Une
+touche, qui saute de 0 à 100, en déclencherait un à chaque appui. Les directions montent donc
+par paliers de 20 (85 franchi au 5ᵉ tick, trop tard pour la pichenette) et le dash a sa propre
+touche, qui force un tick au neutre puis 100. Idem pour la force des saisies. **Les rampes se
+comptent en ticks de simulation**, jamais en temps réel : les replays en dépendent.
+
+`Style.clavier` (posé par `main.gd`) fait afficher les touches à la place des jetons de manette
+`{A}` `{LT}` `{RS}` dans les aides, le HUD et les 23 leçons du dojo — aucun texte n'a été réécrit.
+
+### 5.6 Décors (`scripts/stages.gd`, `data/stages.json`)
+Un décor est une **image** (`stage/*.png`, générée sur Tripo) qui ne couvre que le haut de la
+scène : le tatami reste dessiné par le jeu, ses bords étant ceux de la simulation. L'image est
+posée pour que son `horizon` tombe sur `MAT_BACK`, puis agrandie pour couvrir la largeur — une
+image **16:9 se cadre mieux qu'une carrée**, qui se fait rogner par le haut. `led` affiche le
+bandeau publicitaire animé (salles de compétition, pas les dojos).
+
 ### 5.4 Menus
 Les écrans de menu n'affichent pas de 3D en direct : ils utilisent des **sprites pré-rendus**
 `assets/judokas/<modèle>/poses/<garde|victoire>.png` (+ `poses.json`) via `Art.draw_model` /
@@ -282,6 +307,7 @@ Autres pistes conservées : `tools/blender/` (scène toon + rendu de sprites dep
 | `--demo=f.json` | pilotage scripté des menus (vidéos) |
 | `--lesson=<id>` / `--training --partner=garde` | leçon du dojo / entraînement libre |
 | `--dessin` / `--decoupe` | artwork découpé au lieu des judokas 3D (affichés par défaut) |
+| `--decor=<id>` | décor imposé (`arena`, `dojo`, `crepuscule`, `dessin`) |
 | `--models3d[=<dossier>] --models3d_who=a,b` | active les judokas 3D (désactivés par défaut) |
 | `--anim=<tech>` (`--zoom`, `--ground`, `--count`) | (écran art) planche d'une chorégraphie |
 | `--bo3`, `--replay`, `--demo_round=n`, `--readout`, `--cursor`, `--dojo_lesson=n` | options de capture / démo |

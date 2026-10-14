@@ -126,20 +126,26 @@ if __name__ == "__main__":
             continue
         if s["blanc"] != s["bleu"]:
             continue                      # les deux modèles existent pour de vrai
-        # on génère la couleur que le personnage n'a pas
-        couleur = "blanc" if s.get("gi") != "blanc" else "bleu"
         d = os.path.join(ROOT, "assets/judokas", s["blanc"])
         rig = os.path.join(d, "rig.glb")
         if not os.path.exists(rig):
             print(f"✗ {s['id']:16s} rig.glb absent")
             continue
-        out = os.path.join(d, f"texture_{couleur}.jpg")
-        src = basecolor(rig)
-        im, part = teinte(src, couleur, masque_judogi(rig, src.size[0]))
-        if max(im.size) > MAX_PX:         # 2048 suffit : le judoka fait ~400 px à l'écran
-            im = im.resize((MAX_PX, MAX_PX), Image.LANCZOS)
-        im.save(out, quality=88)
-        n += 1
-        print(f"✓ {s['id']:16s} judogi {s.get('gi'):10s} → {couleur:6s} "
-              f"({part * 100:.0f} % de la texture) {os.path.relpath(out, ROOT)}")
+        # toutes les couleurs que le personnage ne porte pas déjà : un judogi noir ou
+        # gris a besoin des deux, un blanc n'a besoin que du bleu
+        src, mq = None, None
+        faites = []
+        for couleur in ("blanc", "bleu"):
+            if s.get("gi") == couleur:
+                continue
+            if src is None:
+                src = basecolor(rig)
+                mq = masque_judogi(rig, src.size[0])
+            im, part = teinte(src, couleur, mq)
+            if max(im.size) > MAX_PX:     # 2048 suffit : le judoka fait ~400 px à l'écran
+                im = im.resize((MAX_PX, MAX_PX), Image.LANCZOS)
+            im.save(os.path.join(d, f"texture_{couleur}.jpg"), quality=88)
+            faites.append(couleur)
+            n += 1
+        print(f"✓ {s['id']:16s} judogi {str(s.get('gi')):10s} → {', '.join(faites)}")
     print(f"\n{n} variante(s) de judogi")

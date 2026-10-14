@@ -1,0 +1,18 @@
+{
+ "_doc": "Décors de combat (images générées sur Tripo, dossier stage/). Le décor ne remplace que le haut de la scène — ciel, salle, tribunes — car le tatami est dessiné par le jeu : sa géométrie est celle de la simulation (cfg.mat_left / mat_right), on ne peut pas la laisser à une image. `horizon` dit à quelle hauteur de l'image le tatami commence (0 = en haut, 1 = en bas) : c'est ce point qu'on aligne sur le bord arrière du tatami du jeu. `led` affiche le bandeau publicitaire animé, qui va aux salles de compétition mais pas aux dojos.",
+ "defaut": "arena",
+ "stages": [
+  {"id": "arena", "nom": "GRANDE SALLE", "image": "res://stage/stage_2.png",
+   "horizon": 0.43, "led": true,
+   "tag": "Compétition, projecteurs et tribunes"},
+  {"id": "dojo", "nom": "DOJO TRADITIONNEL", "image": "res://stage/stage_1.png",
+   "horizon": 0.62, "led": false,
+   "tag": "Bois, shoji et bannières"},
+  {"id": "crepuscule", "nom": "DOJO AU CRÉPUSCULE", "image": "res://stage/stage_3.png",
+   "horizon": 0.69, "led": false,
+   "tag": "Cerisiers et montagnes au couchant"},
+  {"id": "dessin", "nom": "DESSINÉ", "image": "",
+   "horizon": 0.0, "led": true,
+   "tag": "Le décor vectoriel d'origine"}
+ ]
+}

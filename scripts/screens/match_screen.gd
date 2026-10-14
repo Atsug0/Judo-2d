@@ -11,6 +11,7 @@ const Sim := preload("res://scripts/sim/match_sim.gd")
 const Ai := preload("res://scripts/sim/ai_controller.gd")
 const Pad := preload("res://scripts/pad_reader.gd")
 const Keys := preload("res://scripts/key_reader.gd")
+const Stages := preload("res://scripts/stages.gd")
 const Settings := preload("res://scripts/settings.gd")
 const SpriteLib := preload("res://scripts/view/sprite_library.gd")
 const Anims := preload("res://scripts/view/throw_anims.gd")
@@ -1005,6 +1006,21 @@ func _persp(x: float, y: float) -> float:
 
 
 func _draw_arena() -> void:
+	var st: Dictionary = Stages.current()
+	var tex: Texture2D = Stages.texture(st)
+	if tex != null:
+		# décor en image : il remplace le haut de la scène, le tatami reste au jeu
+		_ci.draw_rect(Rect2(0, 0, W, MAT_BACK), Color("0f0b24"))
+		_ci.draw_texture_rect(tex, Stages.rect(tex, st, W, MAT_BACK), false)
+		Style.halftone(_ci, Rect2(0, MAT_BACK - 150, W, 150), Color(0, 0, 0, 0.18), 12.0, 3.6, Vector2(0, -1))
+		if bool(st.get("led", false)):
+			_draw_led()
+		return
+	_draw_dessin_arena()
+	_draw_led()
+
+
+func _draw_dessin_arena() -> void:
 	# ciel de salle : bandes de dégradé
 	var top = Color("0f0b24")
 	var bottom = Color("2a1f5e")
@@ -1034,7 +1050,13 @@ func _draw_arena() -> void:
 				_ci.draw_circle(Vector2(x + 8, hy - 16), 3.0, glow)  # bâton lumineux
 			x += 28.0 + float(s % 6)
 	Style.halftone(_ci, Rect2(0, 320, W, 190), Color(0, 0, 0, 0.28), 12.0, 3.6, Vector2(0, -1))
-	# bandeau LED
+	# grands éclats décoratifs aux bords (couleurs des joueurs)
+	_ci.draw_colored_polygon(PackedVector2Array([Vector2(0, 0), Vector2(150, 0), Vector2(30, 330), Vector2(0, 330)]), Style.P1.darkened(0.72))
+	_ci.draw_colored_polygon(PackedVector2Array([Vector2(W, 0), Vector2(W - 150, 0), Vector2(W - 30, 330), Vector2(W, 330)]), Style.P2.darkened(0.72))
+
+
+## Bandeau publicitaire animé au bord du tatami.
+func _draw_led() -> void:
 	var led = Rect2(0, 498, W, 44)
 	_ci.draw_rect(led, Style.INK)
 	_ci.draw_rect(led.grow_individual(0, -5, 0, -5), Color("1c1048"))
@@ -1051,9 +1073,6 @@ func _draw_arena() -> void:
 		for k in segs.size():
 			Style.label(_ci, Vector2(x2, 529), segs[k][0], segs[k][1], segs[k][2], "display")
 			x2 += seg_w[k]
-	# grands éclats décoratifs aux bords (couleurs des joueurs)
-	_ci.draw_colored_polygon(PackedVector2Array([Vector2(0, 0), Vector2(150, 0), Vector2(30, 330), Vector2(0, 330)]), Style.P1.darkened(0.72))
-	_ci.draw_colored_polygon(PackedVector2Array([Vector2(W, 0), Vector2(W - 150, 0), Vector2(W - 30, 330), Vector2(W, 330)]), Style.P2.darkened(0.72))
 
 
 func _draw_mat() -> void:

@@ -6,6 +6,7 @@ const Settings := preload("res://scripts/settings.gd")
 
 const CATS := ["COMMANDES", "MANETTE", "AUDIO", "AFFICHAGE", "JEU", "COMBAT"]
 const Keys := preload("res://scripts/key_reader.gd")
+const Stages := preload("res://scripts/stages.gd")
 const VISIBLES := 8     # lignes affichées à la fois (la liste des touches est longue)
 ## [clé, libellé, type, min, max]
 const ROWS := {
@@ -18,7 +19,8 @@ const ROWS := {
 	"COMBAT": [["format", "Format", "choice", ["bo3", "single"], ["2 MANCHES GAGNANTES", "UN SEUL COMBAT"]],
 		["match_minutes", "Durée d'une manche", "choice", [2, 3, 4, 5], ["2 MIN", "3 MIN", "4 MIN", "5 MIN"]],
 		["golden_limit", "Golden score", "choice", [0, 1, 2, 3], ["ILLIMITÉ", "1 MIN + DÉCISION", "2 MIN + DÉCISION", "3 MIN + DÉCISION"]],
-		["replay", "Ralenti de la victoire", "bool"]],
+		["replay", "Ralenti de la victoire", "bool"],
+		["decor", "Décor", "choice", Stages.ids(), Stages.labels()]],
 }
 ## Légendes du schéma de manette (mapping du GDD).
 const PAD_LABELS := [

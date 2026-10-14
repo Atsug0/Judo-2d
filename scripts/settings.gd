@@ -22,6 +22,7 @@ const DEFAULTS := {
 	"match_minutes": 2,        # durée réglementaire d'une manche
 	"golden_limit": 1,         # golden score : 0 = illimité, sinon minutes avant décision
 	"replay": true,            # ralenti de la projection gagnante
+	"decor": "arena",           # décor de combat (data/stages.json)
 	"peripherique": "auto",    # "auto" (manette si branchée, sinon clavier), "manette", "clavier"
 	"clavier": {},             # touches redéfinies : action → code touche (voir key_reader.gd)
 }
