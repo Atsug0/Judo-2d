@@ -216,6 +216,12 @@ comptent en ticks de simulation**, jamais en temps réel : les replays en dépen
 `Style.clavier` (posé par `main.gd`) fait afficher les touches à la place des jetons de manette
 `{A}` `{LT}` `{RS}` dans les aides, le HUD et les 23 leçons du dojo — aucun texte n'a été réécrit.
 
+### 5.5 bis Rendu des modèles
+Contour d'encre (coque inversée) + liseré, mais **éclairage doux** : `DIFFUSE_TOON` écrasait
+le relief du judogi en un aplat blanc, alors que c'est le relief qui fait la valeur des
+modèles (Hugo, 15/10/2026, capture à l'appui). L'import garde donc aussi la **normal map**,
+et l'ambiante de `models3d.gd` est descendue à 0,42 avec une clé chaude plus franche.
+
 ### 5.6 Cadrage
 La caméra serre sur les judokas (zoom 1,7 à 2,0 en combat, jusqu'à 2,35 sur un ippon) : les
 modèles 3D sont détaillés, les voir de loin n'a pas de sens. `_camera_target()` vise y = 464

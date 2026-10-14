@@ -46,11 +46,12 @@ func setup(dir: String, who: Array, k: float, floor_y: float, textures: Array = 
 	e.background_mode = Environment.BG_CLEAR_COLOR
 	e.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	e.ambient_light_color = Color("c4bcf0")
-	e.ambient_light_energy = 0.75
+	e.ambient_light_energy = 0.42
 	e.tonemap_mode = Environment.TONE_MAPPER_FILMIC
 	env.environment = e
 	vp.add_child(env)
-	for l in [[Color("fff4e4"), 1.25, Vector3(-38, -32, 0)], [Color("ff3fa0"), 1.1, Vector3(-10, 150, 0)], [Color("38d6ff"), 0.9, Vector3(-10, -150, 0)]]:
+	# clé chaude franche (le relief du judogi doit se lire), contre-jours discrets
+	for l in [[Color("fff4e4"), 1.75, Vector3(-38, -32, 0)], [Color("ff3fa0"), 0.5, Vector3(-10, 150, 0)], [Color("38d6ff"), 0.45, Vector3(-10, -150, 0)]]:
 		var d := DirectionalLight3D.new()
 		d.light_color = l[0]
 		d.light_energy = l[1]

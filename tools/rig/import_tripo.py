@@ -16,8 +16,9 @@ pilote sans rien changer :
     Mixamo étant fondus dans fingers1/fingers2 ;
   - **os au repos sans rotation** (translation seule), comme l'ancien rig : rig_pose.gd
     calcule des orientations globales et les pose telles quelles ;
-  - seule la couleur de base est gardée (la normal map et la metallic/roughness ne servent
-    pas au cel-shading et pèsent les deux tiers du fichier).
+  - on garde la couleur de base **et la normal map** (tout le relief du tissu en vient :
+    tissage, surpiqûres, plis), mais pas la metallic/roughness, inutile en cel-shading
+    (le spéculaire est coupé) et de loin la plus lourde des trois.
 
 Le script refuse un modèle défectueux (voir tools/rig/check_tripo.py).
 """
@@ -313,8 +314,7 @@ def convert(src, ident, outdir, repair=False):
                  "TEXCOORD_0": B.add_floats([v for p in UV for v in p], "VEC2", None,
                                             34962)}
         ind = B.add_uints(IDX)
-        B.add_image(*basecolor(js, d, binoff))
-        B.js.update(COMMON_MATERIAL)
+        materiau(B, js, d, binoff)
         B.js["meshes"] = [{"name": "corps", "primitives": [
             {"attributes": attrs, "indices": ind, "material": 0}]}]
         B.js["nodes"] = [{"name": "corps", "mesh": 0}]
@@ -375,8 +375,6 @@ def convert(src, ident, outdir, repair=False):
         ibm += m
     ibm_acc = B.add_floats(ibm, "MAT4", None, None)
 
-    B.add_image(*basecolor(js, d, binoff))
-
     nodes = [{"name": "judoka", "children": [1, 2]},
              {"name": "corps", "mesh": 0, "skin": 0}]
     index = {b: 2 + i for i, b in enumerate(order)}
@@ -398,7 +396,7 @@ def convert(src, ident, outdir, repair=False):
         "meshes": [{"name": "corps", "primitives": [
             {"attributes": attrs, "indices": ind, "material": 0}]}],
     })
-    B.js.update(COMMON_MATERIAL)
+    materiau(B, js, d, binoff)
     B.save(os.path.join(outdir, "rig.glb"))
     size = os.path.getsize(os.path.join(outdir, "rig.glb")) / 1e6
     print(f"✓ {ident:16s} {len(P)} sommets, {len(order)} os, {size:.1f} Mo "
@@ -406,23 +404,42 @@ def convert(src, ident, outdir, repair=False):
     return True
 
 
-COMMON_MATERIAL = {
-    "textures": [{"source": 0, "sampler": 0}],
-    "samplers": [{"magFilter": 9729, "minFilter": 9987}],
-    "materials": [{"name": "judoka", "doubleSided": True, "pbrMetallicRoughness": {
-        "baseColorTexture": {"index": 0}, "metallicFactor": 0.0,
-        "roughnessFactor": 0.9}}],
-}
+def _image(js, d, binoff, tex_index):
+    """Octets et type MIME d'une texture du modèle source."""
+    img = js["images"][js["textures"][tex_index].get("source", 0)]
+    bv = js["bufferViews"][img["bufferView"]]
+    s0 = binoff + bv.get("byteOffset", 0)
+    return d[s0:s0 + bv["byteLength"]], img.get("mimeType", "image/jpeg")
 
 
 def basecolor(js, d, binoff):
     """Octets et type MIME de la texture de couleur de base."""
     mat = js["materials"][js["meshes"][0]["primitives"][0].get("material", 0)]
-    tex = js["textures"][mat["pbrMetallicRoughness"]["baseColorTexture"]["index"]]
-    img = js["images"][tex.get("source", 0)]
-    bv = js["bufferViews"][img["bufferView"]]
-    s0 = binoff + bv.get("byteOffset", 0)
-    return d[s0:s0 + bv["byteLength"]], img.get("mimeType", "image/jpeg")
+    return _image(js, d, binoff, mat["pbrMetallicRoughness"]["baseColorTexture"]["index"])
+
+
+def normalmap(js, d, binoff):
+    """Normal map du modèle source, ou None. C'est elle qui porte le relief du judogi."""
+    mat = js["materials"][js["meshes"][0]["primitives"][0].get("material", 0)]
+    if "normalTexture" not in mat:
+        return None
+    return _image(js, d, binoff, mat["normalTexture"]["index"])
+
+
+def materiau(B, js, d, binoff):
+    """Matériau de sortie : couleur de base, et normal map si le modèle en a une."""
+    B.add_image(*basecolor(js, d, binoff))
+    nm = normalmap(js, d, binoff)
+    pbr = {"baseColorTexture": {"index": 0}, "metallicFactor": 0.0, "roughnessFactor": 0.9}
+    mat = {"name": "judoka", "doubleSided": True, "pbrMetallicRoughness": pbr}
+    textures = [{"source": 0, "sampler": 0}]
+    if nm is not None:
+        B.add_image(*nm)
+        textures.append({"source": 1, "sampler": 0})
+        mat["normalTexture"] = {"index": 1}
+    B.js["textures"] = textures
+    B.js["samplers"] = [{"magFilter": 9729, "minFilter": 9987}]
+    B.js["materials"] = [mat]
 
 
 def write_joints(outdir, pos):

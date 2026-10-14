@@ -56,13 +56,15 @@ static func load_model(glb: String, joints_path: String, texture: String = "", t
 	return r
 
 
-## Cel-shading : ombres en aplats, sans reflets, liseré lumineux, contour d'encre
-## (coque inversée légèrement gonflée, dessinée par l'arrière).
+## Rendu « dessiné » : contour d'encre (coque inversée légèrement gonflée, dessinée par
+## l'arrière), liseré lumineux, aucun reflet. L'éclairage reste **doux** : les aplats du
+## cel-shading (DIFFUSE_TOON) écrasaient complètement le relief du judogi — plis, coutures,
+## tissage — qui est tout l'intérêt des modèles. Le contour suffit à garder le trait.
 static func _toon(m: StandardMaterial3D) -> void:
-	m.diffuse_mode = BaseMaterial3D.DIFFUSE_TOON
+	m.diffuse_mode = BaseMaterial3D.DIFFUSE_BURLEY
 	m.specular_mode = BaseMaterial3D.SPECULAR_DISABLED
 	m.metallic = 0.0
-	m.roughness = 1.0
+	m.roughness = 0.85
 	m.rim_enabled = true
 	m.rim = 0.3
 	m.rim_tint = 0.7
