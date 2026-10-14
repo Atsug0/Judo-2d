@@ -68,17 +68,11 @@ static func dir_for(id: String, player: int) -> String:
 	return String(s.get("bleu" if player == 1 else "blanc", s.get("blanc", "")))
 
 
-## Texture à plaquer sur le modèle pour respecter le blanc/bleu de compétition.
-## "" = garder la texture d'origine (le modèle porte déjà la bonne couleur).
-static func texture_for(id: String, player: int) -> String:
-	var s := get_skin(id)
-	if s.is_empty() or String(s.get("bleu", "")) != String(s.get("blanc", "")):
-		return ""       # les deux modèles existent pour de vrai (les « basic »)
-	var couleur := "blanc" if player == 0 else "bleu"
-	if String(s.get("gi", "blanc")) == couleur:
-		return ""       # le personnage porte déjà cette couleur
-	var path := MODELS_DIR + "/" + String(s.blanc) + "/texture_" + couleur + ".jpg"
-	return path if FileAccess.file_exists(path) else ""
+## Texture de remplacement du modèle. Aucune pour l'instant : les personnages gardent la
+## texture avec laquelle ils ont été générés — reteindre un judogi écrase les détails de
+## l'artwork, et c'est justement ce qui fait la valeur des modèles.
+static func texture_for(_id: String, _player: int) -> String:
+	return ""
 
 
 ## Skin d'un judoka, avec repli sur le défaut du catalogue.

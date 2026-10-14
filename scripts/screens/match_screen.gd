@@ -845,7 +845,7 @@ func _camera_target() -> Array:
 			var x0 = _draw_x(0)
 			var x1 = _draw_x(1)
 			var d = absf(x1 - x0)
-			z = clampf(remap(d, 330.0, 110.0, 1.0, 1.1), 1.0, 1.1)
+			z = clampf(remap(d, 330.0, 110.0, 1.7, 2.0), 1.7, 2.0)
 			# zone morte : la caméra ne suit le couple que s'il s'éloigne du centre de l'image,
 			# pour qu'on voie les judokas traverser le tapis
 			var mid = (x0 + x1) * 0.5
@@ -854,21 +854,21 @@ func _camera_target() -> Array:
 				cx = mid - CAM_DEADZONE
 			elif cx - mid > CAM_DEADZONE:
 				cx = mid + CAM_DEADZONE
-			c = Vector2(cx, 430.0)
+			c = Vector2(cx, 464.0)
 		"throw", "score":
 			var th: Dictionary = st.throw
 			if not th.is_empty():
 				var p = clampf(float(th.t) / float(cfg.throw_ticks), 0.0, 1.0)
-				c = Vector2((wx(th.tori_x) + wx(th.uke_x)) * 0.5, 440.0)
-				z = 1.28 + (0.22 * sin(PI * minf(p * 1.2, 1.0)) if th.result == "ippon" else 0.08)
+				c = Vector2((wx(th.tori_x) + wx(th.uke_x)) * 0.5, 470.0)
+				z = 2.0 + (0.35 * sin(PI * minf(p * 1.2, 1.0)) if th.result == "ippon" else 0.12)
 			elif not st.newaza.is_empty():
 				c = Vector2(_newaza_center_x(st.newaza), 470.0)
-				z = 1.45
+				z = 2.0
 		"newaza":
 			c = Vector2(_newaza_center_x(st.newaza), 470.0)
-			z = 1.45
+			z = 2.0
 		"ended":
-			z = 1.15
+			z = 1.7
 			c = Vector2((_draw_x(0) + _draw_x(1)) * 0.5, 440.0)
 	if replaying:
 		z *= 1.18
@@ -1009,10 +1009,15 @@ func _draw_arena() -> void:
 	var st: Dictionary = Stages.current()
 	var tex: Texture2D = Stages.texture(st)
 	if tex != null:
-		# décor en image : il remplace le haut de la scène, le tatami reste au jeu
-		_ci.draw_rect(Rect2(0, 0, W, MAT_BACK), Color("0f0b24"))
-		_ci.draw_texture_rect(tex, Stages.rect(tex, st, W, MAT_BACK), false)
-		Style.halftone(_ci, Rect2(0, MAT_BACK - 150, W, 150), Color(0, 0, 0, 0.18), 12.0, 3.6, Vector2(0, -1))
+		# décor en image : il remplace le haut de la scène, le tatami reste au jeu.
+		# Le calque du décor zoome moins que le monde (parallaxe) : on recale l'horizon
+		# pour qu'il reste collé au bord arrière du tatami quand la caméra s'approche.
+		var zb: float = 1.0 + (float(cam_z) - 1.0) * 0.45
+		var cby: float = lerpf(360.0, float(cam_c.y), 0.45)
+		var hb: float = cby + (MAT_BACK - float(cam_c.y)) * float(cam_z) / zb
+		_ci.draw_rect(Rect2(-W, hb - H * 2.0, W * 3.0, H * 2.0), Color("0f0b24"))
+		_ci.draw_texture_rect(tex, Stages.rect(tex, st, W, hb, 1.8), false)
+		Style.halftone(_ci, Rect2(0, hb - 150, W, 150), Color(0, 0, 0, 0.18), 12.0, 3.6, Vector2(0, -1))
 		if bool(st.get("led", false)):
 			_draw_led()
 		return
@@ -1123,7 +1128,7 @@ func _fighter_xform(i: int) -> Transform2D:
 const VIS_GAP := 110.0
 const LINK_GAP := 92.0
 const GAP_SCALE := 0.76  # écart affiché / écart simulé (bras de longueur réaliste)
-const CAM_DEADZONE := 150.0
+const CAM_DEADZONE := 95.0
 func _draw_x(i: int) -> float:
 	var fs: Array = sim.state.fighters
 	var x = wx(fs[i].x)
@@ -2050,9 +2055,9 @@ func _draw_pause_set(pr: Rect2, i: int) -> void:
 # Arbitre
 # =============================================================================
 
-const REF_SCALE := 0.74    # au fond du tatami, donc plus petit
-const REF_FEET_Y := 566.0
-const REF_OFFSET := 150.0  # distance latérale à l'action
+const REF_SCALE := 0.52    # au fond du tatami, donc plus petit (la caméra serre sur les judokas)
+const REF_FEET_Y := 552.0
+const REF_OFFSET := 230.0  # distance latérale à l'action
 
 
 ## Centre de l'action (monde, px) et éventuel judoka désigné par le geste en cours.

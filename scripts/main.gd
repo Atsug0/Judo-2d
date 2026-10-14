@@ -109,8 +109,11 @@ func _ready() -> void:
 
 func default_match_params() -> Dictionary:
 	var pads := Input.get_connected_joypads()
-	var c1 := human_controller()
-	var c2 := "pad1" if pads.size() >= 2 and not capture_mode else "ai"
+	# human_controller() est appelé dans tous les cas : il pose aussi le drapeau clavier
+	# des aides à l'écran. --ia : démonstration, le joueur ne tient aucun des deux judokas.
+	var humain := human_controller()
+	var c1 := "ai" if args.has("ia") else humain
+	var c2 := "pad1" if pads.size() >= 2 and not capture_mode and not args.has("ia") else "ai"
 	var BuildS = preload("res://scripts/build.gd")
 	var bs: Array = BuildS.defaults()
 	# --p1build / --p2build : indice d'un build par défaut, ou identifiant de légende (ex. lame, mur)

@@ -176,7 +176,7 @@ uke garde la manche de tori jusqu'à p = 0.8 puis la main libre fait l'ukemi.
 `match_screen._use_models3d` et `Art.use_3d()` : 3D dès que les modèles sont là (et pas en headless) ;
 `--dessin` / `--decoupe` repassent au découpage. **P1 = judogi blanc, P2 = bleu** ; le personnage vient du
 skin choisi → `Models3D.who_for(look, player)` → `Skins.dir_for(look.modele, player)`. Quand un skin n'existe
-qu'en blanc, `Skins.texture_for` renvoie `texture_bleu.jpg` et `setup(..., textures)` la plaque pour P2.
+qu'en une couleur, il la garde : `Skins.texture_for` ne renvoie aucune texture de remplacement.
 
 `models3d.gd` :
 - SubViewport transparent 1280×720, lumières (clé chaude, contre-jours rose et cyan), caméra **orthographique**
@@ -216,7 +216,13 @@ comptent en ticks de simulation**, jamais en temps réel : les replays en dépen
 `Style.clavier` (posé par `main.gd`) fait afficher les touches à la place des jetons de manette
 `{A}` `{LT}` `{RS}` dans les aides, le HUD et les 23 leçons du dojo — aucun texte n'a été réécrit.
 
-### 5.6 Décors (`scripts/stages.gd`, `data/stages.json`)
+### 5.6 Cadrage
+La caméra serre sur les judokas (zoom 1,7 à 2,0 en combat, jusqu'à 2,35 sur un ippon) : les
+modèles 3D sont détaillés, les voir de loin n'a pas de sens. `_camera_target()` vise y = 464
+pour que le judoka tienne entre le HUD et la barre d'aide. L'arbitre est redescendu à
+`REF_SCALE` 0,52 : à ce zoom il devenait envahissant.
+
+### 5.7 Décors (`scripts/stages.gd`, `data/stages.json`)
 Un décor est une **image** (`stage/*.png`, générée sur Tripo) qui ne couvre que le haut de la
 scène : le tatami reste dessiné par le jeu, ses bords étant ceux de la simulation. L'image est
 posée pour que son `horizon` tombe sur `MAT_BACK`, puis agrandie pour couvrir la largeur — une
@@ -241,7 +247,6 @@ new asset/<perso>.glb       dépôt brut (non versionné, voir .gitignore)
   ├─ python3 tools/rig/check_tripo.py "new asset"/*.glb       contrôle AVANT import
   ├─ python3 tools/rig/import_tripo.py "new asset"/*.glb --tous --reparer
   │     → assets/judokas/<perso>/{rig.glb, joints.json}
-  ├─ python3 tools/rig/gi_variantes.py                        texture_bleu.jpg (judogi de P2)
   └─ godot --path . -s tools/rig/render_poses.gd              vignettes de menu
 ```
 
@@ -262,9 +267,11 @@ ces exports le squelette des matrices est en plus **tourné d'un quart de tour p
 `align_to_mesh()` essaie les quatre quarts de tour, garde celui qui place les extrémités dans la matière,
 et tranche l'avant/arrière avec le sens des pieds (une silhouette debout est presque symétrique).
 
-`tools/rig/gi_variantes.py` teint en bleu le judogi des skins blancs. Le masque n'est pas colorimétrique
-mais **construit depuis le squelette** (masque UV des triangles qui ne sont ni tête, ni cou, ni mains),
-sinon des cheveux blancs virent au bleu avec le kimono.
+**On ne reteint pas les judogis.** Le blanc/bleu de compétition ne vaut que pour les quatre modèles
+« basic », qui existent vraiment dans les deux couleurs ; les personnages nommés gardent le judogi
+avec lequel ils ont été générés (`gi` dans skins.json). Une teinte automatique écrase les détails de
+l'artwork, qui est justement ce qui fait la valeur des modèles (décision d'Hugo, 15/10/2026).
+Pour un nouveau personnage, demander un **judogi blanc uni** à Tripo.
 
 `tools/rig/preview.py` rend un judoka posé en PNG **sans Godot** (Python pur, ni numpy ni Pillow) :
 `--pose garde|repos|torsion`, `--vue cote|face|dos`, `--planche` pour tout le casting.
@@ -308,6 +315,7 @@ Autres pistes conservées : `tools/blender/` (scène toon + rendu de sprites dep
 | `--lesson=<id>` / `--training --partner=garde` | leçon du dojo / entraînement libre |
 | `--dessin` / `--decoupe` | artwork découpé au lieu des judokas 3D (affichés par défaut) |
 | `--decor=<id>` | décor imposé (`arena`, `dojo`, `crepuscule`, `dessin`) |
+| `--ia` | combat IA contre IA (démonstration à regarder) |
 | `--models3d[=<dossier>] --models3d_who=a,b` | active les judokas 3D (désactivés par défaut) |
 | `--anim=<tech>` (`--zoom`, `--ground`, `--count`) | (écran art) planche d'une chorégraphie |
 | `--bo3`, `--replay`, `--demo_round=n`, `--readout`, `--cursor`, `--dojo_lesson=n` | options de capture / démo |
