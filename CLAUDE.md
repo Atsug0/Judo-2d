@@ -302,24 +302,60 @@ restent pour les quatre modèles historiques (`homme_blanc`, `homme_bleu`, `femm
 
 ## 7. Animations depuis une vidéo (rotoscopie)
 
-Méthode utilisée pour l'uchi-mata (13 images clés) :
-1. Hugo envoie un **mp4** (pas de lien YouTube : le réseau du cloud bloque YouTube) — en pièce jointe, ou
-   déposé dans un dossier `videos/` poussé sur GitHub (< 100 Mo). Il précise tori et l'intervalle utile.
-2. Extraire les images : `python3 tools/video/extract_frames.py video.mp4 --start 2 --end 19 --fps 12`.
-3. Annoter à la main (en pixels) tête, cou, bassin, genoux, chevilles, poignets de tori et uke, côté
-   caméra / opposé, sens du regard → modèle : `tools/mocap/uchi_mata_annot.json`.
-4. `python3 tools/mocap/retarget.py tools/mocap/<tech>_annot.json` → `data/anims/<tech>.json`
-   (garde les angles, réapplique les longueurs du squelette du jeu). Le jeu l'utilise automatiquement.
-5. Contrôle : `godot --path . -- --screen=art --anim=<tech>` et `compare_anim.gd`.
+C'est **le meilleur levier de qualité** : les chorégraphies dessinées (`throw_anims.gd`)
+restent raides (uke « en planche »), alors qu'une projection relevée sur une vraie vidéo
+donne tout de suite un mouvement juste.
 
-C'est le **meilleur levier de qualité** : les chorégraphies dessinées (`throw_anims.gd`) restent raides
-(uke « en planche »), la 3D les suit fidèlement. Prochaines techniques à filmer : seoi-nage, o-soto-gari,
-tai-otoshi, harai-goshi, tomoe-nage, et les contres.
+### 7.1 La source : la chaîne Efficient Judo
+Hugo a obtenu l'**autorisation de l'auteur** de https://www.youtube.com/@EfficientJudo
+pour s'en servir de référence d'animation. 242 vidéos, une technique par vidéo, 25 à 45 s,
+filmées **de profil sur fond neutre** — exactement le point de vue du jeu — et répétant la
+projection plusieurs fois. Les **13 techniques du jeu y sont toutes couvertes** (99 démos
+solo), et 109 vidéos portent sur des techniques qui n'y sont pas encore.
 
-Autres pistes conservées : `tools/blender/` (scène toon + rendu de sprites depuis Blender),
-`tools/sprites_ia/prepare.py` (sprites générés par IA → manifest), `docs/PIPELINE_ANIMATION.md` (tournage au dojo).
+```bash
+python3 tools/video/fetch_efficientjudo.py --liste    # ce que la chaîne contient
+python3 tools/video/fetch_efficientjudo.py --jeu      # les 13 techniques, dans rushes/
+```
+Les vidéos vont dans `rushes/` (ignoré par git) : on ne versionne que les annotations.
 
----
+### 7.2 La chaîne
+```
+rushes/efficientjudo/<tech>.mp4
+  → python3 tools/mocap/auto_annot.py rushes/efficientjudo/*.mp4 --jobs 3
+      → tools/mocap/<tech>_annot.json     (points 2D de tori et d'uke, image par image)
+  → python3 tools/mocap/apercu.py tools/mocap/<tech>_annot.json /tmp/x.png   ← À REGARDER
+  → python3 tools/mocap/retarget.py tools/mocap/<tech>_annot.json
+      → data/anims/<tech>.json            (lu automatiquement par throw_anims.gd)
+  → godot --path . -- --screen=art --anim=<tech>      contrôle dans le jeu
+```
+
+`auto_annot.py` remplace le pointage à la main (13 images par technique). Quatre choses
+l'ont rendu possible, chacune trouvée en corrigeant un ratage :
+
+- **un détecteur en deux temps** (YOLO-pose). MediaPipe fusionne les deux silhouettes dès
+  qu'elles se saisissent : il ne voyait deux judokas que sur 63 images sur 483.
+- **garder les images où un seul judoka est vu.** C'est le point décisif. En exigeant les
+  deux, on perdait exactement la seconde qui nous intéresse — sur l'o-soto-gari, plus rien
+  entre 23 et 27 s, c'est-à-dire toute la projection. Chaque judoka occupe un emplacement
+  suivi par continuité du bassin, et ce qui manque est comblé par interpolation : on est
+  passé de 424 images suivies sur 558 à 558 sur 558.
+- **uke se reconnaît à sa chute**, pas à la couleur de son judogi : les partenaires
+  alternent les rôles, et les vidéos sont en noir et blanc de toute façon. On cherche la
+  **bascule** debout → au sol, et non l'image la plus « tombée » (qui tombe sur le plan de
+  fin où plus rien ne bouge) ni le maximum du score (une seconde trop tard, le score
+  montant encore pendant qu'uke s'écrase).
+- **la cadence réelle d'échantillonnage** : un saut de 2 images sur une source à 25 i/s
+  donne 12,5 i/s et non 12. Cumulé sur quarante secondes, ça décale d'une seconde — assez
+  pour que l'aperçu ne montre plus la même action que l'annotation.
+
+**Toujours regarder l'aperçu avant de retargeter.** Le choix automatique de la répétition
+se trompe encore sur une partie des vidéos ; `--debut <secondes>` et `--uke 0|1` forcent la
+fenêtre et les rôles. C'est un repérage de cinq secondes par vidéo, à comparer aux treize
+images à pointer une par une d'avant.
+
+Autres pistes conservées : `tools/blender/` (scène toon), `tools/sprites_ia/prepare.py`,
+`docs/PIPELINE_ANIMATION.md` (tournage au dojo).
 
 ## 8. Arguments du jeu (après `--`)
 

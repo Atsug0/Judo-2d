@@ -19,3 +19,6 @@ assets/judokas/*/rig_*.jpg
 # installé : les modèles utiles sont importés dans assets/judokas/ par tools/rig/import_tripo.py)
 /new asset/
 .DS_Store
+# Modèles de détection de pose (téléchargés à la demande par les outils de rotoscopie)
+*.pt
+/tools/mocap/models/
