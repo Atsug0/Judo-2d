@@ -109,7 +109,9 @@ def actor(a, who, s, x0, floor, prev_rot, shift_in=None):
     # Au sol : le pied le plus bas posé sur le tatami (les jambes du jeu n'ont pas les
     # proportions réelles, le bassin est donc recalé). En l'air : même recalage que
     # l'autre judoka, pour garder leur position relative (uke sur le dos de tori).
-    grounded = max(a["An"][1], a["Af"][1]) >= floor - 22
+    # seuil proportionnel : 22 px en dur ne voulait rien dire, l'échelle change d'une
+    # vidéo à l'autre selon la distance de la caméra
+    grounded = max(a["An"][1], a["Af"][1]) >= floor - 0.15 / s
     shift = 0.0
     if grounded:
         low = -1e9
@@ -144,7 +146,7 @@ def main():
     prev = {"tori": None, "uke": None}
     for fr, t, u in zip(frames, tori, uke):
         kt, prev["tori"] = actor(t, "tori", s, x0, floor, prev["tori"])
-        ku, prev["uke"] = actor(u, "uke", s, x0, floor, prev["uke"], kt["_shift"])
+        ku, prev["uke"] = actor(u, "uke", s, x0, floor, prev["uke"], kt.get("_shift"))
         kt.pop("_shift", None)
         ku.pop("_shift", None)
         keys.append({"p": round(fr["p"], 4), "frame": fr["f"], "tori": kt, "uke": ku})

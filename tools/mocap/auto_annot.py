@@ -208,99 +208,231 @@ def hauteur_debout(g, sol):
     return sol - g["N"][1]
 
 
-def chute(suite, fps=FPS, avant=1.1):
-    """Image du **premier contact** de la projection la plus franche, et qui tombe.
+def chutes(suite, fps=FPS):
+    """Toutes les projections repérées : (image du premier contact, qui tombe).
 
-    Deux pièges, tous deux rencontrés sur ces vidéos :
-
-    - prendre l'image la plus « tombée » amène sur le plan de fin, où uke est au sol
-      depuis longtemps et où plus rien ne bouge ;
-    - prendre le maximum du score amène une seconde trop tard, le score continuant de
-      monter pendant qu'uke s'écrase.
-
-    On suit donc l'état de chaque judoka — debout, puis au sol — et on retient l'image où
-    il bascule. Les plans dont l'échelle s'écarte du reste de la vidéo sont écartés.
+    On suit l'état de chaque judoka — debout, puis au sol — et on retient l'image où il
+    bascule. Prendre l'image la plus « tombée » amènerait sur le plan de fin, où uke est
+    au sol depuis longtemps et où plus rien ne bouge ; prendre le maximum du score
+    arriverait une seconde trop tard, le score montant encore pendant qu'il s'écrase.
     """
     sol, taille = sol_et_taille(suite)
     n = len(suite)
-    scores = [[None, None] for _ in range(n)]
-    tailles = []
-    for i, s in enumerate(suite):
-        if not s:
-            continue
-        for k in (0, 1):
-            scores[i][k] = score_chute(s[k], sol, taille)
-            tailles.append(hauteur_debout(s[k], sol))
-    if not tailles:
-        return None, 0, sol, taille
-    ref = float(np.median(tailles))
-    besoin = int(avant * fps)
-    best, img, qui = 0.0, None, 0
+    out = []
     for k in (0, 1):
-        debout = True
-        creux = 1.0
+        debout, creux = True, 1.0
         for i in range(n):
-            sc = scores[i][k]
-            if sc is None:
+            if not suite[i]:
                 continue
+            v = score_chute(suite[i][k], sol, taille)
             if debout:
-                creux = min(creux, sc)
-                if sc < 0.25:
-                    creux = sc
-                if sc >= 0.55 and creux <= 0.25:
-                    # bascule : on tient le premier contact
-                    ech = [hauteur_debout(suite[j][k], sol)
-                           for j in range(max(0, i - besoin), i + 1) if suite[j]]
-                    bonne_echelle = (ech and abs(float(np.median(ech)) - ref) <= ref * 0.35)
-                    if bonne_echelle and (sc - creux) > best:
-                        best, img, qui = sc - creux, i, k
+                if v < 0.25:
+                    creux = v
+                if v >= 0.55 and creux <= 0.25:
+                    out.append((i, k))
                     debout = False
-            elif sc < 0.25:
-                debout, creux = True, sc
-    if img is None:                           # repli : l'image la plus tombée
-        for i, s in enumerate(suite):
-            if not s:
-                continue
-            for k in (0, 1):
-                if scores[i][k] and scores[i][k] > best:
-                    best, img, qui = scores[i][k], i, k
-    return img, qui, sol, taille
+            elif v < 0.25:
+                debout, creux = True, v
+    return out, sol, taille
 
 
-def annoter(video, tech, fps=FPS, avant=1.1, apres=0.35, debut=None, uke=None):
-    """`debut` (secondes) force la fenêtre, `uke` (0 ou 1) force les rôles.
+def chute(suite, fps=FPS, recul=2.6):
+    """La projection à retenir : celle dont **la garde qui la précède est la meilleure**.
 
-    La détection automatique de la bonne répétition se trompe sur certaines démos — celles
-    où les partenaires enchaînent sans se relever, ou filmées de plus près. Plutôt que de
-    tordre l'heuristique jusqu'à ce qu'elle couvre tous les cas, on garde la possibilité
-    de donner la seconde à la main : c'est un repérage de cinq secondes par vidéo, à
-    comparer aux treize images à pointer une par une de la méthode précédente.
+    Choisir d'abord la chute puis chercher une garde avant donnait des départs à écart
+    nul — l'animation s'ouvrait avec uke déjà chargé sur la hanche, et `throw_anims.gd`,
+    qui étire les abscisses par d / d0, envoyait tout hors de l'écran. On classe donc les
+    projections par la qualité de leur kumikata.
     """
-    suite, fps = suivre(video, fps)
-    suite = _combler_pistes(suite)
-    if debut is not None:
-        img_chute = min(len(suite) - 1, int((debut + avant) * fps))
-        sol, taille = sol_et_taille(suite)
-        i_uke = uke if uke is not None else chute(suite, fps, avant)[1]
-    else:
-        img_chute, i_uke, sol, taille = chute(suite, fps, avant)
-        if uke is not None:
-            i_uke = uke
-    if img_chute is None:
-        return None, "aucun judoka détecté"
-    a = max(0, img_chute - int(avant * fps))
-    b = min(len(suite) - 1, img_chute + int(apres * fps))
-    frames = []
-    for i in range(a, b + 1):
+    cand, sol, taille = chutes(suite, fps)
+    if not cand:
+        return None, 0, sol, taille
+    best = None
+    for i, k in cand:
+        a = depart(suite, i, fps, sol, taille, recul)
+        ecart = abs(suite[a][0]["P"][0] - suite[a][1]["P"][0]) if suite[a] else 0.0
+        # l'échelle du plan doit rester celle du reste de la vidéo
+        ech = [hauteur_debout(suite[j][k], sol)
+               for j in range(a, i + 1) if suite[j]]
+        ref = float(np.median([hauteur_debout(g, sol) for s in suite if s for g in s]))
+        if ech and abs(float(np.median(ech)) - ref) > ref * 0.35:
+            continue
+        if best is None or ecart > best[0]:
+            best = (ecart, i, k)
+    if best is None:
+        i, k = cand[0]
+        return i, k, sol, taille
+    return best[1], best[2], sol, taille
+
+
+def depart(suite, img_chute, fps, sol, taille, recul_max=2.6):
+    """Image où commencer : la dernière, avant la chute, où les deux sont debout et
+    **séparés d'une vraie distance de kumikata**.
+
+    Partir d'un temps fixe avant la chute donnait n'importe quoi : sur le harai-goshi, la
+    fenêtre s'ouvrait avec uke déjà chargé sur la hanche (distance de départ nulle), sur
+    l'o-uchi-gari avec les deux judokas croisés (distance négative). Le jeu part d'un
+    kumikata établi : l'animation doit s'ouvrir là, pas au milieu de la projection.
+    """
+    # On ne vise pas un seuil fixe : l'écart de kumikata dépend de la technique et du
+    # cadrage (36 à 45 unités de jeu sur ces vidéos, ce qui correspond au min_gap de la
+    # simulation). On prend donc la **meilleure garde disponible** avant la chute, et
+    # parmi les images équivalentes la plus tardive — au plus près de l'attaque.
+    # il faut de quoi raconter l'entrée : au moins neuf dixièmes de seconde avant la chute
+    fin = max(0, img_chute - int(0.9 * fps))
+    debut = max(0, img_chute - int(recul_max * fps))
+    debouts = []
+    for i in range(debut, fin + 1):
         s = suite[i]
         if not s:
             continue
-        frames.append({"f": i, "p": round((i - a) / max(1, b - a), 3),
-                       "tori": dict(s[1 - i_uke]), "uke": dict(s[i_uke])})
+        if max(score_chute(s[0], sol, taille), score_chute(s[1], sol, taille)) > 0.22:
+            continue
+        debouts.append((i, abs(s[0]["P"][0] - s[1]["P"][0])))
+    if not debouts:
+        return debut
+    meilleur = max(e for _, e in debouts)
+    for i, e in reversed(debouts):
+        if e >= meilleur * 0.9:
+            return i
+    return debouts[-1][0]
+
+
+def miroir(g):
+    """Retourne un judoka horizontalement."""
+    out = {"face": -g["face"]} if "face" in g else {}
+    for k, v in g.items():
+        if k in POINTS:
+            out[k] = [LARGEUR - v[0], v[1]]
+        elif k not in ("face",):
+            out[k] = v
+    return out
+
+
+def coucher(g, sol, taille, rot_prec):
+    """Encode un judoka au sol : pose couchée du jeu, pas un squelette debout tordu.
+
+    C'est ce qui manquait le plus aux chutes. `retarget.py` sait poser un judoka couché
+    (pose LYING) à partir de son orientation et de la hauteur de son bassin ; sans ce
+    marquage, il tentait de plier un squelette debout dans une position impossible.
+    """
+    dx = g["N"][0] - g["P"][0]
+    dy = g["N"][1] - g["P"][1]
+    rot = math.atan2(dx, -dy)
+    if rot_prec is not None:
+        while rot - rot_prec > math.pi:
+            rot -= 2 * math.pi
+        while rot - rot_prec < -math.pi:
+            rot += 2 * math.pi
+    y = (g["P"][1] - sol) * (47.0 / max(1.0, taille))
+    return {"lying": True, "rot": round(rot, 2), "x_px": int(g["P"][0]),
+            "y_units": round(max(-22.0, min(-4.0, y)), 1)}
+
+
+def pistes(video, fps=FPS, cache=True):
+    """Suivi des deux judokas, gardé en cache à côté de la vidéo.
+
+    La détection coûte une minute et demie par vidéo ; le réglage de la fenêtre, lui, se
+    reprend plusieurs fois par technique. Sans ce cache, chaque essai relançait tout.
+    """
+    dos = os.path.join(os.path.dirname(video), ".pistes")
+    f = os.path.join(dos, os.path.splitext(os.path.basename(video))[0] + ".json")
+    if cache and os.path.exists(f):
+        d = json.load(open(f))
+        return d["suite"], d["fps"]
+    suite, reelle = suivre(video, fps)
+    suite = _combler_pistes(suite)
+    if cache:
+        os.makedirs(dos, exist_ok=True)
+        json.dump({"suite": suite, "fps": reelle}, open(f, "w"))
+    return suite, reelle
+
+
+def annoter(video, tech, fps=FPS, apres=0.35, debut=None, uke=None, recul=4.5,
+            attaque=1.35):
+    """`debut` (secondes) force la fenêtre, `uke` (0 ou 1) force les rôles."""
+    suite, fps = pistes(video, fps)
+    sol, taille = sol_et_taille(suite)
+    if debut is not None:
+        a = max(0, int(debut * fps))
+        img_chute = None
+        for i in range(a, len(suite)):
+            if suite[i] and max(score_chute(suite[i][k], sol, taille) for k in (0, 1)) >= 0.55:
+                img_chute = i
+                break
+        if img_chute is None:
+            img_chute = min(len(suite) - 1, a + int(2.0 * fps))
+        i_uke = uke if uke is not None else chute(suite, fps, recul)[1]
+    else:
+        img_chute, i_uke, sol, taille = chute(suite, fps, recul)
+        if img_chute is None:
+            return None, "aucun judoka détecté"
+        if uke is not None:
+            i_uke = uke
+        a = depart(suite, img_chute, fps, sol, taille, recul)
+    b = min(len(suite) - 1, img_chute + int(apres * fps))
+    if b - a < 8:
+        return None, f"fenêtre trop courte ({b - a} images)"
+    # La première image **doit** être un vrai kumikata : c'est elle qui fixe d0, et
+    # `throw_anims.gd` étire toute la chorégraphie par d / d0. Mais une garde parfois
+    # située trois secondes avant la chute donnerait une fenêtre que le jeu comprimerait
+    # en sept dixièmes de seconde — illisible. On garde donc la garde comme première
+    # image, puis on saute directement à l'entrée : c'est d'ailleurs ce que fait le jeu,
+    # qui déclenche la projection depuis un kumikata établi.
+    # L'entrée ne dure pas pareil d'une technique à l'autre : un de-ashi-barai part en
+    # deux dixièmes de seconde, un harai-goshi en une bonne demi-seconde. On la cale donc
+    # sur le moment où **uke quitte sa garde** — son bassin descend sous la hauteur de
+    # repos — plutôt que sur un délai fixe, sans quoi la moitié de l'animation est du
+    # temps mort avec uke déjà au sol.
+    debout_min = taille * 0.78
+    quitte = img_chute
+    for i in range(img_chute, max(a, img_chute - int(attaque * fps)) - 1, -1):
+        if suite[i] and (sol - suite[i][i_uke]["P"][1]) >= debout_min:
+            quitte = i
+            break
+    entree = max(a, quitte - int(0.2 * fps))
+    if entree > a + 1:
+        # quelques images entre la garde et l'entrée, sinon le passage de l'une à l'autre
+        # est un saut sec : le jeu interpole en ligne droite entre deux clés
+        pont = [a + round((entree - a) * k / 4.0) for k in range(4)]
+        retenues = sorted(set(pont)) + list(range(entree, b + 1))
+    else:
+        retenues = list(range(a, b + 1))
+    # `throw_anims.gd` étire les abscisses par d / d0, d0 étant l'écart de départ entre
+    # tori et uke. Il doit donc être positif et valoir un vrai kumikata : si uke est à
+    # gauche de tori dans la vidéo, on retourne toute la séquence. Un d0 nul ou négatif
+    # donnait un facteur d'étirement de 55 et envoyait les judokas hors de l'écran.
+    i_tori = 1 - i_uke
+    if suite[a][i_uke]["P"][0] < suite[a][i_tori]["P"][0]:
+        for i in range(len(suite)):
+            if suite[i]:
+                suite[i] = [miroir(suite[i][0]), miroir(suite[i][1])]
+    # un judoka tombé reste au sol jusqu'à la fin de la fenêtre
+    au_sol = [None, None]
+    rot_prec = [None, None]
+    frames = []
+    for n_i, i in enumerate(retenues):
+        s = suite[i]
+        if not s:
+            continue
+        acteurs = {}
+        for k in (0, 1):
+            # seul uke est « couché » : dans un sacrifice (tomoe-nage, sumi-gaeshi) tori
+            # descend au sol volontairement, et c'est une posture de technique, pas une
+            # chute — lui imposer la pose couchée la ferait disparaître
+            if k == i_uke and au_sol[k] is None and score_chute(s[k], sol, taille) >= 0.55:
+                au_sol[k] = i
+            if au_sol[k] is not None:
+                g = coucher(s[k], sol, taille, rot_prec[k])
+                rot_prec[k] = g["rot"]
+            else:
+                g = dict(s[k])
+            acteurs["uke" if k == i_uke else "tori"] = g
+        p = n_i / max(1, len(retenues) - 1)
+        frames.append({"f": i, "p": round(p, 3), **acteurs})
     if len(frames) < 8:
-        return None, f"seulement {len(frames)} images exploitables autour de la chute"
-    trous = (b - a + 1) - sum(1 for i in range(a, b + 1) if suite[i])
-    vus = sum(1 for s in suite if s)
+        return None, f"seulement {len(frames)} images exploitables"
+    ecart = (suite[a][i_uke]["P"][0] - suite[a][i_tori]["P"][0]) * 47.0 / max(1.0, taille)
     return {
         "_doc": (f"Rotoscopie automatique de {tech} (chaîne Efficient Judo, utilisée avec "
                  f"l'accord de son auteur) : points YOLO-pose, uke reconnu à sa chute, "
@@ -313,14 +445,14 @@ def annoter(video, tech, fps=FPS, avant=1.1, apres=0.35, debut=None, uke=None):
         "hip_height_px": int(round(taille)),
         "tech": tech,
         "frames": frames,
-    }, (f"{len(frames)} images ({trous} comblées), chute à {img_chute / fps:.1f} s, "
-        f"{vus}/{len(suite)} images suivies")
+    }, (f"{len(frames)} images, {a / fps:.1f}→{b / fps:.1f} s, "
+        f"d0 = {ecart:.0f} unités")
 
 
 def _une(args):
-    video, tech, racine, debut, uke = args
+    video, tech, racine, debut, uke, recul = args
     try:
-        d, info = annoter(video, tech, debut=debut, uke=uke)
+        d, info = annoter(video, tech, debut=debut, uke=uke, recul=recul)
     except Exception as e:                     # une vidéo ratée ne doit pas tout arrêter
         return tech, False, f"erreur : {e}"
     if d is None:
@@ -336,7 +468,7 @@ if __name__ == "__main__":
     opts, args, i = {}, [], 1
     while i < len(sys.argv):
         a = sys.argv[i]
-        if a in ("--jobs", "--debut", "--uke"):
+        if a in ("--jobs", "--debut", "--uke", "--recul"):
             opts[a] = sys.argv[i + 1]
             i += 2
             continue
@@ -349,7 +481,8 @@ if __name__ == "__main__":
     racine = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..")
     debut = float(opts["--debut"]) if "--debut" in opts else None
     uke = int(opts["--uke"]) if "--uke" in opts else None
-    taches = [(v, os.path.splitext(os.path.basename(v))[0], racine, debut, uke)
+    recul = float(opts.get("--recul", 4.5))
+    taches = [(v, os.path.splitext(os.path.basename(v))[0], racine, debut, uke, recul)
               for v in args]
     if jobs > 1:
         import multiprocessing as mp
