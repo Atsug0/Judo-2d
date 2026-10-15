@@ -17,10 +17,12 @@ const Stages := preload("res://scripts/stages.gd")
 const GameData := preload("res://scripts/game_data.gd")
 const Skins := preload("res://scripts/skins.gd")
 
-const K := 2.6
-const FEET := 610.0
+# mêmes valeurs que l'écran de combat : c'est le cadrage qu'il faut juger
+const K := 2.2
+const FEET := 604.0
 const MAT_BACK := 556.0
-const CAM_Y := 430.0         # centre de la caméra 3D (monde)
+const CAM_Y := 464.0         # centre de la caméra (monde)
+const ZOOM := 1.8
 const ARRET_DEBUT := 14      # ticks d'arrêt sur la garde, avant l'entrée
 const ARRET_FIN := 26        # ticks d'arrêt sur la chute
 
@@ -103,27 +105,39 @@ func _draw() -> void:
 	var ks: Array = Anims.keys(tech, 54.0)
 	var smp: Dictionary = Anims.sample(ks, _p())
 	var frame := Transform2D(0.0, Vector2(K, K), 0.0, Vector2(640, FEET))
-	_draw_decor()
+	var cx := _centre(smp, frame)
+	_draw_decor(cx)
 	if m3d != null:
 		m3d.clock = t
-		m3d.update_camera(Vector2(640, CAM_Y), 1.0, Vector2.ZERO)
+		m3d.update_camera(Vector2(_centre(smp, frame), CAM_Y), ZOOM, Vector2.ZERO)
 		var sh = m3d.pose_rig(0, Anims.actor_xform(frame, smp.tori), smp.tori.pose, [], true)
 		m3d.pose_rig(1, Anims.actor_xform(frame, smp.uke), smp.uke.pose, [], false, sh)
 		draw_texture(m3d.texture(), Vector2.ZERO)
 	else:
+		# dessin de secours : on reproduit à la main le cadrage de la caméra 3D
+		draw_set_transform(Vector2(640, 360) - Vector2(cx, CAM_Y) * ZOOM,
+			0.0, Vector2(ZOOM, ZOOM))
 		var ordre := ["tori", "uke"] if Anims.family(tech) == "sacrifice" else ["uke", "tori"]
 		for who in ordre:
 			var a: Dictionary = smp[who]
 			Art.draw_fighter(self, Anims.actor_xform(frame, a),
 				Art.palette(0 if who == "tori" else 1), a.pose)
+		draw_set_transform_matrix(Transform2D.IDENTITY)
 	_draw_hud(tech)
 
 
-func _draw_decor() -> void:
-	# la caméra 3D est centrée sur CAM_Y : un point du monde y tombe à l'écran en
-	# 360 + (y − CAM_Y). Le décor doit suivre la même règle, sinon les judokas flottent
-	# au-dessus du tatami.
-	var bord := 360.0 + (MAT_BACK - CAM_Y)
+## Milieu des deux judokas : la caméra les suit, sinon ils sortent du cadre.
+func _centre(smp: Dictionary, frame: Transform2D) -> float:
+	var a: Vector2 = Anims.actor_xform(frame, smp.tori).origin
+	var b: Vector2 = Anims.actor_xform(frame, smp.uke).origin
+	return clampf((a.x + b.x) * 0.5, 640.0 / ZOOM, 1280.0 - 640.0 / ZOOM)
+
+
+func _draw_decor(cx: float) -> void:
+	# la caméra est centrée sur (cx, CAM_Y) au zoom ZOOM : un point du monde (x, y) tombe
+	# à l'écran en 640 + (x − cx)·ZOOM, 360 + (y − CAM_Y)·ZOOM. Le décor suit la même
+	# règle, sinon les judokas flottent au-dessus du tatami.
+	var bord := 360.0 + (MAT_BACK - CAM_Y) * ZOOM
 	var st: Dictionary = Stages.current()
 	var tex: Texture2D = Stages.texture(st)
 	if tex != null:
@@ -137,8 +151,8 @@ func _draw_decor() -> void:
 	draw_rect(Rect2(0, bord, 1280, 720 - bord), Style.MAT_COMBAT)
 	draw_rect(Rect2(0, bord, 1280, 5), Style.MAT_COMBAT.darkened(0.45))
 	# ligne de zone de combat, pour donner l'échelle
-	var sol := 360.0 + (FEET - CAM_Y)
-	draw_line(Vector2(120, sol), Vector2(1160, sol), Style.MAT_COMBAT.darkened(0.25), 3.0)
+	var sol := 360.0 + (FEET - CAM_Y) * ZOOM
+	draw_line(Vector2(0, sol), Vector2(1280, sol), Style.MAT_COMBAT.darkened(0.25), 3.0)
 
 
 func _draw_hud(tech: String) -> void:
