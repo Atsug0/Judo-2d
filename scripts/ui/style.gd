@@ -151,25 +151,60 @@ static func gauge(ci: CanvasItem, r: Rect2, ratio: float, color: Color, flip: bo
 
 
 ## Trame de points (halftone) dans un rectangle, densité décroissante selon la direction.
+## Tramage façon impression (points dégradés). Le motif est **cuit une fois** dans une
+## texture puis plaqué : en dessinant un `draw_circle` par point, les quelque 3500 points
+## d'un écran coûtaient 200 ms par image (le jeu tournait à 7 images par seconde).
+static var _trames := {}
+
+
 static func halftone(ci: CanvasItem, r: Rect2, color: Color, step: float = 14.0, max_r: float = 4.0, dir: Vector2 = Vector2(1, 0)) -> void:
-	var y := r.position.y
+	if r.size.x < 1.0 or r.size.y < 1.0:
+		return
+	var w := int(ceilf(r.size.x))
+	var h := int(ceilf(r.size.y))
+	var cle := "%d:%d:%.2f:%.2f:%.0f:%.0f" % [w, h, step, max_r, dir.x, dir.y]
+	var tex: Texture2D = _trames.get(cle)
+	if tex == null:
+		tex = _cuire_trame(w, h, step, max_r, dir)
+		_trames[cle] = tex
+	ci.draw_texture_rect(tex, r, false, color)
+
+
+## Dessine le motif de points dans une image (blanc, alpha = couverture du point).
+static func _cuire_trame(w: int, h: int, step: float, max_r: float, dir: Vector2) -> Texture2D:
+	var img := Image.create(w, h, false, Image.FORMAT_RGBA8)
+	img.fill(Color(1, 1, 1, 0))
+	var y := 0.0
 	var row := 0
-	while y < r.end.y:
-		var x := r.position.x + (step * 0.5 if row % 2 == 1 else 0.0)
-		while x < r.end.x:
-			var fx := (x - r.position.x) / r.size.x
-			var fy := (y - r.position.y) / r.size.y
-			var t := fx
+	while y < float(h):
+		var x := step * 0.5 if row % 2 == 1 else 0.0
+		while x < float(w):
+			var t := x / float(w)
 			if dir.x < 0:
-				t = 1.0 - fx
+				t = 1.0 - t
 			elif dir.x == 0:
-				t = fy if dir.y > 0 else 1.0 - fy
+				t = (y / float(h)) if dir.y > 0 else 1.0 - (y / float(h))
 			var rad := max_r * (1.0 - clampf(t, 0.0, 1.0))
 			if rad > 0.4:
-				ci.draw_circle(Vector2(x, y), rad, color)
+				_point(img, x, y, rad, w, h)
 			x += step
 		y += step * 0.86
 		row += 1
+	return ImageTexture.create_from_image(img)
+
+
+## Un point du tramage, avec un pixel de fondu sur le bord (sinon l'escalier se voit).
+static func _point(img: Image, cx: float, cy: float, rad: float, w: int, h: int) -> void:
+	var x0 := maxi(0, int(cx - rad) - 1)
+	var x1 := mini(w - 1, int(cx + rad) + 1)
+	var y0 := maxi(0, int(cy - rad) - 1)
+	var y1 := mini(h - 1, int(cy + rad) + 1)
+	for py in range(y0, y1 + 1):
+		for px in range(x0, x1 + 1):
+			var d := Vector2(float(px) + 0.5 - cx, float(py) + 0.5 - cy).length()
+			var a := clampf(rad - d + 0.5, 0.0, 1.0)
+			if a > 0.0 and a > img.get_pixel(px, py).a:
+				img.set_pixel(px, py, Color(1, 1, 1, a))
 
 
 ## Éclat d'impact façon BD (étoile irrégulière déterministe).
