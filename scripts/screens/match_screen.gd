@@ -131,7 +131,9 @@ func on_enter(p: Dictionary) -> void:
 				var lk: Dictionary = b.get("look", {}) if b is Dictionary else {}
 				who.append(M3d.who_for(lk, i))
 				texs.append(M3d.texture_for(lk, i))
-		if m3d.setup(String(app.args.get("models3d", M3d.DEFAULT_DIR)), who, K, FEET_Y, texs):
+		var dir3d := String(app.args.get("models3d", M3d.DEFAULT_DIR))
+		if m3d.setup(dir3d, who, K, FEET_Y, texs):
+			m3d.setup_arbitre(dir3d, "arbitre", REF_SCALE, FEET_Y - REF_FEET_Y, -1.6)
 			for spec in [["3d", "_draw_layer_3d"], ["fx", "_draw_layer_fx"]]:
 				var n = Node2D.new()
 				n.set_script(Proxy)
@@ -2179,6 +2181,12 @@ func _draw_referee() -> void:
 		pose.erase("kb")
 		pose.erase("kf")
 	var k = K * REF_SCALE
-	var xf = Transform2D(0.0, Vector2(ref_face * k, k), 0.0, Vector2(ref_x, REF_FEET_Y))
 	Art.shadow(_ci, Vector2(ref_x, REF_FEET_Y + 2), k, 0.22)
-	Art.draw_fighter(_ci, xf, _ref_pal, pose)
+	if m3d != null and m3d.actors[2] != null:
+		# arbitre 3D : posé sur le sol du jeu, le décalage de pieds étant repris par le
+		# nœud de l'acteur (setup_arbitre), sinon il flotterait au-dessus du tatami
+		m3d.pose_rig(2, Transform2D(0.0, Vector2(ref_face * K, K), 0.0,
+			Vector2(ref_x / REF_SCALE, FEET_Y)), pose, [], true, null, [])
+		return
+	Art.draw_fighter(_ci, Transform2D(0.0, Vector2(ref_face * k, k), 0.0,
+		Vector2(ref_x, REF_FEET_Y)), _ref_pal, pose)

@@ -229,6 +229,14 @@ Objectif : se rapprocher du rendu de l'aperçu Tripo, que les aplats écrasaient
 Le **contour d'encre** est gardé mais affiné (0,012 → 0,007) : il marque la silhouette sans
 écraser le modelé. C'est lui qui donne le trait « jeu de combat », pas l'aplat.
 
+### 5.5 ter Arbitre 3D
+`models3d.setup_arbitre()` charge un **troisième acteur** (`assets/judokas/arbitre`) et
+`match_screen._draw_referee` le pose comme un judoka. Deux pièges : `rig_pose` ne fait que
+tourner les os, il ne redimensionne pas le modèle — l'échelle est donc portée par le nœud,
+et l'abscisse passée à `pose_rig` doit être divisée par cette échelle ; et l'arbitre se
+tenant au fond du tatami (`REF_FEET_Y`), le nœud le remonte de l'écart de pieds, sinon il
+flotte au-dessus du tapis.
+
 ### 5.6 Cadrage
 La caméra serre sur les judokas (zoom 1,7 à 2,0 en combat, jusqu'à 2,35 sur un ippon) : les
 modèles 3D sont détaillés, les voir de loin n'a pas de sens. `_camera_target()` vise y = 464

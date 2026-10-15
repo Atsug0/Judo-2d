@@ -18,7 +18,7 @@ const HALF := {"hanche": 0.10, "genou": 0.11, "pied": 0.13, "epaule": 0.18, "cou
 
 var vp: SubViewport
 var cam: Camera3D
-var actors := [null, null]
+var actors := [null, null, null]   # les deux judokas, puis l'arbitre
 var ppm := 1.0          # pixels (monde 2D) par mètre
 var feet_y := 0.0
 # Demi-tour : quand le jeu retourne un judoka (face +1 ↔ -1, ex. entrée de seoi-nage), le
@@ -26,7 +26,7 @@ var feet_y := 0.0
 # ses articulations passent en fondu de l'ancienne à la nouvelle pose.
 const TURN_FRAMES := 9.0
 const BLEND_FRAMES := 8.0
-var turn := [{}, {}]
+var turn := [{}, {}, {}]
 var instant_turn := false   # outils de rendu image par image : pas de demi-tour progressif
 var clock := -1             # horloge du jeu (images de simulation) ; -1 = images du moteur
 
@@ -94,6 +94,28 @@ func setup(dir: String, who: Array, k: float, floor_y: float, textures: Array = 
 			return false
 		vp.add_child(a.node)
 		actors[i] = a
+	return true
+
+
+## Arbitre : troisième acteur. Il se tient au fond du tatami, donc plus petit et décalé en
+## profondeur ; la caméra étant orthographique, c'est l'échelle de son repère 2D qui le
+## rapetisse, pas la distance. `lift_px` le remonte à la hauteur de ses pieds sur l'écran
+## (il est posé comme les judokas, sur le sol du jeu, puis remonté du décalage de pieds).
+func setup_arbitre(dir: String, who: String, echelle: float, lift_px: float, depth: float) -> bool:
+	var f: Array = model_files(dir, who)
+	if f.is_empty():
+		return false
+	var a = RigPose.load_model(f[0], f[1], f[2], true)
+	if a == null:
+		return false
+	# `rig_pose` ne fait que tourner les os : il ne redimensionne pas le modèle, qui fait
+	# 1,90 m comme les judokas. C'est donc le nœud qui porte l'échelle — et l'appelant doit
+	# diviser l'abscisse qu'il passe à pose_rig par cette même échelle (elle s'applique
+	# aussi à la position).
+	a.node.scale = Vector3(echelle, echelle, echelle)
+	a.node.position = Vector3(0.0, lift_px / ppm, depth)
+	vp.add_child(a.node)
+	actors[2] = a
 	return true
 
 
