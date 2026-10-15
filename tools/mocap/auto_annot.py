@@ -177,6 +177,93 @@ def _combler_pistes(suite):
     return [s if s and s[0] and s[1] else None for s in suite]
 
 
+def stabiliser(suite):
+    """Empêche les membres « près » et « loin » de s'échanger d'une image à l'autre.
+
+    Le côté caméra était choisi image par image sur la confiance des points. Résultat :
+    sur une projection de quinze images, les jambes s'échangeaient trois à cinq fois —
+    de la bouillie à l'écran. On impose la continuité : à chaque image on garde
+    l'affectation qui déplace le moins les membres par rapport à l'image précédente.
+    """
+    paires = (("Kn", "Kf"), ("An", "Af"), ("Wn", "Wf"))
+    for e in (0, 1):
+        prec = None
+        for s in suite:
+            if not s or not s[e]:
+                continue
+            g = s[e]
+            if prec is not None:
+                direct = sum(dist(g[a], prec[a]) + dist(g[b], prec[b]) for a, b in paires)
+                croise = sum(dist(g[b], prec[a]) + dist(g[a], prec[b]) for a, b in paires)
+                if croise < direct:
+                    for a, b in paires:
+                        g[a], g[b] = g[b], g[a]
+            prec = g
+    return suite
+
+
+def _med(xs):
+    xs = sorted(xs)
+    return xs[len(xs) // 2] if xs else 0.0
+
+
+def rigidifier(suite, sol, taille):
+    """Impose à chaque judoka des **longueurs de membres constantes**.
+
+    C'est la correction décisive. Les détecteurs de pose sont entraînés sur des gens
+    debout : sur un judoka en l'air, à l'envers et enchevêtré avec son partenaire, ils
+    placent les articulations n'importe où. D'une image à l'autre une cuisse passe du
+    simple au double et le judoka devient un pantin disloqué — ce qu'on voyait à l'écran.
+
+    On mesure donc les longueurs sur les images où le judoka est **debout** (là où la
+    détection est fiable), puis on reconstruit chaque image en gardant les **directions**
+    détectées et en réimposant ces longueurs. L'orientation vient de la vidéo, les
+    proportions du judoka.
+    """
+    membres = (("N", "P"), ("H", "N"), ("Kn", "P"), ("An", "Kn"),
+               ("Kf", "P"), ("Af", "Kf"), ("Wn", "N"), ("Wf", "N"))
+    for e in (0, 1):
+        debout = [s[e] for s in suite
+                  if s and s[e] and score_chute(s[e], sol, taille) < 0.2]
+        if len(debout) < 5:
+            continue
+        L = {a: _med([dist(g[a], g[b]) for g in debout]) for a, b in membres}
+        for s in suite:
+            if not s or not s[e]:
+                continue
+            g = s[e]
+            for a, b in membres:
+                vx, vy = g[a][0] - g[b][0], g[a][1] - g[b][1]
+                n = math.hypot(vx, vy)
+                if n < 1e-6 or L[a] <= 0:
+                    continue
+                g[a] = [g[b][0] + vx / n * L[a], g[b][1] + vy / n * L[a]]
+    return suite
+
+
+def lisser(suite, fen=2):
+    """Lissage temporel des points : la détection tremble, le jeu pas."""
+    pts = list(POINTS)
+    n = len(suite)
+    copie = [[dict(g) if g else None for g in (s or [None, None])] for s in suite]
+    for e in (0, 1):
+        for i in range(n):
+            if not suite[i] or not suite[i][e]:
+                continue
+            for k in pts:
+                xs, ys, poids = 0.0, 0.0, 0.0
+                for j in range(max(0, i - fen), min(n, i + fen + 1)):
+                    if not copie[j] or not copie[j][e]:
+                        continue
+                    w = 1.0 / (1 + abs(i - j))
+                    xs += copie[j][e][k][0] * w
+                    ys += copie[j][e][k][1] * w
+                    poids += w
+                if poids > 0:
+                    suite[i][e][k] = [xs / poids, ys / poids]
+    return suite
+
+
 def sol_et_taille(suite):
     """Niveau du tatami (px) et hauteur de bassin debout (px), sur toute la séquence."""
     chevilles, hauteurs = [], []
@@ -228,7 +315,7 @@ def chutes(suite, fps=FPS):
             if debout:
                 if v < 0.25:
                     creux = v
-                if v >= 0.55 and creux <= 0.25:
+                if v >= 0.48 and creux <= 0.28:
                     out.append((i, k))
                     debout = False
             elif v < 0.25:
@@ -348,20 +435,28 @@ def pistes(video, fps=FPS, cache=True):
     return suite, reelle
 
 
+def prepare(video, fps=FPS):
+    """Suivi + stabilisation + lissage + longueurs rigides : l'état sur lequel tout le
+    reste raisonne. `calibrer.py` passe par ici aussi, sinon ses lectures ne
+    correspondent pas à ce que l'annotation produit."""
+    suite, fps = pistes(video, fps)
+    suite = stabiliser(suite)
+    sol0, taille0 = sol_et_taille(suite)
+    return rigidifier(lisser(suite), sol0, taille0), fps
+
+
 def annoter(video, tech, fps=FPS, apres=0.35, debut=None, uke=None, recul=4.5,
             attaque=1.35):
     """`debut` (secondes) force la fenêtre, `uke` (0 ou 1) force les rôles."""
-    suite, fps = pistes(video, fps)
+    suite, fps = prepare(video, fps)
     sol, taille = sol_et_taille(suite)
     if debut is not None:
         a = max(0, int(debut * fps))
-        img_chute = None
-        for i in range(a, len(suite)):
-            if suite[i] and max(score_chute(suite[i][k], sol, taille) for k in (0, 1)) >= 0.55:
-                img_chute = i
-                break
-        if img_chute is None:
-            img_chute = min(len(suite) - 1, a + int(2.0 * fps))
+        # la première projection qui suit le départ demandé, prise dans la même liste que
+        # le mode automatique : un simple seuil sur le score attrapait une chute bien plus
+        # tardive, et l'animation mélangeait deux répétitions
+        cand = [i for i, _ in chutes(suite, fps)[0] if i > a]
+        img_chute = cand[0] if cand else min(len(suite) - 1, a + int(2.0 * fps))
         i_uke = uke if uke is not None else chute(suite, fps, recul)[1]
     else:
         img_chute, i_uke, sol, taille = chute(suite, fps, recul)
@@ -420,7 +515,7 @@ def annoter(video, tech, fps=FPS, apres=0.35, debut=None, uke=None, recul=4.5,
             # seul uke est « couché » : dans un sacrifice (tomoe-nage, sumi-gaeshi) tori
             # descend au sol volontairement, et c'est une posture de technique, pas une
             # chute — lui imposer la pose couchée la ferait disparaître
-            if k == i_uke and au_sol[k] is None and score_chute(s[k], sol, taille) >= 0.55:
+            if k == i_uke and au_sol[k] is None and score_chute(s[k], sol, taille) >= 0.48:
                 au_sol[k] = i
             if au_sol[k] is not None:
                 g = coucher(s[k], sol, taille, rot_prec[k])

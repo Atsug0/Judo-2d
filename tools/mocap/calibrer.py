@@ -23,7 +23,7 @@ import auto_annot as A  # noqa: E402
 
 
 def etat(sc):
-    if sc >= 0.55:
+    if sc >= 0.48:
         return "au sol"
     if sc >= 0.22:
         return "tombe "
@@ -33,7 +33,7 @@ def etat(sc):
 def table(tech, autour=3.2):
     video = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..",
                          "rushes", "efficientjudo", tech + ".mp4")
-    suite, fps = A.pistes(video)
+    suite, fps = A.prepare(video)
     sol, taille = A.sol_et_taille(suite)
     img, qui, _, _ = A.chute(suite, fps)
     if img is None:
@@ -57,7 +57,7 @@ def table(tech, autour=3.2):
 def chutes(tech):
     video = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..",
                          "rushes", "efficientjudo", tech + ".mp4")
-    suite, fps = A.pistes(video)
+    suite, fps = A.prepare(video)
     sol, taille = A.sol_et_taille(suite)
     ech = 47.0 / taille
     n = len(suite)
@@ -68,9 +68,9 @@ def chutes(tech):
                 continue
             v = A.score_chute(suite[i][k], sol, taille)
             if debout:
-                if v < 0.25:
+                if v < 0.28:
                     creux = v
-                if v >= 0.55 and creux <= 0.25:
+                if v >= 0.48 and creux <= 0.28:
                     # on remonte à la dernière garde franche
                     a = A.depart(suite, i, fps, sol, taille)
                     d = abs(suite[a][0]["P"][0] - suite[a][1]["P"][0]) * ech
