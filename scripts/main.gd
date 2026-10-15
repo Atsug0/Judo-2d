@@ -20,6 +20,7 @@ const SCREENS := {
 	"options": "res://scripts/screens/options_screen.gd",
 	"online": "res://scripts/screens/online_screen.gd",
 	"art": "res://scripts/screens/art_screen.gd",
+	"demo": "res://scripts/screens/demo_screen.gd",
 	"lineup": "res://scripts/screens/lineup_screen.gd",
 	"bake": "res://scripts/screens/bake_screen.gd",
 	"vs": "res://scripts/screens/vs_screen.gd",
@@ -168,7 +169,7 @@ func goto(screen_name: String, params: Dictionary = {}) -> void:
 
 ## Musique et ambiance associées à chaque écran.
 const SCREEN_MUSIC := {"title": "menu", "menu": "menu", "customize": "menu", "select": "menu",
-	"tournament": "menu", "options": "menu", "online": "menu", "art": "menu", "challenges": "menu",
+	"tournament": "menu", "options": "menu", "online": "menu", "art": "menu", "demo": "menu", "challenges": "menu",
 	"match": "match", "dojo": "dojo", "results": "victory", "vs": ""}
 
 

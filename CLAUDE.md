@@ -372,7 +372,7 @@ Autres pistes conservées : `tools/blender/` (scène toon), `tools/sprites_ia/pr
 
 | Argument | Effet |
 | --- | --- |
-| `--screen=title\|menu\|match\|customize\|select\|vs\|tournament\|results\|options\|online\|dojo\|challenges\|art\|lineup\|bake` | écran de départ |
+| `--screen=title\|menu\|match\|customize\|select\|vs\|tournament\|results\|options\|online\|dojo\|challenges\|art\|demo\|lineup\|bake` | écran de départ |
 | `--p1build=<id> --p2build=<id>` | judokas (id de légende : lame, mur, seoi, kesa…) |
 | `--seed=<n> --level=1..3` | graine et niveau IA |
 | `--capture=<dossier>` | mode capture (quitte à la fin) ; combat : `--ticks=a,b,c --max=n --until=t --events --settle=n` ; menus : `--frames=n --nav=down,accept --name=x` |
@@ -386,6 +386,7 @@ Autres pistes conservées : `tools/blender/` (scène toon), `tools/sprites_ia/pr
 | `--ia` | combat IA contre IA (démonstration à regarder) |
 | `--models3d[=<dossier>] --models3d_who=a,b` | active les judokas 3D (désactivés par défaut) |
 | `--anim=<tech>` (`--zoom`, `--ground`, `--count`) | (écran art) planche d'une chorégraphie |
+| `--screen=demo [--anim=<tech>]` | démonstration animée des projections, en 3D, défilement automatique |
 | `--bo3`, `--replay`, `--demo_round=n`, `--readout`, `--cursor`, `--dojo_lesson=n` | options de capture / démo |
 
 ---
