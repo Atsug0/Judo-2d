@@ -349,10 +349,21 @@ l'ont rendu possible, chacune trouvée en corrigeant un ratage :
   donne 12,5 i/s et non 12. Cumulé sur quarante secondes, ça décale d'une seconde — assez
   pour que l'aperçu ne montre plus la même action que l'annotation.
 
-**Toujours regarder l'aperçu avant de retargeter.** Le choix automatique de la répétition
-se trompe encore sur une partie des vidéos ; `--debut <secondes>` et `--uke 0|1` forcent la
-fenêtre et les rôles. C'est un repérage de cinq secondes par vidéo, à comparer aux treize
-images à pointer une par une d'avant.
+**Toujours regarder l'aperçu avant de retargeter** (`apercu.py --toutes` met tout un lot
+sur une planche). Sur les 13 techniques, **9 sont tombées sur la bonne répétition du
+premier coup** ; les 4 autres ont été recalées à la main avec `--debut <secondes>` et
+`--uke 0|1`, qui forcent la fenêtre et les rôles. Les valeurs retenues, à reprendre si on
+régénère :
+
+| technique | `--debut` | `--uke` |
+| --- | --- | --- |
+| harai_goshi | 21.3 | 1 |
+| ippon_seoi_nage | 10.9 | 1 |
+| o_goshi | 13.9 | 1 |
+| o_soto_gari | 6.3 | 1 |
+
+Les **13 techniques debout du jeu ont désormais leur chorégraphie filmée** dans
+`data/anims/`, 18 images clés chacune.
 
 Autres pistes conservées : `tools/blender/` (scène toon), `tools/sprites_ia/prepare.py`,
 `docs/PIPELINE_ANIMATION.md` (tournage au dojo).

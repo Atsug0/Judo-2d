@@ -331,15 +331,24 @@ def _une(args):
 
 
 if __name__ == "__main__":
-    args = [a for a in sys.argv[1:] if not a.startswith("--")]
+    # les options à valeur (--jobs 3, --debut 12.5) consomment l'argument suivant :
+    # sans ça leur valeur était prise pour un fichier vidéo
+    opts, args, i = {}, [], 1
+    while i < len(sys.argv):
+        a = sys.argv[i]
+        if a in ("--jobs", "--debut", "--uke"):
+            opts[a] = sys.argv[i + 1]
+            i += 2
+            continue
+        if not a.startswith("--"):
+            args.append(a)
+        i += 1
     if not args:
         sys.exit(__doc__)
-    jobs = 1
-    if "--jobs" in sys.argv:
-        jobs = int(sys.argv[sys.argv.index("--jobs") + 1])
+    jobs = int(opts.get("--jobs", 1))
     racine = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..")
-    debut = float(sys.argv[sys.argv.index("--debut") + 1]) if "--debut" in sys.argv else None
-    uke = int(sys.argv[sys.argv.index("--uke") + 1]) if "--uke" in sys.argv else None
+    debut = float(opts["--debut"]) if "--debut" in opts else None
+    uke = int(opts["--uke"]) if "--uke" in opts else None
     taches = [(v, os.path.splitext(os.path.basename(v))[0], racine, debut, uke)
               for v in args]
     if jobs > 1:
