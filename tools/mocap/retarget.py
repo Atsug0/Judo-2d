@@ -109,9 +109,10 @@ def actor(a, who, s, x0, floor, prev_rot, shift_in=None):
     # Au sol : le pied le plus bas posé sur le tatami (les jambes du jeu n'ont pas les
     # proportions réelles, le bassin est donc recalé). En l'air : même recalage que
     # l'autre judoka, pour garder leur position relative (uke sur le dos de tori).
-    # seuil proportionnel : 22 px en dur ne voulait rien dire, l'échelle change d'une
-    # vidéo à l'autre selon la distance de la caméra
-    grounded = max(a["An"][1], a["Af"][1]) >= floor - 0.15 / s
+    # « le pied touche le tatami » : 15 % de la hauteur de bassin, et non 22 px en dur —
+    # l'échelle change d'une vidéo à l'autre selon la distance de la caméra. (s vaut
+    # 47 / hauteur_de_bassin_px, d'où le 7.05 = 0,15 × 47.)
+    grounded = max(a["An"][1], a["Af"][1]) >= floor - 7.05 / s
     shift = 0.0
     if grounded:
         low = -1e9

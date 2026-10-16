@@ -69,7 +69,13 @@ def cote(conf, gauche, droite):
 
 
 def personnage(k, conf):
-    """Points d'un judoka au format de l'annotation, depuis les 17 points COCO."""
+    """Points d'un judoka au format de l'annotation, depuis les 17 points COCO.
+
+    On garde aussi `_profil` : l'écartement horizontal des épaules et des hanches, rapporté
+    à la hauteur du buste. En vue de profil — le seul plan que le jeu sait reproduire — les
+    deux épaules se superposent et cet écart est petit. De face ou de trois quarts il
+    double, et le report sur le squelette 2D du jeu donne n'importe quoi.
+    """
     gn, gf = cote(conf, GENOU_G, GENOU_D)
     an, af = cote(conf, CHEVILLE_G, CHEVILLE_D)
     pn, pf = cote(conf, POIGNET_G, POIGNET_D)
@@ -77,7 +83,11 @@ def personnage(k, conf):
     cou = milieu(k, EPAULE_G, EPAULE_D)
     bassin = milieu(k, HANCHE_G, HANCHE_D)
     ent = lambda p: [int(round(p[0])), int(round(p[1]))]
+    buste = max(1.0, abs(cou[1] - bassin[1]))
+    largeur = (abs(k[EPAULE_G][0] - k[EPAULE_D][0]) +
+               abs(k[HANCHE_G][0] - k[HANCHE_D][0])) * 0.5
     return {
+        "_profil": round(largeur / buste, 3),
         "face": 1 if k[NEZ][0] > cou[0] else -1,   # le nez est devant la ligne des épaules
         "H": ent(tete), "N": ent(cou), "P": ent(bassin),
         "Kn": ent(k[gn]), "An": ent(k[an]),
@@ -323,6 +333,37 @@ def chutes(suite, fps=FPS):
     return out, sol, taille
 
 
+def profil(suite, a, b):
+    """À quel point le passage [a, b] est filmé **de profil** (0 = de face, 1 = de profil).
+
+    Le squelette du jeu est une vue de côté : un côté près de la caméra, un côté loin, et
+    rien d'autre. Reporter dessus un plan de trois quarts ou de face ne peut rien donner
+    de bon. On lit l'écartement horizontal des épaules et des hanches rapporté à la
+    hauteur du buste : superposées de profil, écartées de face.
+    """
+    vals = []
+    for i in range(a, b + 1):
+        if i >= len(suite) or not suite[i]:
+            continue
+        for g in suite[i]:
+            if not g or "_profil" not in g:
+                continue
+            # `_profil` a été mesuré en divisant par la **hauteur** du buste, qui tend
+            # vers zéro quand le judoka passe à l'horizontale : la valeur explosait.
+            # On revient à l'écartement brut, qu'on rapporte à la **longueur** du buste.
+            dy = abs(g["N"][1] - g["P"][1])
+            L = dist(g["N"], g["P"])
+            if L < 1e-6:
+                continue
+            vals.append(float(g["_profil"]) * dy / L)
+    if not vals:
+        return 0.5
+    vals.sort()
+    moy = vals[len(vals) // 2]           # médiane : insensible aux images ratées
+    # ≈0,10 vu de profil, ≈0,40 vu de face sur ces vidéos
+    return max(0.0, min(1.0, (0.40 - moy) / 0.30))
+
+
 def chute(suite, fps=FPS, recul=2.6):
     """La projection à retenir : celle dont **la garde qui la précède est la meilleure**.
 
@@ -344,8 +385,10 @@ def chute(suite, fps=FPS, recul=2.6):
         ref = float(np.median([hauteur_debout(g, sol) for s in suite if s for g in s]))
         if ech and abs(float(np.median(ech)) - ref) > ref * 0.35:
             continue
-        if best is None or ecart > best[0]:
-            best = (ecart, i, k)
+        # une garde large filmée de face vaut moins qu'une garde correcte vue de profil
+        note = ecart * (0.25 + 0.75 * profil(suite, a, i))
+        if best is None or note > best[0]:
+            best = (note, i, k)
     if best is None:
         i, k = cand[0]
         return i, k, sol, taille
@@ -388,6 +431,8 @@ def depart(suite, img_chute, fps, sol, taille, recul_max=2.6):
 def miroir(g):
     """Retourne un judoka horizontalement."""
     out = {"face": -g["face"]} if "face" in g else {}
+    if "_profil" in g:
+        out["_profil"] = g["_profil"]
     for k, v in g.items():
         if k in POINTS:
             out[k] = [LARGEUR - v[0], v[1]]
@@ -541,7 +586,7 @@ def annoter(video, tech, fps=FPS, apres=0.35, debut=None, uke=None, recul=4.5,
         "tech": tech,
         "frames": frames,
     }, (f"{len(frames)} images, {a / fps:.1f}→{b / fps:.1f} s, "
-        f"d0 = {ecart:.0f} unités")
+        f"d0 = {ecart:.0f} unités, profil {profil(suite, a, b):.2f}")
 
 
 def _une(args):
