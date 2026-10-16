@@ -36,13 +36,28 @@
   <input type="file" id="fichiers" accept="video/*,image/*" multiple
          title="une vidéo mp4, ou des images déjà découpées">
   <input type="text" id="tech" value="seoi_nage" size="16" title="nom de la technique">
-  <label>début <input type="number" id="debut" value="0" step="0.1" size="4"> s</label>
-  <label>durée <input type="number" id="duree" value="2.5" step="0.1" size="4"> s</label>
   <span id="etat">charge les images d'une technique</span>
 </header>
 
 <main>
-  <div id="scene"><canvas id="cv" width="640" height="360"></canvas></div>
+  <div id="scene">
+    <video id="vid" width="640" controls style="display:none; background:#000"></video>
+    <canvas id="cv" width="640" height="360"></canvas>
+    <div id="reperage" style="display:none; padding:10px; background:#1c1540">
+      <div class="ligne">
+        <button id="marqueA">◀ début ici</button>
+        <span id="plage">—</span>
+        <button id="marqueB">fin ici ▶</button>
+        <button id="voirA">aller au début</button>
+        <button id="voirB">aller à la fin</button>
+      </div>
+      <div class="ligne">
+        <label>cadence <input type="number" id="fps2" value="12" step="1" size="3"> i/s</label>
+        <button id="decouper" class="actif">découper ce passage</button>
+        <small>Avance image par image avec <kbd>,</kbd> et <kbd>.</kbd></small>
+      </div>
+    </div>
+  </div>
   <aside>
     <div class="bloc">
       <h2>IMAGE</h2>
@@ -51,6 +66,7 @@
         <span id="noimg">0 / 0</span>
         <button id="suiv">▶</button>
         <button id="copier" title="reprend la pose de l'image précédente">copier la précédente</button>
+        <button id="retour" title="rechoisir le passage dans la vidéo">⟲ vidéo</button>
       </div>
       <div class="ligne"><input type="range" id="curseur" min="0" value="0" style="width:100%"></div>
       <div class="ligne">
@@ -110,41 +126,82 @@ let attrape = null;       // point attrapé à la souris
 
 function vide() { return {tori:{}, uke:{}, ukeCouche:false}; }
 
+let videoFile = null, tA = 0, tB = 2.5;
+
 document.getElementById("fichiers").onchange = e => {
   const fs = [...e.target.files];
-  if (fs.length && fs[0].type.startsWith("video/")) {
+  if (!fs.length) return;
+  if (fs[0].type.startsWith("video/")) {
     const n = fs[0].name.replace(/\.[^.]+$/, "");
     if (n) document.getElementById("tech").value = n;
-    decoupe(fs[0]);
-  }
-  else chargeImages(fs);
+    ouvreVideo(fs[0]);
+  } else chargeImages(fs);
 };
 
 function chargeImages(fs) {
   fs.sort((a,b) => a.name.localeCompare(b.name));
   images = []; noms = []; poses = [];
   let reste = fs.length;
-  if (!reste) return;
   fs.forEach((f, k) => {
     const im = new Image();
     im.onload = () => { if (--reste === 0) pret(); };
     im.src = URL.createObjectURL(f);
     images[k] = im; noms[k] = f.name; poses[k] = vide();
   });
+  modeVideo(false);
 }
 
-// Découpe la vidéo dans le navigateur : on avance de 1/fps en 1/fps et on capture.
-// Évite de passer par ffmpeg — l'outil se suffit à lui-même.
-function decoupe(f) {
+// --- repérage : on regarde la vidéo et on pose les deux marqueurs
+function modeVideo(oui) {
+  document.getElementById("vid").style.display = oui ? "block" : "none";
+  document.getElementById("reperage").style.display = oui ? "block" : "none";
+  cv.style.display = oui ? "none" : "block";
+}
+
+function ouvreVideo(f) {
+  videoFile = f;
+  const v = document.getElementById("vid");
+  v.src = URL.createObjectURL(f);
+  v.onloadedmetadata = () => {
+    tA = 0; tB = Math.min(2.5, v.duration);
+    majPlage();
+    modeVideo(true);
+    document.getElementById("etat").textContent =
+      "repère le passage : lance la lecture, pose début et fin";
+  };
+  v.onerror = () => {
+    document.getElementById("etat").textContent =
+      "vidéo illisible par le navigateur — dépose plutôt des images";
+  };
+}
+
+function majPlage() {
+  const d = Math.max(0, tB - tA);
+  document.getElementById("plage").textContent =
+    tA.toFixed(2) + " s  →  " + tB.toFixed(2) + " s   (" + d.toFixed(2) + " s)";
+  document.getElementById("plage").style.color = (d > 0.3 && d < 5) ? "var(--or)" : "#ff6b6b";
+}
+
+const vid = () => document.getElementById("vid");
+document.getElementById("marqueA").onclick = () => { tA = vid().currentTime; if (tB <= tA) tB = tA + 2; majPlage(); };
+document.getElementById("marqueB").onclick = () => { tB = vid().currentTime; majPlage(); };
+document.getElementById("voirA").onclick = () => { vid().currentTime = tA; };
+document.getElementById("voirB").onclick = () => { vid().currentTime = tB; };
+document.getElementById("decouper").onclick = () => {
+  const fps = +document.getElementById("fps2").value || 12;
+  if (tB - tA < 0.2) { alert("Le passage est trop court."); return; }
+  if (tB - tA > 6) { alert("Plus de six secondes : vise la projection, pas la démonstration entière."); return; }
+  document.getElementById("fps").value = fps;
+  decoupe(videoFile, tA, tB - tA, fps);
+};
+
+// --- découpage dans le navigateur : on avance de 1/cadence et on capture
+function decoupe(f, t0, duree, fps) {
   const v = document.createElement("video");
   v.src = URL.createObjectURL(f);
   v.muted = true;
   const etat = document.getElementById("etat");
   v.onloadedmetadata = () => {
-    const fps = +document.getElementById("fps").value || 12;
-    const t0 = Math.max(0, +document.getElementById("debut").value || 0);
-    const duree = Math.min(+document.getElementById("duree").value || 2.5,
-                           Math.max(0.1, v.duration - t0));
     const n = Math.max(2, Math.round(duree * fps));
     const tmp = document.createElement("canvas");
     const l = 640, h = Math.round(640 * v.videoHeight / v.videoWidth);
@@ -152,10 +209,8 @@ function decoupe(f) {
     const c = tmp.getContext("2d");
     images = []; noms = []; poses = [];
     let k = 0;
-    const suite = () => {
-      if (k >= n) { pret(); return; }
-      v.currentTime = t0 + k / fps;
-    };
+    const suite = () => { if (k >= n) { modeVideo(false); pret(); return; }
+                          v.currentTime = t0 + k / fps; };
     v.onseeked = () => {
       c.drawImage(v, 0, 0, l, h);
       const im = new Image();
@@ -166,7 +221,6 @@ function decoupe(f) {
     etat.textContent = "découpage…";
     suite();
   };
-  v.onerror = () => { etat.textContent = "vidéo illisible par le navigateur"; };
 }
 
 function pret() {
@@ -282,6 +336,7 @@ function va(n) {
   i = Math.max(0, Math.min(images.length-1, n));
   majEtat(); dessine();
 }
+document.getElementById("retour").onclick = () => { if (videoFile) modeVideo(true); };
 document.getElementById("prec").onclick = () => va(i-1);
 document.getElementById("suiv").onclick = () => va(i+1);
 document.getElementById("curseur").oninput = e => va(+e.target.value);
@@ -301,6 +356,11 @@ addEventListener("keydown", e => {
   if (e.key === "ArrowRight") { va(i+1); e.preventDefault(); }
   if (e.key === "Tab")        { suivantPoint(); e.preventDefault(); }
   if (e.key === "c")          document.getElementById("copier").click();
+  // dans le lecteur : avancer d'une image (la plupart des vidéos sont à 25 i/s)
+  if (document.getElementById("vid").style.display !== "none") {
+    if (e.key === ",") vid().currentTime -= 1/25;
+    if (e.key === ".") vid().currentTime += 1/25;
+  }
 });
 
 // --- export au format attendu par retarget.py
