@@ -490,7 +490,7 @@ def prepare(video, fps=FPS):
     return rigidifier(lisser(suite), sol0, taille0), fps
 
 
-def annoter(video, tech, fps=FPS, apres=0.35, debut=None, uke=None, recul=4.5,
+def annoter(video, tech, fps=FPS, apres=0.08, debut=None, uke=None, recul=4.5,
             attaque=1.35):
     """`debut` (secondes) force la fenêtre, `uke` (0 ou 1) force les rôles."""
     suite, fps = prepare(video, fps)
@@ -510,7 +510,10 @@ def annoter(video, tech, fps=FPS, apres=0.35, debut=None, uke=None, recul=4.5,
         if uke is not None:
             i_uke = uke
         a = depart(suite, img_chute, fps, sol, taille, recul)
-    b = min(len(suite) - 1, img_chute + int(apres * fps))
+    # On s'arrête à l'impact. Dans ces démonstrations l'instructeur suit sa projection
+    # au sol pour contrôler uke : en gardant la suite, tori finissait couché sur lui à
+    # chaque technique. Dans un jeu de combat, tori reste debout après un ippon.
+    b = min(len(suite) - 1, img_chute + max(1, int(apres * fps)))
     if b - a < 8:
         return None, f"fenêtre trop courte ({b - a} images)"
     # La première image **doit** être un vrai kumikata : c'est elle qui fixe d0, et

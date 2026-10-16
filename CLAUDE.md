@@ -330,40 +330,49 @@ rushes/efficientjudo/<tech>.mp4
   → godot --path . -- --screen=art --anim=<tech>      contrôle dans le jeu
 ```
 
-`auto_annot.py` remplace le pointage à la main (13 images par technique). Quatre choses
-l'ont rendu possible, chacune trouvée en corrigeant un ratage :
+`auto_annot.py` remplace le pointage à la main (13 images par technique). Sept obstacles
+l'ont rendu possible, chacun trouvé en regardant un ratage — et presque tous invisibles
+sur une planche d'images fixes :
 
 - **un détecteur en deux temps** (YOLO-pose). MediaPipe fusionne les deux silhouettes dès
   qu'elles se saisissent : il ne voyait deux judokas que sur 63 images sur 483.
-- **garder les images où un seul judoka est vu.** C'est le point décisif. En exigeant les
-  deux, on perdait exactement la seconde qui nous intéresse — sur l'o-soto-gari, plus rien
-  entre 23 et 27 s, c'est-à-dire toute la projection. Chaque judoka occupe un emplacement
-  suivi par continuité du bassin, et ce qui manque est comblé par interpolation : on est
-  passé de 424 images suivies sur 558 à 558 sur 558.
-- **uke se reconnaît à sa chute**, pas à la couleur de son judogi : les partenaires
-  alternent les rôles, et les vidéos sont en noir et blanc de toute façon. On cherche la
-  **bascule** debout → au sol, et non l'image la plus « tombée » (qui tombe sur le plan de
-  fin où plus rien ne bouge) ni le maximum du score (une seconde trop tard, le score
-  montant encore pendant qu'uke s'écrase).
-- **la cadence réelle d'échantillonnage** : un saut de 2 images sur une source à 25 i/s
-  donne 12,5 i/s et non 12. Cumulé sur quarante secondes, ça décale d'une seconde — assez
-  pour que l'aperçu ne montre plus la même action que l'annotation.
+- **garder les images où un seul judoka est vu.** En exigeant les deux, on perdait
+  exactement la seconde qui nous intéresse — sur l'o-soto-gari, plus rien entre 23 et 27 s,
+  c'est-à-dire toute la projection. Chaque judoka occupe un emplacement suivi par
+  continuité du bassin, le manquant est comblé par interpolation : 558 images sur 558.
+- **des longueurs de membres constantes** (`rigidifier`). La correction décisive : les
+  détecteurs sont entraînés sur des gens debout, et sur un judoka en l'air, à l'envers et
+  enchevêtré, une cuisse passe du simple au double d'une image à l'autre — uke arrivait à
+  l'écran en pantin disloqué. On mesure les longueurs sur les images debout, puis on
+  reconstruit chaque image en gardant les **directions** et en réimposant ces longueurs.
+- **la continuité près/loin** (`stabiliser`). Le côté caméra était choisi image par image
+  sur la confiance des points : les jambes s'échangeaient trois à cinq fois par projection.
+- **le plan de profil** (`profil`). Le squelette du jeu est une vue de côté, rien d'autre ;
+  un plan de trois quarts ne peut rien donner de bon. On mesure l'écartement des épaules
+  et des hanches rapporté à la **longueur** du buste — superposées de profil, écartées de
+  face — et la note de chaque répétition en tient compte. (Rapporter à la *hauteur* du
+  buste faisait exploser la mesure dès qu'un judoka passait à l'horizontale.)
+- **la projection retenue est celle dont le kumikata qui la précède est le meilleur**, et
+  sa première image est cette garde : c'est elle qui fixe `d0`, et `throw_anims.gd` étire
+  toute la chorégraphie par `d / d0`. Des fenêtres ouvertes au milieu de la projection
+  donnaient `d0` nul ou négatif, donc un facteur d'étirement de 55 : les judokas partaient
+  hors de l'écran. d0 doit valoir 36 à 70 unités.
+- **on s'arrête à l'impact.** L'instructeur suit sa projection au sol pour contrôler uke ;
+  en gardant la suite, tori finissait couché sur lui à chaque technique.
 
-**Toujours regarder l'aperçu avant de retargeter** (`apercu.py --toutes` met tout un lot
-sur une planche). Sur les 13 techniques, **9 sont tombées sur la bonne répétition du
-premier coup** ; les 4 autres ont été recalées à la main avec `--debut <secondes>` et
-`--uke 0|1`, qui forcent la fenêtre et les rôles. Les valeurs retenues, à reprendre si on
-régénère :
+Et un piège de calibrage : le seuil « le pied touche le tatami » vaut 15 % de la hauteur
+de bassin, soit `7.05 / s` dans retarget.py (`s` = 47 / hauteur_px). Écrit `0.15 / s`, il
+tombait à un demi-pixel : plus personne n'était jamais au sol et le couple entier flottait
+à l'horizontale au-dessus du tapis.
 
-| technique | `--debut` | `--uke` |
-| --- | --- | --- |
-| harai_goshi | 21.3 | 1 |
-| ippon_seoi_nage | 10.9 | 1 |
-| o_goshi | 13.9 | 1 |
-| o_soto_gari | 6.3 | 1 |
+**Toujours regarder le résultat avant de le montrer** (`apercu.py --toutes` pour les
+annotations, `--screen=demo` pour l'animation en mouvement, et une capture en **pleine
+résolution** : c'est la seule qui a révélé le pantin disloqué et le couple flottant).
+`--debut <secondes>`, `--uke 0|1` et `--recul` forcent la fenêtre à la main.
 
-Les **13 techniques debout du jeu ont désormais leur chorégraphie filmée** dans
-`data/anims/`, 18 images clés chacune.
+Le suivi vidéo est mis en cache (`rushes/.../.pistes/`) : la détection coûte une minute
+trente par vidéo quand le réglage de la fenêtre se reprend dix fois. `calibrer.py` affiche
+image par image l'écart entre les judokas en unités de jeu, leur état et le profil.
 
 Autres pistes conservées : `tools/blender/` (scène toon), `tools/sprites_ia/prepare.py`,
 `docs/PIPELINE_ANIMATION.md` (tournage au dojo).
