@@ -1,0 +1,320 @@
+<meta charset="utf-8">
+<title>Rotoscopie — Judo 2D</title>
+<style>
+  :root { --p1:#ff46a0; --p2:#46dcff; --or:#e9b62c; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:#120e26; color:#e9e6f5;
+         font:14px/1.5 system-ui, -apple-system, sans-serif; }
+  header { display:flex; align-items:center; gap:16px; padding:10px 16px;
+           background:#1c1540; border-bottom:2px solid #000; flex-wrap:wrap; }
+  h1 { font-size:16px; margin:0; letter-spacing:.06em; }
+  main { display:flex; gap:16px; padding:16px; align-items:flex-start; }
+  #scene { position:relative; background:#000; flex:0 0 auto; }
+  canvas { display:block; cursor:crosshair; }
+  aside { flex:1; min-width:280px; max-width:420px; }
+  button, select, input[type=text], input[type=number] {
+    background:#2a1f5e; color:#e9e6f5; border:1px solid #000; border-radius:4px;
+    padding:6px 10px; font:inherit; cursor:pointer; }
+  button:hover { background:#3b2d80; }
+  button.actif { background:var(--or); color:#120e26; font-weight:700; }
+  .bloc { background:#1c1540; border:1px solid #000; border-radius:6px;
+          padding:12px; margin-bottom:12px; }
+  .bloc h2 { font-size:13px; margin:0 0 8px; color:var(--or); letter-spacing:.08em; }
+  .ligne { display:flex; gap:8px; align-items:center; margin:6px 0; flex-wrap:wrap; }
+  .pt { display:inline-block; padding:3px 8px; margin:2px; border-radius:3px;
+        background:#2a1f5e; font-size:12px; cursor:pointer; }
+  .pt.tori { border-left:3px solid var(--p1); }
+  .pt.uke  { border-left:3px solid var(--p2); }
+  .pt.vide { opacity:.4; }
+  kbd { background:#000; border-radius:3px; padding:1px 5px; font-size:12px; }
+  small { color:#9a92c0; }
+  #etat { color:var(--or); }
+</style>
+
+<header>
+  <h1>ROTOSCOPIE</h1>
+  <input type="file" id="fichiers" accept="image/*" multiple>
+  <input type="text" id="tech" value="seoi_nage" size="16" title="nom de la technique">
+  <span id="etat">charge les images d'une technique</span>
+</header>
+
+<main>
+  <div id="scene"><canvas id="cv" width="640" height="360"></canvas></div>
+  <aside>
+    <div class="bloc">
+      <h2>IMAGE</h2>
+      <div class="ligne">
+        <button id="prec">◀</button>
+        <span id="noimg">0 / 0</span>
+        <button id="suiv">▶</button>
+        <button id="copier" title="reprend la pose de l'image précédente">copier la précédente</button>
+      </div>
+      <div class="ligne"><input type="range" id="curseur" min="0" value="0" style="width:100%"></div>
+      <div class="ligne">
+        <label><input type="checkbox" id="pelure" checked> pelure d'oignon</label>
+        <label><input type="checkbox" id="ukecouche"> uke au sol</label>
+      </div>
+    </div>
+
+    <div class="bloc">
+      <h2>POINT À PLACER</h2>
+      <div id="points"></div>
+      <small>Clique un point puis clique sur l'image. Ou attrape un point existant
+      à la souris. <kbd>Tab</kbd> passe au suivant, <kbd>←</kbd> <kbd>→</kbd> changent d'image.</small>
+    </div>
+
+    <div class="bloc">
+      <h2>RÉGLAGES</h2>
+      <div class="ligne">
+        <label>cadence <input type="number" id="fps" value="12.5" step="0.5" size="4"></label>
+        <label>sol y <input type="number" id="sol" value="320" size="4"></label>
+      </div>
+      <div class="ligne"><small>Le « sol » est la ligne du tatami sous les pieds :
+        clique dessus avec le bouton droit pour la poser.</small></div>
+    </div>
+
+    <div class="bloc">
+      <h2>FICHIER</h2>
+      <div class="ligne">
+        <button id="export">exporter l'annotation</button>
+        <input type="file" id="importer" accept=".json" style="display:none">
+        <button id="btimport">reprendre un fichier</button>
+      </div>
+      <small>Le fichier va dans <code>tools/mocap/&lt;technique&gt;_annot.json</code>,
+      puis <code>python3 tools/mocap/retarget.py</code> le reporte sur le squelette du jeu.</small>
+    </div>
+  </aside>
+</main>
+
+<script>
+// Points du squelette, dans l'ordre où on les place. Ce sont ceux qu'attend
+// retarget.py : tête, base du cou, bassin, genou/cheville côté caméra (n = near),
+// genou/cheville côté opposé (f = far), poignets près et loin.
+const POINTS = ["H","N","P","Kn","An","Kf","Af","Wn","Wf"];
+const LIBELLE = {H:"tête", N:"cou", P:"bassin", Kn:"genou près", An:"cheville près",
+                 Kf:"genou loin", Af:"cheville loin", Wn:"poignet près", Wf:"poignet loin"};
+const OS = [["H","N"],["N","P"],["P","Kn"],["Kn","An"],["P","Kf"],["Kf","Af"],["N","Wn"],["N","Wf"]];
+const ACTEURS = ["tori","uke"];
+const COUL = {tori:"#ff46a0", uke:"#46dcff"};
+
+const cv = document.getElementById("cv"), ctx = cv.getContext("2d");
+let images = [];          // HTMLImageElement par index
+let noms = [];
+let i = 0;                // image courante
+let poses = [];           // poses[i] = {tori:{H:[x,y],...}, uke:{...}, ukeCouche:bool}
+let choix = {acteur:"tori", point:"H"};
+let attrape = null;       // point attrapé à la souris
+
+function vide() { return {tori:{}, uke:{}, ukeCouche:false}; }
+
+document.getElementById("fichiers").onchange = e => {
+  const fs = [...e.target.files].sort((a,b) => a.name.localeCompare(b.name));
+  images = []; noms = []; poses = [];
+  let reste = fs.length;
+  fs.forEach((f, k) => {
+    const im = new Image();
+    im.onload = () => { if (--reste === 0) pret(); };
+    im.src = URL.createObjectURL(f);
+    images[k] = im; noms[k] = f.name; poses[k] = vide();
+  });
+};
+
+function pret() {
+  cv.width = images[0].naturalWidth; cv.height = images[0].naturalHeight;
+  document.getElementById("curseur").max = images.length - 1;
+  document.getElementById("sol").value = Math.round(cv.height * 0.88);
+  i = 0; majEtat(); dessine();
+}
+
+function majEtat() {
+  document.getElementById("noimg").textContent = (i+1) + " / " + images.length;
+  document.getElementById("curseur").value = i;
+  document.getElementById("etat").textContent =
+    images.length ? noms[i] : "charge les images d'une technique";
+  document.getElementById("ukecouche").checked = !!(poses[i] && poses[i].ukeCouche);
+  majListe();
+}
+
+function majListe() {
+  const d = document.getElementById("points");
+  d.innerHTML = "";
+  ACTEURS.forEach(a => {
+    const t = document.createElement("div");
+    t.innerHTML = "<b style='color:"+COUL[a]+"'>"+a.toUpperCase()+"</b> ";
+    POINTS.forEach(p => {
+      const s = document.createElement("span");
+      const place = poses[i] && poses[i][a][p];
+      s.className = "pt " + a + (place ? "" : " vide");
+      s.textContent = p;
+      s.title = LIBELLE[p];
+      if (choix.acteur === a && choix.point === p) s.style.outline = "2px solid var(--or)";
+      s.onclick = () => { choix = {acteur:a, point:p}; majListe(); };
+      t.appendChild(s);
+    });
+    d.appendChild(t);
+  });
+}
+
+function dessine() {
+  if (!images.length) return;
+  ctx.drawImage(images[i], 0, 0);
+  // ligne de sol
+  const sol = +document.getElementById("sol").value;
+  ctx.strokeStyle = "rgba(233,182,44,.7)"; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(0, sol); ctx.lineTo(cv.width, sol); ctx.stroke();
+  // pelure d'oignon : l'image précédente en transparence, pour suivre le mouvement
+  if (document.getElementById("pelure").checked && i > 0) squelette(poses[i-1], .28);
+  squelette(poses[i], 1);
+}
+
+function squelette(po, alpha) {
+  if (!po) return;
+  ctx.globalAlpha = alpha;
+  ACTEURS.forEach(a => {
+    const p = po[a];
+    ctx.strokeStyle = COUL[a]; ctx.fillStyle = COUL[a]; ctx.lineWidth = 3;
+    OS.forEach(([u,v]) => {
+      if (!p[u] || !p[v]) return;
+      ctx.beginPath(); ctx.moveTo(p[u][0], p[u][1]); ctx.lineTo(p[v][0], p[v][1]); ctx.stroke();
+    });
+    POINTS.forEach(k => {
+      if (!p[k]) return;
+      ctx.beginPath(); ctx.arc(p[k][0], p[k][1], 4, 0, 7); ctx.fill();
+    });
+  });
+  ctx.globalAlpha = 1;
+}
+
+// --- souris : attraper un point existant, ou poser le point choisi
+function pos(e) {
+  const r = cv.getBoundingClientRect();
+  return [(e.clientX - r.left) * cv.width / r.width,
+          (e.clientY - r.top) * cv.height / r.height];
+}
+
+cv.onmousedown = e => {
+  if (!images.length) return;
+  if (e.button === 2) return;
+  const [x,y] = pos(e);
+  for (const a of ACTEURS) for (const k of POINTS) {
+    const p = poses[i][a][k];
+    if (p && Math.hypot(p[0]-x, p[1]-y) < 9) {
+      attrape = {acteur:a, point:k}; choix = {...attrape}; majListe(); return;
+    }
+  }
+  poses[i][choix.acteur][choix.point] = [Math.round(x), Math.round(y)];
+  suivantPoint(); dessine();
+};
+cv.onmousemove = e => {
+  if (!attrape) return;
+  const [x,y] = pos(e);
+  poses[i][attrape.acteur][attrape.point] = [Math.round(x), Math.round(y)];
+  dessine();
+};
+addEventListener("mouseup", () => { attrape = null; });
+cv.oncontextmenu = e => {
+  e.preventDefault();
+  document.getElementById("sol").value = Math.round(pos(e)[1]);
+  dessine();
+};
+
+function suivantPoint() {
+  let k = POINTS.indexOf(choix.point) + 1;
+  if (k < POINTS.length) { choix.point = POINTS[k]; }
+  else if (choix.acteur === "tori") { choix = {acteur:"uke", point:POINTS[0]}; }
+  majListe();
+}
+
+// --- navigation
+function va(n) {
+  if (!images.length) return;
+  i = Math.max(0, Math.min(images.length-1, n));
+  majEtat(); dessine();
+}
+document.getElementById("prec").onclick = () => va(i-1);
+document.getElementById("suiv").onclick = () => va(i+1);
+document.getElementById("curseur").oninput = e => va(+e.target.value);
+document.getElementById("pelure").onchange = dessine;
+document.getElementById("sol").oninput = dessine;
+document.getElementById("ukecouche").onchange = e => { poses[i].ukeCouche = e.target.checked; };
+
+document.getElementById("copier").onclick = () => {
+  if (i === 0) return;
+  poses[i] = JSON.parse(JSON.stringify(poses[i-1]));
+  majEtat(); dessine();
+};
+
+addEventListener("keydown", e => {
+  if (e.target.tagName === "INPUT") return;
+  if (e.key === "ArrowLeft")  { va(i-1); e.preventDefault(); }
+  if (e.key === "ArrowRight") { va(i+1); e.preventDefault(); }
+  if (e.key === "Tab")        { suivantPoint(); e.preventDefault(); }
+  if (e.key === "c")          document.getElementById("copier").click();
+});
+
+// --- export au format attendu par retarget.py
+document.getElementById("export").onclick = () => {
+  const tech = document.getElementById("tech").value.trim() || "technique";
+  const fps = +document.getElementById("fps").value;
+  const sol = +document.getElementById("sol").value;
+  const faites = poses.map((p,k) => ({p,k}))
+                      .filter(o => POINTS.every(q => o.p.tori[q]) &&
+                                  (o.p.ukeCouche || POINTS.every(q => o.p.uke[q])));
+  if (faites.length < 4) { alert("Il faut au moins quatre images complètes."); return; }
+  const a = faites[0].k, b = faites[faites.length-1].k;
+  // hauteur de bassin debout : mesurée sur la première image, tori debout
+  const taille = Math.round(sol - faites[0].p.tori.P[1]);
+  const frames = faites.map(o => {
+    const f = {f:o.k, p:+((o.k-a)/Math.max(1,b-a)).toFixed(3)};
+    f.tori = acteur(o.p.tori);
+    f.uke = o.p.ukeCouche ? couche(o.p.uke, sol, taille) : acteur(o.p.uke);
+    return f;
+  });
+  const out = {
+    _doc: "Rotoscopie faite à la main avec tools/mocap/editeur.html.",
+    source: "rushes/efficientjudo/" + tech + ".mp4",
+    start_s: +(a/fps).toFixed(2), fps: fps, floor_y: sol,
+    hip_height_px: taille, tech: tech, frames: frames
+  };
+  const blob = new Blob([JSON.stringify(out, null, 1)], {type:"application/json"});
+  const l = document.createElement("a");
+  l.href = URL.createObjectURL(blob); l.download = tech + "_annot.json"; l.click();
+};
+
+function acteur(p) {
+  // le regard : le bassin par rapport au cou ne suffit pas, on prend le sens
+  // tête→cheville avant, comme le faisait l'annotation d'origine
+  const face = (p.H[0] >= p.P[0]) ? 1 : -1;
+  const o = {face};
+  POINTS.forEach(k => o[k] = p[k]);
+  return o;
+}
+
+function couche(p, sol, taille) {
+  // uke au sol : retarget.py attend une pose couchée, pas un squelette debout tordu
+  const dx = p.N ? p.N[0]-p.P[0] : 1, dy = p.N ? p.N[1]-p.P[1] : 0;
+  return {lying:true, rot:+Math.atan2(dx,-dy).toFixed(2), x_px:p.P[0],
+          y_units:+(((p.P[1]-sol) * 47 / taille)).toFixed(1)};
+}
+
+document.getElementById("btimport").onclick = () => document.getElementById("importer").click();
+document.getElementById("importer").onchange = e => {
+  const r = new FileReader();
+  r.onload = () => {
+    const d = JSON.parse(r.result);
+    document.getElementById("tech").value = d.tech || "";
+    document.getElementById("fps").value = d.fps || 12.5;
+    document.getElementById("sol").value = d.floor_y || 320;
+    d.frames.forEach(fr => {
+      if (!poses[fr.f]) return;
+      POINTS.forEach(k => { if (fr.tori[k]) poses[fr.f].tori[k] = fr.tori[k]; });
+      if (fr.uke.lying) poses[fr.f].ukeCouche = true;
+      else POINTS.forEach(k => { if (fr.uke[k]) poses[fr.f].uke[k] = fr.uke[k]; });
+    });
+    majEtat(); dessine();
+  };
+  r.readAsText(e.target.files[0]);
+};
+
+majListe();
+</script>
