@@ -33,8 +33,11 @@
 
 <header>
   <h1>ROTOSCOPIE</h1>
-  <input type="file" id="fichiers" accept="image/*" multiple>
+  <input type="file" id="fichiers" accept="video/*,image/*" multiple
+         title="une vidéo mp4, ou des images déjà découpées">
   <input type="text" id="tech" value="seoi_nage" size="16" title="nom de la technique">
+  <label>début <input type="number" id="debut" value="0" step="0.1" size="4"> s</label>
+  <label>durée <input type="number" id="duree" value="2.5" step="0.1" size="4"> s</label>
   <span id="etat">charge les images d'une technique</span>
 </header>
 
@@ -108,21 +111,69 @@ let attrape = null;       // point attrapé à la souris
 function vide() { return {tori:{}, uke:{}, ukeCouche:false}; }
 
 document.getElementById("fichiers").onchange = e => {
-  const fs = [...e.target.files].sort((a,b) => a.name.localeCompare(b.name));
+  const fs = [...e.target.files];
+  if (fs.length && fs[0].type.startsWith("video/")) {
+    const n = fs[0].name.replace(/\.[^.]+$/, "");
+    if (n) document.getElementById("tech").value = n;
+    decoupe(fs[0]);
+  }
+  else chargeImages(fs);
+};
+
+function chargeImages(fs) {
+  fs.sort((a,b) => a.name.localeCompare(b.name));
   images = []; noms = []; poses = [];
   let reste = fs.length;
+  if (!reste) return;
   fs.forEach((f, k) => {
     const im = new Image();
     im.onload = () => { if (--reste === 0) pret(); };
     im.src = URL.createObjectURL(f);
     images[k] = im; noms[k] = f.name; poses[k] = vide();
   });
-};
+}
+
+// Découpe la vidéo dans le navigateur : on avance de 1/fps en 1/fps et on capture.
+// Évite de passer par ffmpeg — l'outil se suffit à lui-même.
+function decoupe(f) {
+  const v = document.createElement("video");
+  v.src = URL.createObjectURL(f);
+  v.muted = true;
+  const etat = document.getElementById("etat");
+  v.onloadedmetadata = () => {
+    const fps = +document.getElementById("fps").value || 12;
+    const t0 = Math.max(0, +document.getElementById("debut").value || 0);
+    const duree = Math.min(+document.getElementById("duree").value || 2.5,
+                           Math.max(0.1, v.duration - t0));
+    const n = Math.max(2, Math.round(duree * fps));
+    const tmp = document.createElement("canvas");
+    const l = 640, h = Math.round(640 * v.videoHeight / v.videoWidth);
+    tmp.width = l; tmp.height = h;
+    const c = tmp.getContext("2d");
+    images = []; noms = []; poses = [];
+    let k = 0;
+    const suite = () => {
+      if (k >= n) { pret(); return; }
+      v.currentTime = t0 + k / fps;
+    };
+    v.onseeked = () => {
+      c.drawImage(v, 0, 0, l, h);
+      const im = new Image();
+      im.onload = () => { k++; etat.textContent = "découpage " + k + " / " + n; suite(); };
+      im.src = tmp.toDataURL("image/png");
+      images[k] = im; noms[k] = (t0 + k / fps).toFixed(2) + " s"; poses[k] = vide();
+    };
+    etat.textContent = "découpage…";
+    suite();
+  };
+  v.onerror = () => { etat.textContent = "vidéo illisible par le navigateur"; };
+}
 
 function pret() {
   cv.width = images[0].naturalWidth; cv.height = images[0].naturalHeight;
   document.getElementById("curseur").max = images.length - 1;
-  document.getElementById("sol").value = Math.round(cv.height * 0.88);
+  if (!+document.getElementById("sol").value || +document.getElementById("sol").value > cv.height)
+    document.getElementById("sol").value = Math.round(cv.height * 0.88);
   i = 0; majEtat(); dessine();
 }
 
