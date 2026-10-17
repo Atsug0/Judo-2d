@@ -5,7 +5,7 @@
 
 Ouvre une page dans le navigateur avec la liste des vidéos de `rushes/efficientjudo/`.
 On lit, on avance image par image, on pose les marqueurs début et fin, on exporte : le
-clip part dans `rushes/clips/`.
+clip part dans `clips/` (versionné).
 
 Pourquoi une application locale plutôt qu'une simple page web : un navigateur ne sait
 exporter que du WebM ré-encodé à la volée, que les services de mocap en ligne refusent
@@ -25,7 +25,7 @@ from urllib.parse import unquote
 
 RACINE = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".."))
 SOURCES = os.path.join(RACINE, "rushes", "efficientjudo")
-CLIPS = os.path.join(RACINE, "rushes", "clips")
+CLIPS = os.path.join(RACINE, "clips")
 PORT = 8733
 
 PAGE = """<!doctype html><meta charset="utf-8"><title>Découpe — Judo 2D</title>
@@ -82,7 +82,7 @@ PAGE = """<!doctype html><meta charset="utf-8"><title>Découpe — Judo 2D</titl
       <h2>EXPORT</h2>
       <div class="ligne"><input id="nom" size="24" placeholder="nom du clip"></div>
       <div class="ligne"><button id="exp" class="fort">exporter le clip</button></div>
-      <small>Écrit dans <code>rushes/clips/</code>, en H.264 coupé au cadre près.</small>
+      <small>Écrit dans <code>clips/</code>, en H.264 coupé au cadre près.</small>
     </div>
     <div class="bloc"><h2>CLIPS</h2><div id="journal"></div></div>
   </aside>
