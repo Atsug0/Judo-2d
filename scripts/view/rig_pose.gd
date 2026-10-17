@@ -6,6 +6,7 @@ extends RefCounted
 ## Utilisé par le combat (scripts/view/models3d.gd) et l'outil de rendu (tools/rig/pose_model.gd).
 
 const FLOOR_SOLE := 0.09   # cheville → plante du pied (m)
+const BODY_CLEAR := 0.07   # axe du buste / sommet du crâne → tatami, au plus près (m)
 
 var node: Node3D           # scène du modèle
 var skel: Skeleton3D
@@ -247,6 +248,24 @@ func pose(M: Dictionary, ground: bool = true, shift_in = null, grips: Dictionary
 		shift = -low
 	elif shift_in != null:
 		shift = shift_in
+		# judoka en l'air (uke) : jamais la tête ni le buste sous le tatami. Entre la dernière clé
+		# en vol et la pose couchée, l'interpolation fait pivoter le corps autour du bassin et la
+		# tête passait sous le tapis à l'impact.
+		var o := {}
+		for b in bones:
+			var name: String = b[0]
+			if b[3] == "":
+				o[name] = hips_pos
+			else:
+				var pb = bones[parent_i[name]]
+				o[name] = o[b[3]] + G[b[3]] * (J[b[1]] - J[pb[1]])
+		var low_body := INF
+		for name in ["hips", "spine", "spine2", "chest", "neck", "head"]:
+			if o.has(name):
+				low_body = minf(low_body, o[name].y)
+		if o.has("head") and J.has("sommet"):
+			low_body = minf(low_body, (o["head"] + G["head"] * (J["sommet"] - J["tete"])).y)
+		shift = maxf(shift, BODY_CLEAR - low_body)
 	hips_pos.y += shift
 	for b in bones:
 		var name: String = b[0]
