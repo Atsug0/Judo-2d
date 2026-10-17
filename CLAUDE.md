@@ -128,7 +128,7 @@ Les fichiers `*.gd.uid` **doivent être commités** avec leur script (Godot 4.4)
 
 ## 5. Rendu du combat
 
-### 5.0 Judokas dessinés par découpage (rendu par défaut)
+### 5.0 Judokas dessinés par découpage (solution de repli : `--dessin` / `--decoupe`)
 `scripts/view/cutout.gd` pose les morceaux de l'artwork (tête, buste, jupe de veste, bras, avant-bras,
 main ouverte ou poing qui tient le judogi, cuisse, tibia, pied) entre les articulations du squelette 2D (§5.1).
 Branché dans `fighter_art.gd` : `draw_fighter` (debout, kumikata, projections), `draw_figure` (ne-waza),
@@ -424,7 +424,7 @@ Autres pistes conservées : `tools/blender/` (scène toon), `tools/sprites_ia/pr
 | `--dessin` / `--decoupe` | artwork découpé au lieu des judokas 3D (affichés par défaut) |
 | `--decor=<id>` | décor imposé (`arena`, `dojo`, `crepuscule`, `dessin`) |
 | `--ia` | combat IA contre IA (démonstration à regarder) |
-| `--models3d[=<dossier>] --models3d_who=a,b` | active les judokas 3D (désactivés par défaut) |
+| `--models3d=<dossier> --models3d_who=a,b` | autre dossier / autres modèles 3D (la 3D est affichée par défaut) |
 | `--anim=<tech>` (`--zoom`, `--ground`, `--count`) | (écran art) planche d'une chorégraphie |
 | `--screen=demo [--anim=<tech>]` | démonstration animée des projections, en 3D, défilement automatique |
 | `--bo3`, `--replay`, `--demo_round=n`, `--readout`, `--cursor`, `--dojo_lesson=n` | options de capture / démo |
@@ -488,10 +488,14 @@ godot --rendering-driver opengl3 --path . --write-movie x.avi --fixed-fps 60 --q
 
 ---
 
-## 12. État au 12/10/2026 et suite
+## 12. État au 17/10/2026 et suite
 
-Fait (13/10) : judokas dessinés par découpage à partir de l'artwork d'Hugo (homme blanc, bleu recoloré),
-partout (combat, sol, projections, menus, portraits) ; la 3D est désactivée.
+Fait (17/10) : les 13 projections repointées à la main sur les clips d'Hugo (§7.0), réception d'uke
+corrigée (plus de redressement ni de tête sous le tapis), projections près du bord gardées dans le champ.
+
+Fait (15/10) : retour à la 3D avec le casting Tripo (§6), décors en image, jeu au clavier, arbitre 3D.
+
+Fait (13/10) : judokas dessinés par découpage à partir de l'artwork d'Hugo (aujourd'hui solution de repli).
 
 Fait avant : jeu jouable de bout en bout (titre → menu → tournoi / versus / dojo / défis → combat debout et sol →
 résultats), BO3, 10 légendes, personnalisation complète, son, judokas 3D partout (combat, dojo, menus),
