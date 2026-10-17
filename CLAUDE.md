@@ -69,7 +69,7 @@ data/                  réglages et contenu (JSON, entiers → convertis en int 
   skins.json           catalogue des 12 personnages 3D : dossier de modèle par couleur de judogi
   stages.json          décors de combat (images de stage/) : horizon et bandeau LED
   shotlist.json        liste de tournage au dojo (48 plans) générée depuis les techniques
-  anims/<tech>.json    chorégraphies filmées (rotoscopie) ; existe : uchi_mata.json
+  anims/<tech>.json    chorégraphies filmées des 13 techniques (pointées à la main, §7.0)
 scripts/
   main.gd              entrée, navigation manette, arguments CLI, mode capture / démo
   sim/match_sim.gd     SIMULATION déterministe (voir §4)
@@ -324,6 +324,31 @@ image, marqueurs début et fin, export du clip dans `rushes/clips/`. C'est **ffm
 coupe (H.264, au cadre près) et non le navigateur, dont le WebM ré-encodé est refusé par
 la plupart des services de mocap en ligne. Le serveur n'écoute qu'en local et ne sert que
 le dossier des rushes.
+
+### 7.0 Les 13 projections du jeu : pointées à la main (17/10/2026)
+L'annotation automatique (§7.2) donnait des mouvements approximatifs ; Hugo a découpé un clip
+par technique (`clips/<tech>.mp4`, uke en bleu à droite, tori en blanc) et **les 13 techniques
+ont été repointées à la main**, comme le premier uchi-mata. Ce sont elles qui sont en jeu :
+`tools/mocap/main/<tech>.json` → `retarget.py` → `data/anims/<tech>.json`.
+Les annotations automatiques (`tools/mocap/<tech>_annot.json`) restent pour mémoire.
+
+Méthode (outils dans `tools/mocap/`) :
+```bash
+ROTO=/tmp/roto tools/mocap/images_clip.sh seoi_nage      # images retournées (tori à gauche) 960×540 + planche numérotée
+python3 tools/mocap/grille.py /tmp/roto/seoi_nage 240,40,780,540 1.0 20 25   # images quadrillées pour lire les pixels
+#   → écrire tools/mocap/main/<tech>.json (aide : tools/mocap/main/aide.py, fonctions J, LY, write, shift)
+python3 tools/mocap/superposition.py tools/mocap/main/seoi_nage.json /tmp/roto/seoi_nage /tmp/ov.png 0.42   # ← À REGARDER
+python3 tools/mocap/retarget.py tools/mocap/main/seoi_nage.json
+godot --path . -- --screen=demo --anim=seoi_nage          # contrôle en 3D, en mouvement
+```
+- 7 à 15 images clés : garde (fixe d0, viser 35–60 unités), entrée, rotation, chargement, envol,
+  réception ; **on s'arrête à l'impact**, uke couché (`LY(x, rot, -9)`), tori reste debout.
+- Pieds du côté loin ramenés sur le sol du côté caméra (la perspective les remonte de 30 à 60 px).
+- Uke couché sur le dos **tête à gauche** : `rot = -1.57` et `"face": 1` (sinon il atterrit à plat
+  ventre) ; tête à droite : `rot = 1.57`, `face -1`. `retarget.py` lit ce `face`.
+- Caméra qui suit (sasae) : `shift(a, dx, dy)` recale chaque image sur le sol de la première.
+- Lire les grilles avec soin : x = x0 + position_dans_l'image / échelle. Une erreur de lecture se
+  voit tout de suite sur la superposition — c'est elle qu'il faut regarder, pas les chiffres.
 
 ### 7.2 La chaîne
 ```

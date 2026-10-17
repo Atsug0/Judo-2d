@@ -9,7 +9,7 @@ const Keys := preload("res://scripts/key_reader.gd")
 const Stages := preload("res://scripts/stages.gd")
 const VISIBLES := 8     # lignes affichées à la fois (la liste des touches est longue)
 ## [clé, libellé, type, min, max]
-const ROWS := {
+static var ROWS := {  # pas const : Stages.ids() n est pas une expression constante pour Godot 4.4
 	"COMMANDES": [["peripherique", "Périphérique", "choice", ["auto", "manette", "clavier"],
 		["AUTO (MANETTE SI BRANCHÉE)", "MANETTE", "CLAVIER"]]],
 	"MANETTE": [["vibrations", "Vibrations", "bool"], ["vibration_force", "Force des vibrations", "range", 1, 5]],
