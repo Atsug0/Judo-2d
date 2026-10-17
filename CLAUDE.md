@@ -319,6 +319,12 @@ python3 tools/video/fetch_efficientjudo.py --jeu      # les 13 techniques, dans 
 ```
 Les vidéos vont dans `rushes/` (ignoré par git) : on ne versionne que les annotations.
 
+`python3 tools/video/decouper.py` ouvre une découpe visuelle : lecture, avance image par
+image, marqueurs début et fin, export du clip dans `rushes/clips/`. C'est **ffmpeg** qui
+coupe (H.264, au cadre près) et non le navigateur, dont le WebM ré-encodé est refusé par
+la plupart des services de mocap en ligne. Le serveur n'écoute qu'en local et ne sert que
+le dossier des rushes.
+
 ### 7.2 La chaîne
 ```
 rushes/efficientjudo/<tech>.mp4
