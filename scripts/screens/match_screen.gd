@@ -18,6 +18,7 @@ const Anims := preload("res://scripts/view/throw_anims.gd")
 const DojoSession := preload("res://scripts/dojo/dojo_session.gd")
 
 const W := 1280.0
+const NEWAZA_CAM_Y := 532.0   # centre de caméra au sol : tatami à y ≈ 504 écran
 const H := 720.0
 const FEET_Y := 604.0
 const K := 2.2  # échelle des personnages
@@ -864,10 +865,12 @@ func _camera_target() -> Array:
 				c = Vector2(_throw_center(th), 470.0)
 				z = 2.0 + (0.35 * sin(PI * minf(p * 1.2, 1.0)) if th.result == "ippon" else 0.12)
 			elif not st.newaza.is_empty():
-				c = Vector2(_newaza_center_x(st.newaza), 470.0)
+				c = Vector2(_newaza_center_x(st.newaza), NEWAZA_CAM_Y)
 				z = 2.0
 		"newaza":
-			c = Vector2(_newaza_center_x(st.newaza), 470.0)
+			# au sol, les judokas sont couchés : on remonte le tapis à l'écran pour que la barre
+			# du mini-jeu (en bas, y 584–642) passe sous eux au lieu de les masquer
+			c = Vector2(_newaza_center_x(st.newaza), NEWAZA_CAM_Y)
 			z = 2.0
 		"ended":
 			z = 1.7
