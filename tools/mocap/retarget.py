@@ -67,7 +67,8 @@ def smooth(frames, who):
 
 def actor(a, who, s, x0, floor, prev_rot, shift_in=None):
     if a.get("lying"):
-        return {"pos": [round((a["x_px"] - x0) * s, 2), a["y_units"]], "rot": a["rot"], "face": -1, "pose": LYING}, a["rot"]
+        # face : -1 par défaut ; +1 pour un uke couché sur le dos la tête à gauche (rot ≈ -π/2)
+        return {"pos": [round((a["x_px"] - x0) * s, 2), a["y_units"]], "rot": a["rot"], "face": int(a.get("face", -1)), "pose": LYING}, a["rot"]
     F = a["face"]
     P, N, H = a["P"], a["N"], a["H"]
     world_torso = angle_up(sub(N, P))
