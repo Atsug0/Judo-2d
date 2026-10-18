@@ -169,6 +169,13 @@ Clés `{p, tori, uke}` avec pour chaque acteur `pos` (bassin), `rot`, `face` (+1
 Familles : `hanche` (seoi-nage, o-goshi, harai-goshi, uchi-mata, tai-otoshi : tori se retourne),
 `fauche` (o-soto, o-uchi, ko-uchi), `balaye` (de-ashi-barai, sasae), `sacrifice` (tomoe-nage, sumi-gaeshi).
 `ENTRY = 0.3`. Si `data/anims/<tech>.json` existe, la **chorégraphie filmée remplace** la dessinée.
+Les 5 contres n'ont pas de vidéo : `MOCAP_ALIAS` leur prête la chorégraphie filmée la plus proche
+(o-soto-gaeshi → o-soto-gari, utsuri-goshi → o-goshi, tsubame-gaeshi → de-ashi-barai,
+uchi-mata-sukashi → tai-otoshi, ura-nage → sumi-gaeshi).
+En combat, `_throw_frame` décale la chorégraphie pour qu'elle tienne sur le tapis (bord de l'arène),
+et la caméra suit les judokas dessinés (`_throw_center`). Au sol, la caméra vise `NEWAZA_CAM_Y` pour que
+la barre du mini-jeu passe sous les corps. `models3d` fait un fondu de 10 images entre pose debout et
+pose au sol (`_cut_blend`).
 Pendant une projection, les mains viennent de `match_screen._hands_world` : tori tient manche + revers,
 uke garde la manche de tori jusqu'à p = 0.8 puis la main libre fait l'ukemi.
 
@@ -345,7 +352,8 @@ godot --path . -- --screen=demo --anim=seoi_nage          # contrôle en 3D, en 
   réception ; **on s'arrête à l'impact**, uke couché (`LY(x, rot, -9)`), tori reste debout.
 - Pieds du côté loin ramenés sur le sol du côté caméra (la perspective les remonte de 30 à 60 px).
 - Uke couché sur le dos **tête à gauche** : `rot = -1.57` et `"face": 1` (sinon il atterrit à plat
-  ventre) ; tête à droite : `rot = 1.57`, `face -1`. `retarget.py` lit ce `face`.
+  ventre) ; tête à droite : `rot = 1.57`, `face -1`. `retarget.py` lit ce `face`, applique le demi-tour
+  sur les 2 dernières clés en vol (`uke_twist`) et prend le tour le plus court vers la pose couchée.
 - Caméra qui suit (sasae) : `shift(a, dx, dy)` recale chaque image sur le sol de la première.
 - Lire les grilles avec soin : x = x0 + position_dans_l'image / échelle. Une erreur de lecture se
   voit tout de suite sur la superposition — c'est elle qu'il faut regarder, pas les chiffres.
@@ -492,6 +500,9 @@ godot --rendering-driver opengl3 --path . --write-movie x.avi --fixed-fps 60 --q
 
 Fait (17/10) : les 13 projections repointées à la main sur les clips d'Hugo (§7.0), réception d'uke
 corrigée (plus de redressement ni de tête sous le tapis), projections près du bord gardées dans le champ.
+Fait (18/10, nuit) : uke se retourne en vol (et non à l'impact), contres animés par chorégraphie filmée,
+ne-waza lisible (barre sous les corps), fondu debout ↔ sol, `smoke_test` compile tous les scripts
+(une erreur dans models3d.gd bloquait les captures sans message), captures de référence régénérées.
 
 Fait (15/10) : retour à la 3D avec le casting Tripo (§6), décors en image, jeu au clavier, arbitre 3D.
 
