@@ -12,6 +12,7 @@ func _init() -> void:
 
 
 func _run() -> void:
+	_check_scripts("res://scripts")
 	app = load("res://scenes/main.tscn").instantiate()
 	app.capture_mode = true  # pas de lecture manette, pas d'enchaînement automatique
 	root.add_child(app)
@@ -108,3 +109,17 @@ func _check(label: String, ok: bool, detail: String) -> void:
 	else:
 		failures += 1
 		print("  ÉCHEC ", label, " — ", detail)
+
+
+## Compile tous les scripts du jeu : certains (models3d.gd, rig_pose.gd…) ne sont chargés
+## qu'avec un écran réel, et une erreur de syntaxe y passait le parcours headless sans bruit
+## (le combat en capture restait alors bloqué).
+func _check_scripts(dir: String) -> void:
+	for f in DirAccess.get_files_at(dir):
+		if f.ends_with(".gd"):
+			var sc = load(dir.path_join(f))
+			if sc == null or not sc.can_instantiate():
+				failures += 1
+				print("  ÉCHEC script ", dir.path_join(f), " ne compile pas")
+	for sub in DirAccess.get_directories_at(dir):
+		_check_scripts(dir.path_join(sub))

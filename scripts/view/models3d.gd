@@ -29,6 +29,11 @@ const BLEND_FRAMES := 8.0
 var turn := [{}, {}, {}]
 var instant_turn := false   # outils de rendu image par image : pas de demi-tour progressif
 var clock := -1             # horloge du jeu (images de simulation) ; -1 = images du moteur
+# Changement de mode debout ↔ sol (fin de projection → ne-waza, matte → debout) : les deux
+# poses viennent de repères différents et le judoka sautait d'un coup. Ses articulations
+# passent en fondu sur CUT_FRAMES images.
+const CUT_FRAMES := 10.0
+var cut := [{}, {}, {}]
 
 
 func setup(dir: String, who: Array, k: float, floor_y: float, textures: Array = []) -> bool:
@@ -223,7 +228,48 @@ func pose_rig(i: int, xf: Transform2D, pose: Dictionary, hands: Array, ground: b
 		closed[side_of["b" if k == 0 else "f"]] = 0.3 if g < 0.0 else 0.8 + 0.2 * clampf(g, 0.0, 1.0)
 	if pose.has("fist"):
 		closed = {"L": float(pose.fist), "R": float(pose.fist)}
-	return actors[i].pose(M, ground, shift_in, closed)
+	var bl = _cut_blend(i, "rig", M)
+	if bl != null:
+		actors[i].pose(bl, false, null, closed)
+		_cut_store(i, bl, 0.0)
+		return 0.0
+	var dy: float = actors[i].pose(M, ground, shift_in, closed)
+	_cut_store(i, M, dy)
+	return dy
+
+
+## Fondu entre deux modes (« rig » debout / projeté, « ground » au sol) : renvoie les
+## articulations interpolées pendant CUT_FRAMES images après un changement, sinon null.
+func _cut_blend(i: int, kind: String, M: Dictionary):
+	var st: Dictionary = cut[i]
+	var now: int = clock if clock >= 0 else Engine.get_process_frames()
+	var gap: int = now - int(st.get("frame", -1000))
+	if instant_turn or gap < 0 or gap > 20:
+		st.erase("from")
+	elif st.has("kind") and st.kind != kind and st.has("last"):
+		st.from = st.last
+		st.t0 = now
+	st.kind = kind
+	st.frame = now
+	if not st.has("from"):
+		return null
+	var w := (now - int(st.t0)) / CUT_FRAMES
+	if w >= 1.0:
+		st.erase("from")
+		return null
+	w = smoothstep(0.0, 1.0, w)
+	var out := {}
+	for k in M:
+		out[k] = st.from[k].lerp(M[k], w) if st.from.has(k) and M[k] is Vector3 else M[k]
+	return out
+
+
+## Dernières articulations affichées (décalage vertical compris), point de départ d'un fondu.
+func _cut_store(i: int, M: Dictionary, shift: float) -> void:
+	var last := {}
+	for k in M:
+		last[k] = M[k] + Vector3(0, shift, 0) if M[k] is Vector3 else M[k]
+	cut[i].last = last
 
 
 ## Point de la pose locale (unités du jeu, y vers le bas) → repère anatomique (m) autour du bassin.
@@ -283,4 +329,6 @@ func pose_ground(i: int, xf: Transform2D, j: Dictionary) -> void:
 		M["epaule." + a] = _m(xf * sh, z * HALF.epaule)
 		M["coude." + a] = _m(xf * Vector2(j["elbow_" + s]), z * HALF.coude)
 		M["main." + a] = _m(xf * Vector2(j["hand_" + s]), z * HALF.main)
-	actors[i].pose(M, false, null, {"L": 0.75, "R": 0.75})  # au sol : on tient le judogi
+	var bl = _cut_blend(i, "ground", M)
+	actors[i].pose(bl if bl != null else M, false, null, {"L": 0.75, "R": 0.75})  # au sol : on tient le judogi
+	_cut_store(i, bl if bl != null else M, 0.0)
