@@ -44,7 +44,20 @@ static func _actor(pos: Vector2, rot: float, face: int, pose: Dictionary) -> Dic
 static var _mocap := {}
 
 
+## Contres sans vidéo propre : ils empruntent la chorégraphie filmée la plus proche
+## (le contreur y joue tori), bien plus vivante que la chorégraphie dessinée.
+const MOCAP_ALIAS := {
+	"o_soto_gaeshi": "o_soto_gari",   # on rend l'o-soto : même fauchage par l'arrière
+	"utsuri_goshi": "o_goshi",        # on passe sur la hanche et on charge comme un o-goshi
+	"tsubame_gaeshi": "de_ashi_barai",  # on esquive le balayage et on balaie à son tour
+	"uchi_mata_sukashi": "tai_otoshi",  # on esquive la jambe et on fait passer uke devant
+	"ura_nage": "sumi_gaeshi",        # sacrifice en arrière, uke passe par-dessus tori
+}
+
+
 static func _mocap_data(tech: String):
+	if MOCAP_ALIAS.has(tech) and not FileAccess.file_exists("res://data/anims/%s.json" % tech):
+		return _mocap_data(MOCAP_ALIAS[tech])
 	if not _mocap.has(tech):
 		var path := "res://data/anims/%s.json" % tech
 		_mocap[tech] = null
