@@ -112,8 +112,10 @@ func _draw_anim(tech: String) -> void:
 		var cell = Rect2(20 + col * cw, 150 + row * 280, cw - 12, 268)
 		draw_rect(cell, Color(0, 0, 0, 0.25))
 		draw_line(Vector2(cell.position.x + 10, cell.end.y - 30), Vector2(cell.end.x - 10, cell.end.y - 30), Style.MAT_COMBAT, 3.0)
-		var frame = Transform2D(0.0, Vector2(sc, sc), 0.0, Vector2(cell.position.x + cw * 0.42, cell.end.y - 30))
 		var smp: Dictionary = Anims.sample(ks, steps[k])
+		# le couple se déplace pendant la projection : chaque case est centrée sur lui
+		var mid: float = (float(smp.tori.pos.x) + float(smp.uke.pos.x)) * 0.5
+		var frame = Transform2D(0.0, Vector2(sc, sc), 0.0, Vector2(cell.get_center().x - mid * sc, cell.end.y - 30))
 		var fam = Anims.family(tech)
 		var order = ["tori", "uke"] if fam == "sacrifice" else ["uke", "tori"]
 		for who in order:
