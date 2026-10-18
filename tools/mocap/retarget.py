@@ -148,6 +148,15 @@ def main():
             for (fa, pa), (fb, pb) in zip(known, known[1:]):
                 if fa <= fr["f"] <= fb:
                     fr["p"] = pa + (pb - pa) * (fr["f"] - fa) / (fb - fa)
+    # Uke qui se retourne pour retomber sur le dos (face différente à la réception) : on fait
+    # ce demi-tour pendant le vol, sur les dernières clés en l'air, et non au contact du sol —
+    # sinon le modèle 3D pivote (TURN_FRAMES) en touchant le tapis et semble tomber à plat ventre.
+    last = frames[-1]["uke"]
+    if last.get("lying") and "face" in last:
+        twist = int(ann.get("uke_twist", 2))
+        air = [fr for fr in frames if not fr["uke"].get("lying")]
+        for fr in air[-twist:] if twist > 0 else []:
+            fr["uke"] = dict(fr["uke"], face=int(last["face"]))
     tori = smooth(frames, "tori")
     uke = smooth(frames, "uke")
     keys = []
