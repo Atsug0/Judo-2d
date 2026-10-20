@@ -1189,7 +1189,12 @@ func _gap_target() -> float:
 		for h in f.hands:
 			if h.state == Sim.HAND_GRIP:
 				held += 1
-	return maxf(near, g - minf(held, 3) * 2.5 * K)
+	# un judoka dominé se fait courber (buste en avant) : on lui laisse la place, sinon
+	# les têtes se cognaient
+	var bend := 0.0
+	for i in 2:
+		bend = maxf(bend, clampf((-float(sim.dom_of(i)) / 10000.0 - 0.2) / 0.8, 0.0, 1.0))
+	return maxf(near, g - minf(held, 3) * 2.5 * K) + bend * 4.0 * K
 
 
 func _draw_fighters() -> void:
@@ -1292,6 +1297,12 @@ func _standing_pose(i: int) -> Dictionary:
 		pose.bow += 0.12 + ext * 0.2 + pull * 0.12 + sway * 0.03 + 0.1 * km
 		pose.hip += Vector2(-3 - ext * 5.0 + pull * 4.0 + sway * 1.6, 2 + absf(pull) * 1.5 + maxf(0.0, ext) * 3.0)
 		pose.ff += Vector2(sway * 1.2, 0)
+		# le poids passe d'un pied sur l'autre, les genoux respirent, les épaules vrillent
+		# avec la main qui tire (droitier : tirer de la gauche avance l'épaule droite)
+		var shift_w = sin(frame * 0.031 + i * 1.7)
+		pose.hip += Vector2(shift_w * 2.4 * km, absf(sin(frame * 0.062 + i)) * 1.2 * km)
+		var lead_sg = 1.0 if pose.lead == "R" else -1.0
+		pose.twist = (-pull * 0.22 + 0.07 * sin(frame * 0.043 + i * 2.6) + drive * 0.06) * lead_sg * km
 		free_legs = true
 		var shook = maxi(grip_shake[i][0], grip_shake[i][1])
 		if shook > 0:
@@ -1356,7 +1367,9 @@ func _standing_rigs() -> Array:
 			var e = clampf(float(atk.t) / float(atk.entry), 0.0, 1.0)
 			var d = absf(_draw_x(1 - i) - _draw_x(i)) / K
 			var smp: Dictionary = Anims.sample(Anims.keys(atk.tech, d), Anims.ENTRY * e)
-			target = {"xf": Anims.actor_xform(_base_xf(i), smp.tori), "pose": smp.tori.pose}
+			var ep: Dictionary = smp.tori.pose.duplicate()
+			ep.twist = 0.0   # (le lissage garderait sinon la vrille du kumikata)
+			target = {"xf": Anims.actor_xform(_base_xf(i), smp.tori), "pose": ep}
 		rigs.append(_smooth(i, target))
 	return rigs
 

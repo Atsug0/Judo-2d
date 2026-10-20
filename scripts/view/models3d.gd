@@ -220,6 +220,17 @@ func pose_rig(i: int, xf: Transform2D, pose: Dictionary, hands: Array, ground: b
 		A["epaule." + a] = _an(sh, hip, s, z * r.epaule)
 		A["coude." + a] = _an(elbow, hip, s, z * r.coude)
 		A["main." + a] = _an(hand, hip, s, z * r.main)
+	# vrille du buste (kumikata) : les épaules tournent autour de l'axe du corps, la droite
+	# en avant pour twist > 0 (hikite qui tire, tsurite qui pousse)
+	var tw := float(pose.get("twist", 0.0))
+	if absf(tw) > 1e-4:
+		var c: float = A["cou"].x
+		for k in A.keys():
+			if k.begins_with("epaule.") or k.begins_with("coude.") or k.begins_with("main."):
+				var v: Vector3 = A[k]
+				var w := 1.0 if k.begins_with("epaule.") else 0.6
+				var an := tw * w
+				A[k] = Vector3(c + (v.x - c) * cos(an) + v.z * sin(an), v.y, -(v.x - c) * sin(an) + v.z * cos(an))
 	A = _turn_blend(i, face, A, side_of.f)
 	var phi: float = turn[i].phi
 	# repère du corps dans la scène : e1 = avant pour face +1, eu = vertical du corps
