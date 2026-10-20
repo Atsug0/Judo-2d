@@ -207,6 +207,32 @@ du corps), hanche/genou/pied/epaule/coude/main `.L/.R`) :
 - Clavicule qui se lève/avance avec le bras ; doigts (2 phalanges) et pouce fermés selon `grips`.
 - Pied à plat quand il est bas (< 0.16 m), orteils à plat un peu plus longtemps (talon décollé).
 - Calage au sol : la semelle / les orteils les plus bas posés à y = 0 ; en l'air, `shift_in` imposé (uke suit tori).
+- **Saisies** (`targets`, 20/10) : `pose(…, targets)` envoie la paume d'une main sur un point de la scène par
+  cinématique inverse à deux segments, avec les **vraies longueurs de bras du modèle** (30 unités, contre 41
+  pour le bras 2D : sans ça les mains s'arrêtaient à 30 cm du judogi). Le coude du jeu ne sert plus qu'à
+  choisir le plan du bras. `grip_point(kind, côté, depuis)` donne le point du judogi adverse — revers,
+  manche (sous le coude), col (dans le dos), ceinture — sur sa **dernière pose**, l'épaisseur du buste étant
+  mesurée sur le maillage (`_measure`). Face à face, ma droite prend sa gauche.
+
+### 5.3 bis Kumikata et ne-waza en 3D (20/10/2026)
+Hugo : « ça ne s'attrape pas, c'est giga rigide, au sol les corps sont à l'envers ». Ce qui a été fait :
+- `_hands_world` renvoie, en plus des mains 2D, des **cibles 3D** `{opp, pt, w, off}` (w : main en route
+  → posée ; off : une part du tiraillement). `models3d.pose_rig(…, targets)` les résout sur le judogi 3D.
+  L'adversaire doit avoir une pose récente (`is_stale`) : en mode capture, `match_screen` le pose d'abord.
+- **Écart affiché** (`_gap_target`) : dans la portée de saisie de la sim (≈ 80 unités), il est ramené à
+  `GRIP_GAP_NEAR`→`GRIP_GAP_FAR` (36 → 50), puis rejoint l'écart réel ×0,76 ; chaque main qui tient
+  resserre, un judoka dominé (courbé) garde de la place. La projection part de cet écart, figé (`_tg`).
+- **Posture** (`kumi_amt`, lissé) : pieds serrés, genoux fléchis, buste penché ; transfert de poids,
+  `pose.twist` (vrille des épaules avec la main qui tire), mains libres qui suivent le buste.
+- **Garde** (`pose.lead`) : en 3D, la jambe et la main avant sont celles de la garde (droitier = droite),
+  plus forcément le côté caméra ; un changement de garde passe en fondu (`_turn_blend`).
+- **Ne-waza** : une silhouette couchée de profil ne dit pas si elle est sur le dos ou sur le ventre. Les
+  poses de `ground_poses` donnent `chest` (direction de la poitrine) et `pose_ground` choisit le côté
+  caméra qui la respecte — avant, tout corps allongé tête en avant tombait à plat ventre. `z` / `z_up`
+  (m) placent tori sur le flanc loin d'uke (kesa, yoko-shiho, transition) au lieu de le traverser.
+- `_smooth` repart de la cible si la pose mémorisée date de plus de 2 images (captures périmées sinon).
+- Bancs d'essai : `--screen=demo --kumikata[=sleeve,lapel] --lead=R,L --gap=38 --zoom=5` et
+  `--screen=demo --sol=osaekomi:kesa_gatame`, avec `--capture=<dossier> --frames=60`.
 
 ### 5.5 Clavier (`scripts/key_reader.gd`)
 Le jeu se joue à la manette **ou entièrement au clavier** (Options → COMMANDES : périphérique
@@ -496,8 +522,12 @@ godot --rendering-driver opengl3 --path . --write-movie x.avi --fixed-fps 60 --q
 
 ---
 
-## 12. État au 17/10/2026 et suite
+## 12. État au 20/10/2026 et suite
 
+Fait (20/10) : kumikata et ne-waza 3D repris (§5.3 bis) — mains posées sur le judogi par cinématique
+inverse, couple resserré à portée de bras, posture de combat, garde droitier / gaucher, vrille des
+épaules ; au sol, corps sur le dos et tori sur le flanc d'uke. Vidéo de combat (7 combats, 10 légendes)
+envoyée à Hugo ; caméra qui garde uke dans le champ après une projection près du bord.
 Fait (17/10) : les 13 projections repointées à la main sur les clips d'Hugo (§7.0), réception d'uke
 corrigée (plus de redressement ni de tête sous le tapis), projections près du bord gardées dans le champ.
 Fait (18/10, nuit) : uke se retourne en vol (et non à l'impact), contres animés par chorégraphie filmée,
@@ -518,5 +548,6 @@ vidéos de présentation.
 - Repli dessiné (`--decoupe`) : seule la planche de l'homme existe ; les légendes féminines y
   s'affichent avec l'homme. Il faudrait une planche de morceaux femme (même prompt, §5.0).
 - Orientation de la main vers la prise (poignet), vrille d'avant-bras.
+- Ne-waza : poses encore figées (une par technique) ; transitions entre elles et lutte au sol à animer.
 - Tester le **versus à deux manettes** en vrai.
 - **En ligne** : rollback prêt côté simulation, réseau à brancher (phase 8 du GDD).
