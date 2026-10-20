@@ -14,6 +14,14 @@ var J := {}                # articulations au repos (modèle)
 var bones := []            # [nom, tête, queue, parent, rayon]
 var idx := {}
 var parent_i := {}
+# Saisies : dernière pose calculée (repère de la scène), pour que l'adversaire vienne
+# poser ses mains sur ce judogi-ci (revers, manche, col, ceinture).
+var last_G := {}
+var last_O := {}
+var posed := false
+var chest_front := 0.13    # avant du buste à hauteur des revers, par rapport à l'axe (m, repos)
+var neck_back := 0.07      # arrière du col
+var belt_front := 0.13
 
 
 ## Charge un .glb riggé et ses articulations de repos ; texture : remplace la couleur
@@ -42,6 +50,7 @@ static func load_model(glb: String, joints_path: String, texture: String = "", t
 		for j in r.bones.size():
 			if r.bones[j][0] == b[3]:
 				r.parent_i[b[0]] = j
+	r._measure()
 	var tex: Texture2D = null
 	if texture != "" and FileAccess.file_exists(texture):
 		tex = ImageTexture.create_from_image(Image.load_from_file(texture))
@@ -55,6 +64,37 @@ static func load_model(glb: String, joints_path: String, texture: String = "", t
 					_toon(m)
 				mi.set_surface_override_material(s, m)
 	return r
+
+
+## Épaisseur du judogi, mesurée sur le maillage au repos : la main qui prend le revers se
+## pose sur le tissu, pas dans l'axe du corps (un colosse n'a pas le buste d'une poids léger).
+func _measure() -> void:
+	var y_lapel: float = lerpf(J["poitrine"].y, J["cou"].y, 0.45)
+	var y_col: float = J["cou"].y - 0.02
+	var y_belt: float = J["bassin"].y + 0.06
+	var cz: float = J["poitrine"].z
+	var fr := -INF
+	var bk := INF
+	var bf := -INF
+	for mi in node.find_children("*", "MeshInstance3D", true, false):
+		for si in mi.mesh.get_surface_count():
+			var arr: Array = mi.mesh.surface_get_arrays(si)
+			for v in arr[Mesh.ARRAY_VERTEX]:
+				if absf(v.x - J["poitrine"].x) > 0.09:
+					continue
+				if absf(v.y - y_lapel) < 0.035:
+					fr = maxf(fr, v.z)
+				if absf(v.y - y_col) < 0.035:
+					bk = minf(bk, v.z)
+				if absf(v.y - y_belt) < 0.03:
+					bf = maxf(bf, v.z)
+	# garde-fous : maillage dans un autre repère que les articulations
+	if fr > cz and fr - cz < 0.35:
+		chest_front = fr - cz
+	if bk < J["cou"].z and J["cou"].z - bk < 0.25:
+		neck_back = J["cou"].z - bk
+	if bf > J["bassin"].z and bf - J["bassin"].z < 0.35:
+		belt_front = bf - J["bassin"].z
 
 
 ## Rendu « dessiné » : contour d'encre (coque inversée légèrement gonflée, dessinée par
@@ -124,6 +164,77 @@ static func _bend_normal(a: Vector3, b: Vector3, c: Vector3, fallback: Vector3) 
 	return n / k + fallback * 0.12
 
 
+## Origines des os (cinématique directe) à partir des orientations globales G.
+func _fk(G: Dictionary, root: Vector3) -> Dictionary:
+	var o := {}
+	for b in bones:
+		var name: String = b[0]
+		if b[3] == "":
+			o[name] = root
+		else:
+			var pb = bones[parent_i[name]]
+			o[name] = o[b[3]] + G[b[3]] * (J[b[1]] - J[pb[1]])
+	return o
+
+
+## Paume au repos : entre le poignet et les jointures, là où la main serre le tissu.
+func _palm_rest(sd: String) -> Vector3:
+	var w: Vector3 = J["poignet." + sd]
+	return w + (J["jointure." + sd] - w) * 0.55 if J.has("jointure." + sd) else w
+
+
+## Bras à deux segments vers une cible (paume), longueurs du modèle ; `pole` : coude voulu.
+func _reach(G: Dictionary, O: Dictionary, sd: String, target: Vector3, pole: Vector3) -> void:
+	var sh: Vector3 = O["upper_arm." + sd]
+	var l1: float = (J["coude." + sd] - J["epaule." + sd]).length()
+	var l2: float = (_palm_rest(sd) - J["coude." + sd]).length()
+	var d := target - sh
+	var dist := clampf(d.length(), absf(l1 - l2) + 0.02, l1 + l2 - 0.005)
+	var u := d.normalized()
+	var pv := pole - sh
+	var perp := pv - u * pv.dot(u)
+	if perp.length() < 1e-4:
+		perp = Vector3.DOWN - u * Vector3.DOWN.dot(u)
+	perp = perp.normalized()
+	var a := (l1 * l1 + dist * dist - l2 * l2) / (2.0 * dist)
+	var h := sqrt(maxf(0.0, l1 * l1 - a * a))
+	var elbow := sh + u * a + perp * h
+	var palm := sh + u * dist
+	var sg := 1.0 if sd == "L" else -1.0
+	var rest_n := Vector3(0, -sg, 0)
+	var n := _bend_normal(sh, elbow, palm, G["chest"] * rest_n)
+	G["upper_arm." + sd] = _seg(elbow - sh, n) * _seg(J["coude." + sd] - J["epaule." + sd], rest_n).inverse()
+	G["forearm." + sd] = _seg(palm - elbow, n) * _seg(_palm_rest(sd) - J["coude." + sd], rest_n).inverse()
+	G["hand." + sd] = G["forearm." + sd]
+
+
+## Point de saisie sur ce judoka (dernière pose) : "lapel" (revers), "sleeve" (manche,
+## sous le coude), "collar" (col, dans le dos), "belt" (ceinture), côté `sd` ("L"/"R").
+## `from` : position de la main qui vient prendre (le tissu est pris du côté qui fait face).
+func grip_point(kind: String, sd: String, from: Vector3):
+	if not posed:
+		return null
+	var sg := 1.0 if sd == "L" else -1.0
+	match kind:
+		"sleeve":
+			var c: Vector3 = last_O["forearm." + sd]
+			var w: Vector3 = last_O["hand." + sd]
+			var p := c.lerp(w, 0.28)
+			var out := from - p
+			out -= (w - c).normalized() * out.dot((w - c).normalized())
+			return p + out.normalized() * 0.045 if out.length() > 1e-4 else p
+		"collar":
+			var gc: Basis = last_G["chest"]
+			return last_O["neck"] + gc * Vector3(sg * 0.05, 0.0, -neck_back)
+		"belt":
+			var gh: Basis = last_G["hips"]
+			return last_O["hips"] + gh * Vector3(sg * 0.09, 0.06, belt_front)
+		_:
+			var g: Basis = last_G["chest"]
+			var y: float = lerpf(0.0, (J["cou"] - J["poitrine"]).y, 0.45)
+			return last_O["chest"] + g * Vector3(sg * 0.075, y, chest_front + 0.01)
+
+
 ## Pose le modèle. M : articulations (m) dans le repère du parent du modèle.
 ## M["haut"] (facultatif) : vertical du corps (sans la flexion du buste) ; la colonne se
 ## courbe alors entre le bassin (qui suit les jambes) et la poitrine (qui suit le buste).
@@ -131,7 +242,10 @@ static func _bend_normal(a: Vector3, b: Vector3, c: Vector3, fallback: Vector3) 
 ## shift_in : décalage vertical imposé (judoka en l'air, suit celui qui le projette).
 ## Renvoie le décalage vertical appliqué.
 ## grips : fermeture des mains {"L": 0..1, "R": 0..1} (0 = main ouverte, 1 = poing serré).
-func pose(M: Dictionary, ground: bool = true, shift_in = null, grips: Dictionary = {}) -> float:
+## targets : {"L"/"R": point de la scène} — la paume de cette main va sur ce point (saisie du
+## judogi adverse) par cinématique inverse, avec les vraies longueurs de bras du modèle ;
+## le coude du jeu (M["coude.*"]) ne sert plus qu'à choisir le plan du bras.
+func pose(M: Dictionary, ground: bool = true, shift_in = null, grips: Dictionary = {}, targets: Dictionary = {}) -> float:
 	var G := {}
 	var torso: Vector3 = M["cou"] - M["bassin"]
 	var tdir := torso.normalized()
@@ -201,15 +315,6 @@ func pose(M: Dictionary, ground: bool = true, shift_in = null, grips: Dictionary
 	for b in bones:
 		if not G.has(b[0]):
 			G[b[0]] = G[b[3]] if b[3] != "" else Basis()
-	# --- mains : les doigts s'enroulent vers la paume (paume vers le bas en pose T), le pouce se replie
-	for s in ["L", "R"]:
-		if not idx.has("fingers1." + s) or idx["fingers1." + s] < 0:
-			continue
-		var g := clampf(float(grips.get(s, 0.3)), 0.0, 1.0)
-		var sg := -1.0 if s == "L" else 1.0
-		G["fingers1." + s] = G["hand." + s] * Basis(Vector3.BACK, sg * 1.35 * g)
-		G["fingers2." + s] = G["fingers1." + s] * Basis(Vector3.BACK, sg * 1.45 * g)
-		G["thumb." + s] = G["hand." + s] * Basis(Vector3.RIGHT, 0.9 * g) * Basis(Vector3.UP, sg * -0.5 * g)
 	# --- pieds : à plat sur le tatami quand ils sont bas ; les orteils restent au sol
 	# un peu plus longtemps (talon décollé = appui sur l'avant du pied)
 	var flat := _basis_from(lat_h, Vector3.UP) * _basis_from(J["hanche.L"] - J["hanche.R"], Vector3.UP).inverse()
@@ -267,6 +372,36 @@ func pose(M: Dictionary, ground: bool = true, shift_in = null, grips: Dictionary
 			low_body = minf(low_body, (o["head"] + G["head"] * (J["sommet"] - J["tete"])).y)
 		shift = maxf(shift, BODY_CLEAR - low_body)
 	hips_pos.y += shift
+	# --- saisies : la paume va se poser sur le judogi adverse
+	if not targets.is_empty():
+		var O := _fk(G, hips_pos)
+		for sd in targets:
+			var tg = targets[sd]
+			var pt: Vector3
+			var w := 1.0
+			if tg is Array:
+				pt = tg[0]
+				w = clampf(float(tg[1]), 0.0, 1.0)
+			else:
+				pt = tg
+			if w < 1.0:
+				# main qui part chercher la prise : de sa place naturelle vers le judogi
+				var nat: Vector3 = O["hand." + sd] + G["hand." + sd] * (_palm_rest(sd) - J["poignet." + sd])
+				pt = nat.lerp(pt, w)
+			if w > 0.0:
+				_reach(G, O, String(sd), pt, M["coude." + sd])
+	# --- mains : les doigts s'enroulent vers la paume (paume vers le bas en pose T), le pouce se replie
+	for s in ["L", "R"]:
+		if not idx.has("fingers1." + s) or idx["fingers1." + s] < 0:
+			continue
+		var g := clampf(float(grips.get(s, 0.3)), 0.0, 1.0)
+		var sg := -1.0 if s == "L" else 1.0
+		G["fingers1." + s] = G["hand." + s] * Basis(Vector3.BACK, sg * 1.35 * g)
+		G["fingers2." + s] = G["fingers1." + s] * Basis(Vector3.BACK, sg * 1.45 * g)
+		G["thumb." + s] = G["hand." + s] * Basis(Vector3.RIGHT, 0.9 * g) * Basis(Vector3.UP, sg * -0.5 * g)
+	last_G = G
+	last_O = _fk(G, hips_pos)
+	posed = true
 	for b in bones:
 		var name: String = b[0]
 		var local: Basis = G[name] if b[3] == "" else G[b[3]].inverse() * G[name]

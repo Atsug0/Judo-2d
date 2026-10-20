@@ -4,6 +4,9 @@ extends Node2D
 ## moyen de voir ce qu'une planche d'images fixes ne montre pas.
 ##
 ##   godot --path . -- --screen=demo [--anim=seoi_nage] [--decor=dojo]
+##   godot --path . -- --screen=demo --kumikata[=sleeve,lapel] [--lead=R,L --gap=38 --zoom=5]
+##   godot --path . -- --screen=demo --sol=osaekomi:kesa_gatame [--fc=-1 --zoom=3]
+## (bancs d'essai des saisies et du ne-waza en 3D ; avec --capture=<dossier> --frames=60)
 ##
 ## ← → change de technique, A met en pause, ↑ ↓ règle la vitesse, B revient au menu.
 ## Les techniques dont la chorégraphie a été relevée sur vidéo (data/anims/) passent en
@@ -101,6 +104,12 @@ func _p() -> float:
 
 
 func _draw() -> void:
+	if app != null and app.args.has("kumikata"):
+		_draw_kumikata()
+		return
+	if app != null and app.args.has("sol"):
+		_draw_sol(String(app.args.sol))
+		return
 	var tech: String = techs[i_tech]
 	var ks: Array = Anims.keys(tech, 54.0)
 	var smp: Dictionary = Anims.sample(ks, _p())
@@ -186,3 +195,72 @@ func _techniques() -> Array:
 	out.sort()
 	out.sort_custom(func(a, b): return int(Anims.has_mocap(a)) > int(Anims.has_mocap(b)))
 	return out
+
+
+## Banc d'essai du kumikata (--kumikata[=sleeve,lapel|collar,…] --gap=40 --zoom=2.6) : les
+## deux judokas en garde, les mains partent chercher le judogi puis tiennent. Sert à juger
+## les saisies des modèles 3D sans dépendre d'un combat.
+func _draw_kumikata() -> void:
+	var gap := float(app.args.get("gap", "40"))
+	var zoom := float(app.args.get("zoom", "2.6"))
+	var pts := String(app.args.kumikata).split(",") if String(app.args.kumikata) not in ["", "true", "1"] else PackedStringArray(["sleeve", "lapel"])
+	var w := clampf(float(t - 10) / 30.0, 0.0, 1.0)
+	w = w * w * (3.0 - 2.0 * w)
+	var cx := 640.0
+	var xa := cx - gap * K * 0.5
+	var xb := cx + gap * K * 0.5
+	_draw_decor(cx)
+	if m3d == null:
+		return
+	m3d.clock = t
+	m3d.update_camera(Vector2(cx, float(app.args.get("cam_y", "470"))), zoom, Vector2.ZERO)
+	for i in 2:
+		var face := 1 if i == 0 else -1
+		var xf := Transform2D(0.0, Vector2(face * K, K), 0.0, Vector2(xa if i == 0 else xb, FEET))
+		var pose: Dictionary = Art.pose_stand(float(app.args.get("stance", "0.5")))
+		pose.bow = float(app.args.get("bow", "0.18"))
+		pose.hip += Vector2(float(app.args.get("hipx", "-3")), float(app.args.get("drop", "2")))
+		pose.erase("kb")
+		pose.erase("kf")
+		pose.lead = String(app.args.get("lead", "R,R")).split(",")[i]
+		var tg := []
+		for k in 2:
+			tg.append({"opp": 1 - i, "pt": pts[k] if k < pts.size() else "lapel", "w": w})
+		m3d.pose_rig(i, xf, pose, [], true, null, [0.8 if w >= 1.0 else -1.0, 0.8 if w >= 1.0 else -1.0], tg)
+	# seconde passe : chacun voit la pose de l'autre de cette image
+	for i in 2:
+		var face := 1 if i == 0 else -1
+		var xf := Transform2D(0.0, Vector2(face * K, K), 0.0, Vector2(xa if i == 0 else xb, FEET))
+		var pose: Dictionary = Art.pose_stand(float(app.args.get("stance", "0.5")))
+		pose.bow = float(app.args.get("bow", "0.18"))
+		pose.hip += Vector2(float(app.args.get("hipx", "-3")), float(app.args.get("drop", "2")))
+		pose.erase("kb")
+		pose.erase("kf")
+		pose.lead = String(app.args.get("lead", "R,R")).split(",")[i]
+		var tg := []
+		for k in 2:
+			tg.append({"opp": 1 - i, "pt": pts[k] if k < pts.size() else "lapel", "w": w})
+		m3d.pose_rig(i, xf, pose, [], true, null, [0.8 if w >= 1.0 else -1.0, 0.8 if w >= 1.0 else -1.0], tg)
+	draw_texture(m3d.texture(), Vector2.ZERO)
+	Style.label(self, Vector2(40, 60), "KUMIKATA · %s · écart %d" % [",".join(pts), int(gap)], 20, Style.PAPER, "black")
+
+
+## Banc d'essai du ne-waza (--sol=osaekomi:kesa_gatame, transition, kansetsu:juji_gatame…) :
+## les deux poses au sol de fighter_art, en 3D, comme dans le combat.
+func _draw_sol(kind: String) -> void:
+	var zoom := float(app.args.get("zoom", "2.2"))
+	var fc := int(app.args.get("fc", "1"))
+	var poses: Array = Art.ground_poses(kind, t, float(app.args.get("ctrl", "0.8")))
+	var center: float = poses[0].get("center", 12.0)
+	var origin := Vector2(640.0 - fc * center * K, FEET + 4.0)
+	var xf := Transform2D(0.0, Vector2(fc * K, K), 0.0, origin)
+	_draw_decor(640.0)
+	if m3d == null:
+		return
+	m3d.clock = t
+	m3d.update_camera(Vector2(640.0, float(app.args.get("cam_y", "532"))), zoom, Vector2.ZERO)
+	m3d.pose_ground(1, xf, poses[1])
+	m3d.pose_ground(0, xf, poses[0])
+	draw_texture(m3d.texture(), Vector2.ZERO)
+	Style.label(self, Vector2(40, 60), kind.to_upper(), 22, Style.PAPER, "black")
+

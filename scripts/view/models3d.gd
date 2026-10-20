@@ -178,7 +178,10 @@ static func _ik(a: Vector2, b: Vector2, l1: float, l2: float, down: bool) -> Vec
 
 ## Judoka debout ou projeté : repère 2D (monde), pose « debout » du jeu, mains (monde) ou null.
 ## grips : [main arrière, main avant] du jeu, -1 = pas de prise, 0..1 = force de la prise.
-func pose_rig(i: int, xf: Transform2D, pose: Dictionary, hands: Array, ground: bool = true, shift_in = null, grips: Array = []) -> float:
+## targets : [main arrière, main avant] — null, ou {"opp": judoka saisi, "pt": "lapel" |
+## "sleeve" | "collar" | "belt", "w": 0..1 (main en route → posée), "off": décalage (px)}.
+## La main se pose alors sur le judogi 3D de l'adversaire (dernière pose connue).
+func pose_rig(i: int, xf: Transform2D, pose: Dictionary, hands: Array, ground: bool = true, shift_in = null, grips: Array = [], targets: Array = []) -> float:
 	var hip: Vector2 = pose.get("hip", Art.HIP0)
 	var bow := float(pose.get("bow", 0.0))
 	var tilt := float(pose.get("tilt", 0.0))
@@ -189,6 +192,13 @@ func pose_rig(i: int, xf: Transform2D, pose: Dictionary, hands: Array, ground: b
 	var inv := xf.affine_inverse()
 	var face := -1 if xf.determinant() < 0.0 else 1
 	var side_of := {"f": "R", "b": "L"} if face > 0 else {"f": "L", "b": "R"}
+	# Garde : le jeu dessine toujours la jambe avant et la main avant (« f ») côté caméra.
+	# En 3D, c'est la garde qui décide — un droitier avance la droite, quel que soit son
+	# côté du tapis. Sans ça, deux droitiers face à face avaient leurs jambes avant dans le
+	# même plan et se marchaient dessus dès que le kumikata les rapprochait.
+	var lead := String(pose.get("lead", ""))
+	if lead == "L" or lead == "R":
+		side_of = {"f": lead, "b": "L" if lead == "R" else "R"}
 	# repère anatomique (pose locale) : a = vers l'avant, y = vers le haut, r = vers la droite (m)
 	var s := xf.x.length() / ppm
 	var A := {"bassin": _an(hip, hip, s, 0.0), "cou": _an(neck, hip, s, 0.0), "tete": _an(head, hip, s, 0.0)}
@@ -210,7 +220,7 @@ func pose_rig(i: int, xf: Transform2D, pose: Dictionary, hands: Array, ground: b
 		A["epaule." + a] = _an(sh, hip, s, z * r.epaule)
 		A["coude." + a] = _an(elbow, hip, s, z * r.coude)
 		A["main." + a] = _an(hand, hip, s, z * r.main)
-	A = _turn_blend(i, face, A)
+	A = _turn_blend(i, face, A, side_of.f)
 	var phi: float = turn[i].phi
 	# repère du corps dans la scène : e1 = avant pour face +1, eu = vertical du corps
 	var e1 := _dir3(xf.basis_xform(Vector2(face, 0)))
@@ -228,14 +238,47 @@ func pose_rig(i: int, xf: Transform2D, pose: Dictionary, hands: Array, ground: b
 		closed[side_of["b" if k == 0 else "f"]] = 0.3 if g < 0.0 else 0.8 + 0.2 * clampf(g, 0.0, 1.0)
 	if pose.has("fist"):
 		closed = {"L": float(pose.fist), "R": float(pose.fist)}
+	var tg := {}
+	for k in mini(2, targets.size()):
+		var t = targets[k]
+		if t == null:
+			continue
+		var j: int = int(t.opp)
+		if actors[j] == null or not actors[j].posed or is_stale(j):
+			continue
+		var my_sd: String = side_of["b" if k == 0 else "f"]
+		# face à face, ma droite prend sa gauche (revers, manche) ; dans son dos, le même côté
+		var of: int = int(turn[j].get("face", -face))
+		var opp_sd: String = ("L" if my_sd == "R" else "R") if of != face else my_sd
+		var from: Vector3 = M["main." + my_sd]
+		var p = actors[j].grip_point(String(t.pt), opp_sd, from)
+		if p == null:
+			continue
+		var off: Vector2 = t.get("off", Vector2.ZERO)
+		tg[my_sd] = [Vector3(p) + Vector3(off.x / ppm, -off.y / ppm, 0.0), float(t.get("w", 1.0))]
 	var bl = _cut_blend(i, "rig", M)
 	if bl != null:
-		actors[i].pose(bl, false, null, closed)
+		actors[i].pose(bl, false, null, closed, tg)
+		posed_at[i] = _now()
 		_cut_store(i, bl, 0.0)
 		return 0.0
-	var dy: float = actors[i].pose(M, ground, shift_in, closed)
+	var dy: float = actors[i].pose(M, ground, shift_in, closed, tg)
+	posed_at[i] = _now()
 	_cut_store(i, M, dy)
 	return dy
+
+
+var posed_at := [-1000, -1000, -1000]
+
+
+func _now() -> int:
+	return clock if clock >= 0 else Engine.get_process_frames()
+
+
+## Pose de ce judoka trop ancienne pour y poser des mains (mode capture : rien n'est
+## dessiné entre deux captures) : il faut le poser d'abord.
+func is_stale(j: int) -> bool:
+	return _now() - int(posed_at[j]) > 2
 
 
 ## Fondu entre deux modes (« rig » debout / projeté, « ground » au sol) : renvoie les
@@ -283,7 +326,7 @@ static func _dir3(v: Vector2) -> Vector3:
 
 ## Suit l'orientation (phi : 0 = face +1, PI = face -1, en passant face caméra) et fond
 ## les articulations pendant BLEND_FRAMES images après un retournement.
-func _turn_blend(i: int, face: int, A: Dictionary) -> Dictionary:
+func _turn_blend(i: int, face: int, A: Dictionary, lead: String = "") -> Dictionary:
 	var st: Dictionary = turn[i]
 	var frame: int = clock if clock >= 0 else Engine.get_process_frames()
 	var target := 0.0 if face > 0 else PI
@@ -300,6 +343,11 @@ func _turn_blend(i: int, face: int, A: Dictionary) -> Dictionary:
 		st.face = face
 		st.from = st.get("last", {}).duplicate()
 		st.blend = 0.0
+	elif lead != "" and String(st.get("lead", lead)) != lead:
+		# changement de garde (entrée d'une projection filmée) : fondu, sans demi-tour
+		st.from = st.get("last", {}).duplicate()
+		st.blend = 0.0
+	st.lead = lead
 	st.phi = move_toward(float(st.phi), target, PI / TURN_FRAMES * dt)
 	st.blend = minf(float(st.blend) + dt, BLEND_FRAMES)
 	var out := A
@@ -313,22 +361,35 @@ func _turn_blend(i: int, face: int, A: Dictionary) -> Dictionary:
 
 
 ## Judoka au sol (ne-waza) : repère 2D et articulations de fighter_art.ground_poses().
+##
+## Une silhouette couchée vue de profil est ambiguë : rien dans les points 2D ne dit si le
+## judoka est sur le dos ou sur le ventre. C'est le côté placé vers la caméra (gauche ou
+## droite) qui en décide — la poitrine du modèle vaut (gauche − droite) × (bassin → cou).
+## Avec la règle du debout (côté « f » = droite pour face +1), tout corps allongé tête en
+## avant tombait à plat ventre : uke en kesa-gatame, tori en juji-gatame. La pose donne donc
+## `chest`, la direction de la poitrine (repère local, y vers le bas), et l'on choisit le
+## côté caméra qui la respecte.
 func pose_ground(i: int, xf: Transform2D, j: Dictionary) -> void:
-	var face := -1 if xf.determinant() < 0.0 else 1
-	var side_of := {"f": "R", "b": "L"} if face > 0 else {"f": "L", "b": "R"}
 	var hip: Vector2 = j.hip
 	var neck: Vector2 = j.neck
+	var up3 := _dir3(xf.basis_xform(neck - hip))
+	var chest3 := _dir3(xf.basis_xform(Vector2(j.get("chest", Vector2(1, 0)))))
+	# poitrine obtenue avec la gauche vers la caméra : (+z) × haut = (−haut.y, haut.x)
+	var left_front := chest3.dot(Vector3(-up3.y, up3.x, 0.0)) > 0.0
+	var side_of := {"f": "L", "b": "R"} if left_front else {"f": "R", "b": "L"}
 	var sh: Vector2 = neck + (hip - neck).normalized() * 6.0
-	var M := {"bassin": _m(xf * hip, 0.0), "cou": _m(xf * neck, 0.0), "tete": _m(xf * Vector2(j.head), 0.0)}
+	var zl: float = float(j.get("z", 0.0))
+	var zu: float = float(j.get("z_up", zl))
+	var M := {"bassin": _m(xf * hip, zl), "cou": _m(xf * neck, zu), "tete": _m(xf * Vector2(j.head), zu)}
 	for s in ["b", "f"]:
 		var a: String = side_of[s]
 		var z := 1.0 if s == "f" else -1.0
-		M["hanche." + a] = _m(xf * hip, z * HALF.hanche)
-		M["genou." + a] = _m(xf * Vector2(j["knee_" + s]), z * HALF.genou)
-		M["pied." + a] = _m(xf * Vector2(j["foot_" + s]), z * HALF.pied)
-		M["epaule." + a] = _m(xf * sh, z * HALF.epaule)
-		M["coude." + a] = _m(xf * Vector2(j["elbow_" + s]), z * HALF.coude)
-		M["main." + a] = _m(xf * Vector2(j["hand_" + s]), z * HALF.main)
+		M["hanche." + a] = _m(xf * hip, zl + z * HALF.hanche)
+		M["genou." + a] = _m(xf * Vector2(j["knee_" + s]), zl + z * HALF.genou)
+		M["pied." + a] = _m(xf * Vector2(j["foot_" + s]), zl + z * HALF.pied)
+		M["epaule." + a] = _m(xf * sh, zu + z * HALF.epaule)
+		M["coude." + a] = _m(xf * Vector2(j["elbow_" + s]), zu + z * HALF.coude)
+		M["main." + a] = _m(xf * Vector2(j["hand_" + s]), zu + z * HALF.main)
 	var bl = _cut_blend(i, "ground", M)
 	actors[i].pose(bl if bl != null else M, false, null, {"L": 0.75, "R": 0.75})  # au sol : on tient le judogi
 	_cut_store(i, bl if bl != null else M, 0.0)

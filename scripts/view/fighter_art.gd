@@ -563,6 +563,10 @@ static func _outline(ci: CanvasItem, pts: Array, wdt: float) -> void:
 # Une pose = positions locales des articulations (unités de jeu, sol en y = 0,
 # avant = +x) : hip, neck, head, knee_b, foot_b, knee_f, foot_f,
 # elbow_b, hand_b, elbow_f, hand_f. Le suffixe _b = membre arrière (dessiné derrière).
+# chest : direction de la poitrine (sur le dos (0, -1), à plat ventre (0, 1)) — seule la 3D
+# s'en sert, une silhouette de profil ne dit pas de quel côté elle est couchée.
+# z / z_up (m, 3D) : profondeur du bassin et des jambes / du buste et des bras. Tori se
+# tient sur le flanc d'uke, du côté loin : dans le même plan, ses jambes traversaient uke.
 
 const HEAD_CENTER := Vector2(1, -98)  # centre de la tête dans le repère « debout »
 
@@ -637,20 +641,24 @@ static func ground_poses(kind: String, t: int, ctrl: float) -> Array:
 		"knee_f": Vector2(-16, -29 + w), "foot_f": Vector2(-31, -4),
 		"elbow_b": Vector2(42, -3), "hand_b": Vector2(54, -6),
 		"elbow_f": Vector2(30, -26 - push), "hand_f": Vector2(22, -40 - push + w),
+		"chest": Vector2(0, -1),   # sur le dos : la poitrine regarde le plafond
 	}
 	var tori := {}
 	var id := kind.split(":")[1] if kind.contains(":") else ""
 	match id:
 		"yoko_shiho_gatame":
-			# à genoux sur le côté, buste en travers du buste d'uke
-			tori = {"hip": Vector2(4, -27), "neck": Vector2(32, -30 + w), "head": Vector2(42, -28 + w),
-				"knee_b": Vector2(-6, -4), "foot_b": Vector2(-24, -2), "knee_f": Vector2(4, -4), "foot_f": Vector2(-14, -2),
-				"elbow_b": Vector2(46, -16), "hand_b": Vector2(50, -6), "elbow_f": Vector2(18, -18), "hand_f": Vector2(4, -12)}
+			# à genoux sur le côté (côté loin d'uke), buste en travers du buste d'uke,
+			# une main sous la tête, l'autre entre les jambes
+			tori = {"hip": Vector2(6, -24), "neck": Vector2(28, -22 + w), "head": Vector2(38, -18 + w),
+				"knee_b": Vector2(-2, -4), "foot_b": Vector2(-18, -2), "knee_f": Vector2(8, -4), "foot_f": Vector2(-8, -2),
+				"elbow_b": Vector2(40, -12), "hand_b": Vector2(47, -6), "elbow_f": Vector2(10, -14), "hand_f": Vector2(-2, -10),
+				"chest": Vector2(0.1, 1), "z": -0.34, "z_up": -0.07}   # poitrine plaquée sur celle d'uke
 		"kami_shiho_gatame":
 			# au-dessus de la tête d'uke, buste sur son buste, mains à la ceinture
 			tori = {"hip": Vector2(74, -22), "neck": Vector2(48, -30 + w), "head": Vector2(38, -36 + w),
 				"knee_b": Vector2(72, -4), "foot_b": Vector2(90, -2), "knee_f": Vector2(64, -4), "foot_f": Vector2(82, -2),
-				"elbow_b": Vector2(26, -22), "hand_b": Vector2(8, -16), "elbow_f": Vector2(24, -18), "hand_f": Vector2(6, -12), "center": 30.0}
+				"elbow_b": Vector2(26, -22), "hand_b": Vector2(8, -16), "elbow_f": Vector2(24, -18), "hand_f": Vector2(6, -12), "center": 30.0,
+				"chest": Vector2(-0.2, 1), "z": 0.0, "z_up": 0.0}
 		"juji_gatame":
 			# tori sur le dos au-delà de la tête d'uke, jambes repliées sur son buste,
 			# bras d'uke tendu à la verticale entre ses jambes
@@ -659,25 +667,29 @@ static func ground_poses(kind: String, t: int, ctrl: float) -> Array:
 			tori = {"hip": Vector2(60, -9), "neck": Vector2(90, -9), "head": Vector2(102, -11),
 				"knee_b": Vector2(46, -32), "foot_b": Vector2(28, -20), "knee_f": Vector2(48, -36 + w), "foot_f": Vector2(30, -26),
 				"elbow_b": Vector2(70, -28), "hand_b": Vector2(54, -44 + w), "elbow_f": Vector2(72, -24), "hand_f": Vector2(56, -40 + w),
-				"center": 36.0}
+				"center": 36.0, "chest": Vector2(0, -1), "z": 0.0, "z_up": 0.0}   # tori aussi sur le dos
 		"okuri_eri_jime", "sankaku_jime":
 			# derrière la tête d'uke, buste relevé, mains au col
 			tori = {"hip": Vector2(70, -24), "neck": Vector2(60, -54 + w), "head": Vector2(58, -66 + w),
 				"knee_b": Vector2(72, -4), "foot_b": Vector2(88, -2), "knee_f": Vector2(62, -4), "foot_f": Vector2(80, -2),
-				"elbow_b": Vector2(50, -36), "hand_b": Vector2(42, -18), "elbow_f": Vector2(48, -30), "hand_f": Vector2(40, -14), "center": 30.0}
+				"elbow_b": Vector2(50, -36), "hand_b": Vector2(42, -18), "elbow_f": Vector2(48, -30), "hand_f": Vector2(40, -14), "center": 30.0,
+				"chest": Vector2(-1, 0.3), "z": 0.0, "z_up": 0.0}   # face à uke
 		"kesa_gatame":
-			# assis à côté d'uke, jambes écartées, bras autour de la tête, tient le bras d'uke
-			uke.elbow_f = Vector2(24, -24)
-			uke.hand_f = Vector2(14, -34 - push + w)
-			tori = {"hip": Vector2(8, -17), "neck": Vector2(28, -44 + w), "head": Vector2(35, -55 + w),
-				"knee_b": Vector2(-8, -10), "foot_b": Vector2(-26, -2), "knee_f": Vector2(22, -8), "foot_f": Vector2(8, -1),
-				"elbow_b": Vector2(50, -30), "hand_b": Vector2(56, -12), "elbow_f": Vector2(20, -30), "hand_f": Vector2(14, -30 - push + w),
-				"center": 14.0}
+			# assis contre le flanc d'uke (côté loin), hanche dans son aisselle, jambes écartées,
+			# buste couché sur sa poitrine, un bras autour du cou, l'autre bloque son bras
+			# bras d'uke coincé sous l'aisselle de tori (il pousse pour le dégager)
+			uke.elbow_f = Vector2(22, -17 - push * 0.5)
+			uke.hand_f = Vector2(11, -22 - push + w)
+			tori = {"hip": Vector2(16, -15), "neck": Vector2(38, -27 + w), "head": Vector2(47, -24 + w),
+				"knee_b": Vector2(-2, -8), "foot_b": Vector2(-20, -2), "knee_f": Vector2(34, -9), "foot_f": Vector2(44, -2),
+				"elbow_b": Vector2(53, -16), "hand_b": Vector2(50, -5), "elbow_f": Vector2(25, -22), "hand_f": Vector2(15, -20 - push + w),
+				"center": 18.0, "chest": Vector2(0.4, 1), "z": -0.26, "z_up": -0.1}
 		_:
 			# transition : à genoux à côté d'uke, buste penché, mains au col et à la manche
-			tori = {"hip": Vector2(-8, -26), "neck": Vector2(16, -50 + w), "head": Vector2(24, -60 + w),
-				"knee_b": Vector2(-6, -4), "foot_b": Vector2(-24, -2), "knee_f": Vector2(4, -4), "foot_f": Vector2(-14, -2),
-				"elbow_b": Vector2(30, -30), "hand_b": Vector2(34, -14), "elbow_f": Vector2(20, -28), "hand_f": Vector2(24, -16)}
+			tori = {"hip": Vector2(-4, -24), "neck": Vector2(18, -40 + w), "head": Vector2(27, -45 + w),
+				"knee_b": Vector2(-8, -4), "foot_b": Vector2(-26, -3), "knee_f": Vector2(6, -4), "foot_f": Vector2(-12, -3),
+				"elbow_b": Vector2(26, -26), "hand_b": Vector2(31, -14), "elbow_f": Vector2(14, -22), "hand_f": Vector2(9, -12),
+				"chest": Vector2(0.6, 0.8), "z": -0.32, "z_up": -0.14}
 	return [tori, uke]
 
 

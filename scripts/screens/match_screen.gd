@@ -102,6 +102,7 @@ var replay_done = false
 var replay_final = {}
 var vel = [0.0, 0.0]          # vitesse affichée vers l'avant (px/image), lissée
 var gap_shown = -1.0         # écart affiché entre les deux judokas (px), lissé
+var kumi_amt = [0.0, 0.0]    # posture de kumikata (0 = garde libre, 1 = saisi), lissée
 var tug = [[Vector2.ZERO, Vector2.ZERO], [Vector2.ZERO, Vector2.ZERO]]  # main qui tire / pousse
 var grip_shake = [[0, 0], [0, 0]]  # prise attaquée : la main tremble
 var chop = [0, 0]                  # combat de mains : coup sur la prise adverse (images restantes)
@@ -783,6 +784,7 @@ func _round_over() -> bool:
 	popups.clear()
 	feed.clear()
 	gap_shown = -1.0
+	kumi_amt = [0.0, 0.0]
 	prev_dx = [-1.0, -1.0]
 	round_banner = 100
 	return true
@@ -939,6 +941,13 @@ func _update_fx() -> void:
 	if sim != null:
 		var gt = _gap_target()
 		gap_shown = gt if gap_shown < 0.0 else lerpf(gap_shown, gt, 0.14)
+		var engaged: bool = sim.has_grip(sim.state.fighters[0]) or sim.has_grip(sim.state.fighters[1])
+		for i in 2:
+			for hh in sim.state.fighters[i].hands:
+				if hh.state == Sim.HAND_REACH:
+					engaged = true
+		for i in 2:
+			kumi_amt[i] = lerpf(kumi_amt[i], 1.0 if engaged else 0.0, 0.08)
 		for i in 2:
 			var f: Dictionary = sim.state.fighters[i]
 			var pull = clampf(float(f.prev[Sim.PX]) * f.facing / 100.0, -1.0, 1.0)  # < 0 : tire vers soi
@@ -1143,8 +1152,9 @@ func _fighter_xform(i: int) -> Transform2D:
 
 ## Position d'affichage : écart visuel minimum entre les deux judokas (lisibilité du kumikata).
 const VIS_GAP := 110.0
-const LINK_GAP := 92.0
 const GAP_SCALE := 0.76  # écart affiché / écart simulé (bras de longueur réaliste)
+const GRIP_GAP_NEAR := 36.0  # écart affiché (unités) au plus près, kumikata installé
+const GRIP_GAP_FAR := 50.0   # … au bord de la portée de saisie
 const CAM_DEADZONE := 95.0
 func _draw_x(i: int) -> float:
 	var fs: Array = sim.state.fighters
@@ -1161,7 +1171,25 @@ func _draw_x(i: int) -> float:
 func _gap_target() -> float:
 	var fs: Array = sim.state.fighters
 	var d = absf(wx(fs[1].x) - wx(fs[0].x))
-	return maxf(d * GAP_SCALE, LINK_GAP)
+	# La portée de saisie de la simulation (≈ 80 unités) est une distance de jeu : affichée
+	# telle quelle, les mains des modèles 3D (bras de 41 unités) s'arrêtaient à 30 cm du
+	# judogi. Dans la zone de saisie, l'écart affiché est donc ramené à portée de bras
+	# (GRIP_GAP_NEAR → GRIP_GAP_FAR), puis il rejoint l'écart réel ×GAP_SCALE plus loin,
+	# sans cassure. Chaque main qui tient resserre encore un peu le couple.
+	var r: float = wx(cfg.grip_range)
+	var near := GRIP_GAP_NEAR * K
+	var far := GRIP_GAP_FAR * K
+	var g: float
+	if d <= r:
+		g = lerpf(near, far, clampf((d - r * 0.55) / (r * 0.45), 0.0, 1.0))
+	else:
+		g = minf(far + (d - r), maxf(d * GAP_SCALE, far))
+	var held := 0
+	for f in fs:
+		for h in f.hands:
+			if h.state == Sim.HAND_GRIP:
+				held += 1
+	return maxf(near, g - minf(held, 3) * 2.5 * K)
 
 
 func _draw_fighters() -> void:
@@ -1186,10 +1214,14 @@ func _draw_fighters() -> void:
 		_callouts.clear()
 		var first: int = th.tori if throwing else 0
 		var shift = null
+		if m3d.is_stale(1 - first):
+			# les mains du premier se posent sur le judogi du second : il lui faut une pose
+			var h0: Array = _hands_world(1 - first, rigs, th, throwing)
+			m3d.pose_rig(1 - first, rigs[1 - first].xf, rigs[1 - first].pose, h0[0], not (throwing and 1 - first == th.uke), null, h0[1])
 		for i in [first, 1 - first]:
 			var hw3: Array = _hands_world(i, rigs, th, throwing)
 			var airborne: bool = throwing and i == th.uke
-			var sh = m3d.pose_rig(i, rigs[i].xf, rigs[i].pose, hw3[0], not airborne, shift if airborne else null, hw3[1])
+			var sh = m3d.pose_rig(i, rigs[i].xf, rigs[i].pose, hw3[0], not airborne, shift if airborne else null, hw3[1], hw3[2])
 			if i == first:
 				shift = sh
 			if not throwing:
@@ -1214,7 +1246,13 @@ func _base_xf(i: int) -> Transform2D:
 ## Pose de garde vivante : respiration, marche, déséquilibre subi, fatigue, défense.
 func _standing_pose(i: int) -> Dictionary:
 	var f: Dictionary = sim.state.fighters[i]
-	var pose: Dictionary = Art.pose_stand(0.5)
+	# kumikata engagé : pieds plus serrés, genoux fléchis, hanches basses (posture de
+	# combat). La garde droite, jambes tendues et écartées, faisait des judokas en planche.
+	var km: float = kumi_amt[i]
+	var pose: Dictionary = Art.pose_stand(lerpf(0.5, 0.12, km))
+	pose.hip += Vector2(-2.0 * km, 5.5 * km)
+	# garde (3D) : un droitier avance la jambe et la main droites
+	pose.lead = "L" if String(f.get("garde", "droitier")) == "gaucher" else "R"
 	var breath = sin(frame * 0.06 + i * 1.3)
 	pose.hip += Vector2(0, breath * 0.7)
 	var free_legs = false
@@ -1251,7 +1289,7 @@ func _standing_pose(i: int) -> Dictionary:
 		pose.hip += Vector2(drive * 3.0, absf(drive) * 2.0)
 		# à distance (bras tendus), le buste se penche pour aller chercher la prise
 		var ext = clampf((gap_shown / K - 46.0) / 18.0, -0.6, 1.0) if gap_shown > 0.0 else 0.0
-		pose.bow += 0.12 + ext * 0.2 + pull * 0.12 + sway * 0.03
+		pose.bow += 0.12 + ext * 0.2 + pull * 0.12 + sway * 0.03 + 0.1 * km
 		pose.hip += Vector2(-3 - ext * 5.0 + pull * 4.0 + sway * 1.6, 2 + absf(pull) * 1.5 + maxf(0.0, ext) * 3.0)
 		pose.ff += Vector2(sway * 1.2, 0)
 		free_legs = true
@@ -1299,6 +1337,11 @@ func _standing_pose(i: int) -> Dictionary:
 	if free_legs:
 		pose.erase("kb")
 		pose.erase("kf")
+	# mains libres : elles suivent le buste (penché, un judoka gardait les mains à hauteur
+	# de visage, les bras retournés vers l'arrière)
+	var tl := Art.torso_local(pose)
+	pose.hb = tl * Art.REST_HANDS[0]
+	pose.hf = tl * Art.REST_HANDS[1]
 	return pose
 
 
@@ -1319,9 +1362,17 @@ func _standing_rigs() -> Array:
 
 
 ## Lissage visuel des squelettes (pas de saut quand une attaque s'interrompt).
+var _shown_frame := [-1000, -1000]
+
+
 func _smooth(i: int, target: Dictionary) -> Dictionary:
 	var prev = shown[i]
 	var out = target
+	# le mode capture enchaîne les ticks sans dessiner : une pose mémorisée il y a plusieurs
+	# images n'est plus un point de départ, on repart de la cible
+	if frame - int(_shown_frame[i]) > 2:
+		prev = null
+	_shown_frame[i] = frame
 	if prev != null and signf(prev.xf.x.x) == signf(target.xf.x.x):
 		out = {"xf": prev.xf.interpolate_with(target.xf, 0.4), "pose": Art.lerp_pose(prev.pose, target.pose, 0.4)}
 		if target.pose.has("kb") and target.pose.has("kf"):
@@ -1347,8 +1398,21 @@ func _throw_progress(th: Dictionary) -> float:
 	return Anims.ENTRY + (1.0 - Anims.ENTRY) * clampf(float(th.t) / float(cfg.throw_ticks), 0.0, 1.0)
 
 
+var _tg_key := ""
+var _tg := 0.0
+
+
 func _throw_frame(th: Dictionary) -> Array:
 	var vp: Array = _vis_pair(th.tori_x, th.uke_x)
+	# la projection part de l'écart affiché au moment de l'attaque (kumikata resserré),
+	# figé pour toute sa durée : sinon le couple s'écartait d'un coup à l'entrée
+	var key := "%d:%d:%s" % [th.tori_x, th.uke_x, th.tech]
+	if key != _tg_key:
+		_tg_key = key
+		_tg = gap_shown if gap_shown > 0.0 else absf(vp[1] - vp[0])
+	var mid: float = (vp[0] + vp[1]) * 0.5
+	var sg: float = signf(vp[1] - vp[0]) if absf(vp[1] - vp[0]) > 0.01 else 1.0
+	vp = [mid - sg * _tg * 0.5, mid + sg * _tg * 0.5]
 	var d = absf(vp[1] - vp[0]) / K
 	# Recadrage visuel : une projection près du bord (o-soto, uke qui part en arrière) faisait
 	# sortir le couple de l'arène, hors du champ de la caméra. On décale le repère de la
@@ -1419,22 +1483,26 @@ func _hands_world(i: int, rigs: Array, th: Dictionary, throwing: bool) -> Array:
 	var f: Dictionary = sim.state.fighters[i]
 	if throwing:
 		var p = clampf(float(th.t) / float(cfg.throw_ticks), 0.0, 1.0)
+		var tsl = {"opp": o, "pt": "sleeve", "w": 1.0}
+		var tla = {"opp": o, "pt": "lapel", "w": 1.0}
 		if i == th.tori:
 			var sleeve = Art.torso_point(orig.xf, orig.pose, Art.GRIP_POINTS["sleeve"])
 			var lapel = Art.torso_point(orig.xf, orig.pose, Art.GRIP_POINTS["lapel"])
-			return [[sleeve, lapel if p < 0.85 else null], [0.6, 0.6 if p < 0.85 else -1.0]]
+			return [[sleeve, lapel if p < 0.85 else null], [0.6, 0.6 if p < 0.85 else -1.0],
+				[tsl, tla if p < 0.85 else null]]
 		# uke ne lâche pas tout de suite : il tient la manche de tori pendant la chute
 		# (et le revers au début), puis la main libre part frapper le tapis (ukemi)
 		var u_sleeve = Art.torso_point(orig.xf, orig.pose, Art.GRIP_POINTS["sleeve"])
 		var u_lapel = Art.torso_point(orig.xf, orig.pose, Art.GRIP_POINTS["lapel"])
 		if p < 0.25:
-			return [[u_sleeve, u_lapel], [0.4, 0.4]]
+			return [[u_sleeve, u_lapel], [0.4, 0.4], [tsl, tla]]
 		if p < 0.8:
-			return [[u_sleeve, null], [0.5, -1.0]]
-		return [[null, null], [-1.0, -1.0]]
+			return [[u_sleeve, null], [0.5, -1.0], [tsl, null]]
+		return [[null, null], [-1.0, -1.0], [null, null]]
 	var me: Dictionary = rigs[i]
 	var hands = [null, null]
 	var strength = [-1.0, -1.0]
+	var targets = [null, null]   # judokas 3D : la main se pose sur le judogi adverse
 	for h in 2:
 		var hand: Dictionary = f.hands[h]
 		var target = Art.torso_point(orig.xf, orig.pose, Art.GRIP_POINTS[cfg.grip_targets[hand.target]])
@@ -1452,15 +1520,20 @@ func _hands_world(i: int, rigs: Array, th: Dictionary, throwing: bool) -> Array:
 			if jit > 0.0:
 				hands[h] += Vector2(sin(frame * 2.3 + h * 1.7), cos(frame * 1.9 + h)) * jit
 			strength[h] = float(hand.trig) / 100.0
+			# en 3D la main reste sur le tissu : seule une partie du tiraillement se voit
+			targets[h] = {"opp": o, "pt": cfg.grip_targets[hand.target], "w": 1.0,
+				"off": (hands[h] - target) * 0.35}
 		elif hand.state == Sim.HAND_REACH:
 			var reach = float(cfg.grip_reach_ticks - (cfg.fast_reach_cut if f.fast_reach_t > 0 else 0))
 			var q = clampf(float(hand.t) / reach, 0.0, 1.0)
 			hands[h] = rest.lerp(target, q * q * (3.0 - 2.0 * q))
+			targets[h] = {"opp": o, "pt": cfg.grip_targets[hand.target], "w": q * q * (3.0 - 2.0 * q)}
 		elif hand.state == Sim.HAND_FREE and sim.state.phase == "fight" and hand.lock == 0 \
 				and absi(sim.state.fighters[o].x - f.x) <= cfg.grip_range:
 			# bataille de mains : les mains cherchent, avancent, se retirent
 			var paw = 0.28 + 0.16 * sin(frame * 0.14 + h * 2.1 + i * 1.3) + 0.06 * sin(frame * 0.37 + h)
 			hands[h] = rest.lerp(target, paw)
+			targets[h] = {"opp": o, "pt": cfg.grip_targets[hand.target], "w": paw * 0.85}
 		if chop[i] > 0 and hand.state != Sim.HAND_GRIP:
 			# combat de mains : la main libre frappe et arrache la prise adverse sur soi
 			var oh: Dictionary = sim.state.fighters[o].hands[chop_hand[i]]
@@ -1468,12 +1541,14 @@ func _hands_world(i: int, rigs: Array, th: Dictionary, throwing: bool) -> Array:
 			var cq = float(chop[i]) / 12.0
 			var reach_t = sin(cq * PI)
 			hands[h] = rest.lerp(on_me + Vector2(f.facing * 4.0 * K, -4.0 * K), reach_t) + Vector2(0, (1.0 - cq) * 6.0 * K * reach_t)
+			targets[h] = null
 		if knock[i][h] > 0:
 			# main chassée : projetée vers le bas et en arrière, puis revient en garde
 			var kq = float(knock[i][h]) / 14.0
 			var base = rest.lerp(target, 0.55 * kq)
 			hands[h] = base + Vector2(-f.facing * 10.0, 26.0) * kq * sin(kq * PI)
-	return [hands, strength]
+			targets[h] = null
+	return [hands, strength, targets]
 
 
 ## Rendu par sprites quand les animations existent. Renvoie false pour retomber
@@ -1540,7 +1615,10 @@ func _draw_newaza(nw: Dictionary) -> void:
 			var m := {}
 			for k in _gp_pose[i]:
 				var v = _gp_pose[i][k]
-				m[k] = Vector2(2.0 * _gp_center - v.x, v.y) if v is Vector2 else v
+				if k == "chest":
+					m[k] = Vector2(-v.x, v.y)   # une direction, pas un point
+				else:
+					m[k] = Vector2(2.0 * _gp_center - v.x, v.y) if v is Vector2 else v
 			_gp_pose[i] = m
 		_gp_fc = fc
 	if frame - _gp_frame > 3 or _gp_pose.size() < 2 or _gp_fc != fc:
