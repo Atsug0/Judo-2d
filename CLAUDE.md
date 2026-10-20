@@ -231,6 +231,13 @@ Hugo : « ça ne s'attrape pas, c'est giga rigide, au sol les corps sont à l'en
   caméra qui la respecte — avant, tout corps allongé tête en avant tombait à plat ventre. `z` / `z_up`
   (m) placent tori sur le flanc loin d'uke (kesa, yoko-shiho, transition) au lieu de le traverser.
 - `_smooth` repart de la cible si la pose mémorisée date de plus de 2 images (captures périmées sinon).
+- **Entrées de projection** (20/10, après-midi) : pendant l'entrée, uke glisse vers sa place
+  filmée (`_standing_rigs`) ; raccord `THROW_BLEND` (6 images) au début de la projection ; un
+  contre démarre sa chorégraphie à `COUNTER_P0` (0,12) au lieu d'ENTRY ; au contact
+  (`_couple_depth`), tori et uke s'écartent en profondeur (`pose.depth`, tori vers son côté
+  libre) et détournent la tête (`pose.head_side`) ; le demi-tour d'une projection de hanche
+  part du côté de la garde (`_turn_blend`) ; `pose.lead` gardé pendant la projection ; buste
+  plafonné à 0,78 rad en garde.
 - Bancs d'essai : `--screen=demo --kumikata[=sleeve,lapel] --lead=R,L --gap=38 --zoom=5` et
   `--screen=demo --sol=osaekomi:kesa_gatame`, avec `--capture=<dossier> --frames=60`.
 
@@ -418,8 +425,9 @@ sur une planche d'images fixes :
   face — et la note de chaque répétition en tient compte. (Rapporter à la *hauteur* du
   buste faisait exploser la mesure dès qu'un judoka passait à l'horizontale.)
 - **la projection retenue est celle dont le kumikata qui la précède est le meilleur**, et
-  sa première image est cette garde : c'est elle qui fixe `d0`, et `throw_anims.gd` étire
-  toute la chorégraphie par `d / d0`. Des fenêtres ouvertes au milieu de la projection
+  sa première image est cette garde : c'est elle qui fixe `d0`. (Depuis le 20/10,
+  `throw_anims.gd` n'étire plus par `d / d0` : l'écart `d − d0` est absorbé pendant
+  l'entrée, puis les distances filmées sont gardées.) Des fenêtres ouvertes au milieu de la projection
   donnaient `d0` nul ou négatif, donc un facteur d'étirement de 55 : les judokas partaient
   hors de l'écran. d0 doit valoir 36 à 70 unités.
 - **on s'arrête à l'impact.** L'instructeur suit sa projection au sol pour contrôler uke ;
@@ -527,7 +535,8 @@ godot --rendering-driver opengl3 --path . --write-movie x.avi --fixed-fps 60 --q
 Fait (20/10) : kumikata et ne-waza 3D repris (§5.3 bis) — mains posées sur le judogi par cinématique
 inverse, couple resserré à portée de bras, posture de combat, garde droitier / gaucher, vrille des
 épaules ; au sol, corps sur le dos et tori sur le flanc d'uke. Vidéo de combat (7 combats, 10 légendes)
-envoyée à Hugo ; caméra qui garde uke dans le champ après une projection près du bord.
+envoyée à Hugo ; caméra qui garde uke dans le champ après une projection près du bord. Entrées de
+projection reprises (uke suit, distances filmées, couple décalé en profondeur, têtes détournées).
 Fait (17/10) : les 13 projections repointées à la main sur les clips d'Hugo (§7.0), réception d'uke
 corrigée (plus de redressement ni de tête sous le tapis), projections près du bord gardées dans le champ.
 Fait (18/10, nuit) : uke se retourne en vol (et non à l'impact), contres animés par chorégraphie filmée,
