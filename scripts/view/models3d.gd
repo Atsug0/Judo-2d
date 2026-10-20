@@ -231,15 +231,21 @@ func pose_rig(i: int, xf: Transform2D, pose: Dictionary, hands: Array, ground: b
 				var w := 1.0 if k.begins_with("epaule.") else 0.6
 				var an := tw * w
 				A[k] = Vector3(c + (v.x - c) * cos(an) + v.z * sin(an), v.y, -(v.x - c) * sin(an) + v.z * cos(an))
-	A = _turn_blend(i, face, A, side_of.f)
+	A = _turn_blend(i, face, A, side_of.f, lead, ground)
 	var phi: float = turn[i].phi
 	# repère du corps dans la scène : e1 = avant pour face +1, eu = vertical du corps
 	var e1 := _dir3(xf.basis_xform(Vector2(face, 0)))
 	var eu := _dir3(xf.basis_xform(Vector2(0, -1)))
 	var fwd := e1 * cos(phi) + Vector3.BACK * sin(phi)
 	var right := -e1 * sin(phi) + Vector3.BACK * cos(phi)
-	var o := _m(xf * Vector2(hip.x, hip.y), 0.0)
+	var o := _m(xf * Vector2(hip.x, hip.y), float(pose.get("depth", 0.0)))
 	var M := {"haut": eu}
+	# tête tournée vers un côté de la profondeur (head_side : signe = côté z voulu, valeur 0..1)
+	var hs := float(pose.get("head_side", 0.0))
+	if absf(hs) > 0.01:
+		var mag := 1.15 * clampf(absf(hs), 0.0, 1.0)
+		var plus := fwd.rotated(Vector3.UP, mag).z * signf(hs) > fwd.rotated(Vector3.UP, -mag).z * signf(hs)
+		M["yaw"] = mag if plus else -mag
 	for k in A:
 		var v: Vector3 = A[k]
 		M[k] = o + fwd * v.x + eu * v.y + right * v.z
@@ -337,20 +343,38 @@ static func _dir3(v: Vector2) -> Vector3:
 
 ## Suit l'orientation (phi : 0 = face +1, PI = face -1, en passant face caméra) et fond
 ## les articulations pendant BLEND_FRAMES images après un retournement.
-func _turn_blend(i: int, face: int, A: Dictionary, lead: String = "") -> Dictionary:
+func _turn_blend(i: int, face: int, A: Dictionary, lead: String = "", garde: String = "", grounded: bool = false) -> Dictionary:
 	var st: Dictionary = turn[i]
 	var frame: int = clock if clock >= 0 else Engine.get_process_frames()
-	var target := 0.0 if face > 0 else PI
 	var dt := float(frame - int(st.get("frame", -1000)))
 	if instant_turn or not st.has("phi") or dt > 20.0 or dt < 0.0:
-		st.phi = target
+		st.phi = 0.0 if face > 0 else PI
+		st.target = st.phi
+		st.erase("turn_from")
 		st.blend = BLEND_FRAMES
 		st.face = face
 		st.from = {}
 		dt = 0.0
 	dt = minf(dt, 20.0)
 	st.frame = frame
+	if garde != "":
+		st.garde = garde
 	if face != int(st.face):
+		# Sens du demi-tour. Une projection de hanche droite (seoi, o-goshi, uchi-mata…) se
+		# fait en pivotant vers sa gauche : la poitrine passe du côté opposé à la garde. Il
+		# tournait toujours poitrine face caméra, donc un droitier sur deux pivotait à
+		# l'envers. Le retour en garde (attaque stoppée) repart par le même chemin.
+		if st.has("turn_from") and face == int(st.turn_face):
+			st.target = float(st.turn_from)
+			st.erase("turn_from")
+		else:
+			var phi0: float = float(st.get("target", st.phi))
+			if grounded and st.has("garde"):
+				st.target = phi0 - PI if String(st.garde) == "R" else phi0 + PI
+			else:
+				st.target = phi0 + PI if cos(phi0) > 0.0 else phi0 - PI   # poitrine face caméra
+			st.turn_from = phi0
+			st.turn_face = int(st.face)
 		st.face = face
 		st.from = st.get("last", {}).duplicate()
 		st.blend = 0.0
@@ -359,7 +383,7 @@ func _turn_blend(i: int, face: int, A: Dictionary, lead: String = "") -> Diction
 		st.from = st.get("last", {}).duplicate()
 		st.blend = 0.0
 	st.lead = lead
-	st.phi = move_toward(float(st.phi), target, PI / TURN_FRAMES * dt)
+	st.phi = move_toward(float(st.phi), float(st.target), PI / TURN_FRAMES * dt)
 	st.blend = minf(float(st.blend) + dt, BLEND_FRAMES)
 	var out := A
 	if float(st.blend) < BLEND_FRAMES and not st.from.is_empty():

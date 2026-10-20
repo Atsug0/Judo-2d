@@ -268,6 +268,9 @@ func _step_sim() -> void:
 				replay_buf.pop_front()
 		elif sim.state.phase == "matte":
 			replay_buf.clear()
+	for i in 2:
+		var at: Dictionary = sim.state.fighters[i].attack
+		_entry_seen[i] = String(at.tech) if not at.is_empty() else ""
 	sim.step(inputs)
 	if app != null and app.args.has("eventlog"):
 		_log_events()
@@ -1248,6 +1251,11 @@ func _base_xf(i: int) -> Transform2D:
 	return Transform2D(0.0, Vector2(f.facing * K, K), 0.0, Vector2(_draw_x(i), FEET_Y))
 
 
+## Côté de garde d'un judoka en 3D : "R" (droitier) ou "L" (gaucher).
+func _garde_lead(i: int) -> String:
+	return "L" if String(sim.state.fighters[i].get("garde", "droitier")) == "gaucher" else "R"
+
+
 ## Pose de garde vivante : respiration, marche, déséquilibre subi, fatigue, défense.
 func _standing_pose(i: int) -> Dictionary:
 	var f: Dictionary = sim.state.fighters[i]
@@ -1257,7 +1265,7 @@ func _standing_pose(i: int) -> Dictionary:
 	var pose: Dictionary = Art.pose_stand(lerpf(0.5, 0.12, km))
 	pose.hip += Vector2(-2.0 * km, 5.5 * km)
 	# garde (3D) : un droitier avance la jambe et la main droites
-	pose.lead = "L" if String(f.get("garde", "droitier")) == "gaucher" else "R"
+	pose.lead = _garde_lead(i)
 	var breath = sin(frame * 0.06 + i * 1.3)
 	pose.hip += Vector2(0, breath * 0.7)
 	var free_legs = false
@@ -1353,24 +1361,56 @@ func _standing_pose(i: int) -> Dictionary:
 	var tl := Art.torso_local(pose)
 	pose.hb = tl * Art.REST_HANDS[0]
 	pose.hf = tl * Art.REST_HANDS[1]
+	pose.depth = 0.0   # (sinon le lissage garderait la profondeur d'une entrée)
+	pose.head_side = 0.0
+	# toutes causes cumulées (dominé, tiré, fatigué, kumikata), un judoka finissait plié à
+	# angle droit, la tête à hauteur de ceinture de l'autre
+	pose.bow = clampf(float(pose.bow), -0.45, 0.78)
 	return pose
 
 
 func _standing_rigs() -> Array:
-	var rigs = []
+	var targets = []
+	var entries = [null, null]
 	for i in 2:
 		var f: Dictionary = sim.state.fighters[i]
 		var target = {"xf": _base_xf(i), "pose": _standing_pose(i)}
 		if not f.attack.is_empty():
-			# entrée de la technique : début de la chorégraphie, côté tori
+			# entrée de la technique : début de la chorégraphie
 			var atk: Dictionary = f.attack
 			var e = clampf(float(atk.t) / float(atk.entry), 0.0, 1.0)
 			var d = absf(_draw_x(1 - i) - _draw_x(i)) / K
 			var smp: Dictionary = Anims.sample(Anims.keys(atk.tech, d), Anims.ENTRY * e)
 			var ep: Dictionary = smp.tori.pose.duplicate()
 			ep.twist = 0.0   # (le lissage garderait sinon la vrille du kumikata)
+			ep.depth = 0.0
+			ep.head_side = 0.0
+			ep.lead = _garde_lead(i)
 			target = {"xf": Anims.actor_xform(_base_xf(i), smp.tori), "pose": ep}
-		rigs.append(_smooth(i, target))
+			entries[i] = {"e": e, "uke": smp.uke, "frame": _base_xf(i)}
+		targets.append(target)
+	# uke suit aussi la chorégraphie pendant l'entrée : tori entrait dans un uke figé en
+	# garde (corps et bras qui se traversaient), puis uke sautait à sa place filmée au
+	# premier tick de la projection. Il y glisse progressivement, et revient en garde
+	# avec le lissage si l'attaque échoue.
+	for i in 2:
+		var en = entries[i]
+		if en == null or entries[1 - i] != null:
+			continue
+		var o: int = 1 - i
+		var uxf: Transform2D = Anims.actor_xform(en.frame, en.uke)
+		if signf(uxf.x.x) != signf(targets[o].xf.x.x):
+			continue
+		var w: float = smoothstep(0.0, 1.0, clampf(float(en.e) * 1.6, 0.0, 1.0))
+		var up: Dictionary = Art.lerp_pose(targets[o].pose, en.uke.pose, w)
+		up.twist = float(targets[o].pose.get("twist", 0.0)) * (1.0 - w)
+		targets[o] = {"xf": targets[o].xf.interpolate_with(uxf, w), "pose": up}
+		_couple_depth(targets, i, sim.state.fighters[i].facing)
+	if entries[0] == null and entries[1] == null:
+		_couple_depth(targets, 0, sim.state.fighters[0].facing)   # kumikata très serré
+	var rigs = []
+	for i in 2:
+		rigs.append(_smooth(i, targets[i]))
 	return rigs
 
 
@@ -1408,11 +1448,25 @@ func _vis_pair(xa_cpx: int, xb_cpx: int) -> Array:
 
 
 func _throw_progress(th: Dictionary) -> float:
-	return Anims.ENTRY + (1.0 - Anims.ENTRY) * clampf(float(th.t) / float(cfg.throw_ticks), 0.0, 1.0)
+	# un contre part sans entrée : sa chorégraphie se joue depuis la garde, en accéléré,
+	# au lieu de sauter directement au tiers (là où une attaque arrive après son entrée)
+	var key := "%d:%d:%s" % [th.tori_x, th.uke_x, th.tech]
+	if not _tp0.has(key):
+		_tp0.clear()
+		_tp0[key] = Anims.ENTRY if String(_entry_seen[int(th.tori)]) == String(th.tech) else COUNTER_P0
+	var p0: float = _tp0[key]
+	return p0 + (1.0 - p0) * clampf(float(th.t) / float(cfg.throw_ticks), 0.0, 1.0)
 
 
 var _tg_key := ""
 var _tg := 0.0
+var _tb_key := ""            # projection dont le raccord avec la pose précédente est en cours
+var _tb_frame := 0
+var _tb_from := []
+const THROW_BLEND := 6.0     # images de raccord entre la pose affichée et la chorégraphie
+const COUNTER_P0 := 0.12     # un contre part du couple déjà engagé : pas tout à fait de la garde
+var _tp0 := {}               # début de la chorégraphie par projection : ENTRY après une entrée, 0 pour un contre
+var _entry_seen := ["", ""]  # technique en cours d'entrée au tick précédent (par judoka)
 
 
 func _throw_frame(th: Dictionary) -> Array:
@@ -1485,8 +1539,68 @@ func _throw_rigs(th: Dictionary) -> Array:
 	var rigs = [null, null]
 	rigs[th.tori] = {"xf": Anims.actor_xform(fr[0], smp.tori), "pose": smp.tori.pose}
 	rigs[th.uke] = {"xf": Anims.actor_xform(fr[0], smp.uke), "pose": smp.uke.pose}
+	# raccord : les premières images de la projection partent des poses affichées juste
+	# avant (contre sans entrée, entrée interrompue en cours de lissage)
+	if _tb_key != _tg_key:
+		_tb_key = _tg_key
+		_tb_frame = frame
+		_tb_from = shown.duplicate()
+	var w := clampf(float(frame - _tb_frame) / THROW_BLEND, 0.0, 1.0)
+	if w < 1.0 and _tb_from.size() == 2:
+		w = smoothstep(0.0, 1.0, w)
+		for i in 2:
+			var a = _tb_from[i]
+			if a == null or signf(a.xf.x.x) != signf(rigs[i].xf.x.x):
+				continue
+			rigs[i] = {"xf": a.xf.interpolate_with(rigs[i].xf, w), "pose": Art.lerp_pose(a.pose, rigs[i].pose, w)}
+	# garde gardée pendant toute la projection : les poses filmées rangent leurs membres
+	# « côté caméra / côté loin » ; avec la garde, un droitier projette toujours de la
+	# droite, et ses jambes ne se croisent plus au premier tick (changement de garde)
+	for i in 2:
+		var lp: Dictionary = rigs[i].pose.duplicate()
+		lp.lead = _garde_lead(i)
+		rigs[i] = {"xf": rigs[i].xf, "pose": lp}
+	_couple_depth(rigs, int(th.tori), int(th.facing))
 	shown = rigs.duplicate()
+	_shown_frame = [frame, frame]
 	return rigs
+
+
+## Profondeur du couple (3D) : quand les bassins se rapprochent à moins de COUPLE_NEAR
+## unités, tori et uke s'écartent dans la profondeur. Dans un seul plan, deux corps qui
+## se collent (entrée de hanche, o-soto, ura-nage) se traversaient : la poitrine de l'un
+## sortait du dos de l'autre. Tori part vers son côté libre (la gauche d'un droitier) —
+## o-soto : le pied d'appui se pose à côté de la jambe droite d'uke — et uke à l'opposé.
+const COUPLE_NEAR := 30.0
+const COUPLE_DEPTH := 0.24   # écart de profondeur au contact (m)
+const COUPLE_HEAD_NEAR := 24.0  # têtes plus proches que ça (unités) : on les décale aussi
+func _couple_depth(rigs: Array, tori: int, facing: int) -> void:
+	if rigs[0] == null or rigs[1] == null:
+		return
+	var hx := []
+	var hd := []
+	for i in 2:
+		hx.append((rigs[i].xf * Vector2(rigs[i].pose.get("hip", Art.HIP0))).x)
+		hd.append(Art.torso_point(rigs[i].xf, rigs[i].pose, Art.HEAD_CENTER))
+	var dx: float = absf(hx[1] - hx[0]) / K
+	var sep: float = smoothstep(0.0, 1.0, clampf((COUPLE_NEAR - dx) / COUPLE_NEAR, 0.0, 1.0)) * COUPLE_DEPTH
+	# les têtes aussi : deux judokas penchés l'un vers l'autre (ko-uchi, entrée de hanche)
+	# se retrouvaient visage contre visage, comme s'ils s'embrassaient ; la tête de tori
+	# passe à côté de celle d'uke
+	var dh: float = Vector2(hd[1] - hd[0]).length() / K
+	var hk: float = smoothstep(0.0, 1.0, clampf((COUPLE_HEAD_NEAR - dh) / COUPLE_HEAD_NEAR, 0.0, 1.0))
+	sep = maxf(sep, hk * COUPLE_DEPTH * 1.15)
+	if sep <= 0.0:
+		return
+	var droitier: bool = String(sim.state.fighters[tori].get("garde", "droitier")) != "gaucher"
+	var sz: float = float(-facing if droitier else facing)
+	for i in 2:
+		var p: Dictionary = rigs[i].pose.duplicate()
+		p.depth = sz * sep * (0.6 if i == tori else -0.4)
+		# visages qui se détournent, chacun vers son côté, tori tête baissée
+		p.head_side = sz * hk * (1.0 if i == tori else -0.7)
+		p.tilt = float(p.get("tilt", 0.0)) + hk * (0.3 if i == tori else 0.12)
+		rigs[i] = {"xf": rigs[i].xf, "pose": p}
 
 
 ## Mains en coordonnées écran : saisies sur le judogi adverse (qui suivent son buste).

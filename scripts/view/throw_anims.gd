@@ -79,11 +79,18 @@ static func _vec(a) -> Vector2:
 
 ## Clés d'une chorégraphie filmée, mises à l'échelle de la distance du combat
 ## (les x sont étirés de d / d0) et précédées de la garde du jeu.
+## L'écart affiché en garde (d) n'est pas celui du film (d0). On n'étire plus la
+## chorégraphie par d / d0 : à 38 unités pour un seoi filmé à 58, tout était tassé de
+## 35 % et tori entrait *dans* uke au lieu de venir se coller dos contre lui. L'écart est
+## absorbé pendant l'entrée (0 → ENTRY) : uke part de d, tori et uke glissent chacun de
+## la moitié de l'écart, puis le couple garde exactement les distances filmées.
 static func _mocap_keys(data: Dictionary, d: float, k0: Dictionary) -> Array:
-	var sx: float = d / maxf(1.0, float(data.d0))
+	var gap: float = d - float(data.d0)
 	var out := [k0]
 	for k in data.keys:
-		var key := {"p": float(k.p), "lin": true}
+		var p := float(k.p)
+		var w := smoothstep(0.0, ENTRY, p)
+		var key := {"p": p, "lin": true}
 		for who in ["tori", "uke"]:
 			var a: Dictionary = k[who]
 			var pose := {}
@@ -91,7 +98,8 @@ static func _mocap_keys(data: Dictionary, d: float, k0: Dictionary) -> Array:
 				var v = a.pose[name]
 				pose[name] = _vec(v) if typeof(v) == TYPE_ARRAY else float(v)
 			var pos := _vec(a.pos)
-			key[who] = _actor(Vector2(pos.x * sx, pos.y), float(a.rot), int(a.face), pose)
+			var off: float = gap * 0.5 * w if who == "tori" else gap * (1.0 - 0.5 * w)
+			key[who] = _actor(Vector2(pos.x + off, pos.y), float(a.rot), int(a.face), pose)
 		out.append(key)
 	return out
 

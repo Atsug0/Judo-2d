@@ -284,6 +284,9 @@ func pose(M: Dictionary, ground: bool = true, shift_in = null, grips: Dictionary
 		prev = pt
 	G["neck"] = _arc(G["chest"] * (J["tete"] - J["cou"]), M["tete"] - M["cou"]) * G["chest"]
 	G["head"] = G["neck"]
+	if M.has("yaw") and absf(float(M["yaw"])) > 1e-3:
+		# tête tournée sur le côté (corps à corps : les visages ne se font plus face)
+		G["head"] = Basis((M["tete"] - M["cou"]).normalized(), float(M["yaw"])) * G["neck"]
 	# --- bras : plan de flexion du coude imposé (le pli du coude suit le coude du jeu)
 	for s in ["L", "R"]:
 		var sg := 1.0 if s == "L" else -1.0
