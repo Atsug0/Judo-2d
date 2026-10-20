@@ -19,7 +19,7 @@ Direction artistique inspirée de **2XKO** (panneaux inclinés, encre épaisse, 
 - **Game Design Document** (doc Claude) : https://claude.ai/code/artifact/29beb0d2-f496-4822-b4f0-bcb6c0574a01
   (projet Claude Docs `29beb0d2-f496-4822-b4f0-bcb6c0574a01`, nœud `82e1757c-f40c`). Hugo veut que **toutes
   les décisions y soient centralisées** : le mettre à jour quand une mécanique, un réglage ou un pipeline change.
-  Il n'y a pas encore de section sur le pipeline 3D (sections 6 à 8 ci-dessous) : à ajouter.
+  Sections « Rendu des judokas » et « Animations des projections » ajoutées le 20/10 (avant « Plan d'action »).
 
 Préférences d'Hugo (à respecter sans qu'il ait à le redire) :
 - **Pousser régulièrement** sur GitHub (commit par étape cohérente, message en français, détaillé).
@@ -514,15 +514,9 @@ mains articulées, squelette 28 os avec colonne courbée et demi-tours progressi
 vidéos de présentation.
 
 À faire / pistes :
-- Planches de morceaux pour les autres judokas (homme bleu dédié, femmes blanche et bleue) : même prompt,
-  nouvelle annotation `tools/cutout/<j>.json`, puis `pal.cutout` selon `look.body3d` (homme / femme).
-  Aujourd'hui les légendes féminines s'affichent avec l'homme.
-- Arbitre encore en vectoriel : lui faire une planche aussi.
-- Images dessinées pour les moments clés (garde, chute d'uke, ippon) en complément du découpage.
-- Modèle **femme en judogi blanc** dédié (attendre le GLB d'Hugo → `art/modeles3d/femme_blanc.glb`).
-- Plus de **techniques filmées** (§7) : c'est ce qui rendra les projections naturelles.
-- Retoucher les chorégraphies dessinées les plus raides (uke en planche dans `hanche`, bras d'uke).
+- Une vidéo dédiée pour chacun des 5 contres (aujourd'hui `MOCAP_ALIAS`), puis la rotoscopier (§7.0).
+- Repli dessiné (`--decoupe`) : seule la planche de l'homme existe ; les légendes féminines y
+  s'affichent avec l'homme. Il faudrait une planche de morceaux femme (même prompt, §5.0).
 - Orientation de la main vers la prise (poignet), vrille d'avant-bras.
 - Tester le **versus à deux manettes** en vrai.
 - **En ligne** : rollback prêt côté simulation, réseau à brancher (phase 8 du GDD).
-- Mettre à jour le GDD avec le pipeline 3D.
