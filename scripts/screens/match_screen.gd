@@ -862,8 +862,12 @@ func _camera_target() -> Array:
 			var th: Dictionary = st.throw
 			if not th.is_empty():
 				var p = clampf(float(th.t) / float(cfg.throw_ticks), 0.0, 1.0)
-				c = Vector2(_throw_center(th), 470.0)
+				var tc: Vector2 = _throw_center(th)
+				c = Vector2(tc.x, 470.0)
 				z = 2.0 + (0.35 * sin(PI * minf(p * 1.2, 1.0)) if th.result == "ippon" else 0.12)
+				# le zoom de l'ippon ne doit jamais couper un judoka : uke couché loin de tori
+				# (o-soto, sumi-gaeshi) sortait du cadre
+				z = minf(z, 1180.0 / maxf(1.0, tc.y))
 			elif not st.newaza.is_empty():
 				c = Vector2(_newaza_center_x(st.newaza), NEWAZA_CAM_Y)
 				z = 2.0
@@ -875,6 +879,14 @@ func _camera_target() -> Array:
 		"ended":
 			z = 1.7
 			c = Vector2((_draw_x(0) + _draw_x(1)) * 0.5, 440.0)
+			# combat gagné sur projection : les judokas restent dessinés là où la chorégraphie
+			# les a posés (décalée pour tenir sur le tapis), pas aux positions de la simulation
+			if not st.newaza.is_empty():
+				c = Vector2(_newaza_center_x(st.newaza), NEWAZA_CAM_Y)
+			elif not st.throw.is_empty():
+				var tc2: Vector2 = _throw_center(st.throw)
+				c = Vector2(tc2.x, 450.0)
+				z = minf(z, 1180.0 / maxf(1.0, tc2.y))
 	if replaying:
 		z *= 1.18
 	return [c, z]
@@ -1346,8 +1358,10 @@ func _throw_frame(th: Dictionary) -> Array:
 	var ox: float = vp[0]
 	var lo: float = minf(ox + th.facing * ext.x * K, ox + th.facing * ext.y * K)
 	var hi: float = maxf(ox + th.facing * ext.x * K, ox + th.facing * ext.y * K)
-	var left := wx(cfg.mat_left) - 20.0 * K
-	var right := wx(cfg.mat_right) + 20.0 * K
+	# bornes = bords du tapis de combat : la caméra ne montre rien au-delà de x = 0 / W,
+	# et une marge plus large (zone de sécurité) laissait la tête d'uke hors champ
+	var left := wx(cfg.mat_left)
+	var right := wx(cfg.mat_right)
 	if hi - lo < right - left:
 		if lo < left:
 			ox += left - lo
@@ -1371,19 +1385,21 @@ func _throw_extent(tech: String, d: float) -> Vector2:
 	for k in Anims.keys(tech, d):
 		for who in ["tori", "uke"]:
 			var x: float = k[who].pos.x
-			lo = minf(lo, x - 45.0)
-			hi = maxf(hi, x + 45.0)
+			# 60 : demi-longueur d'un corps couché, bras de l'ukemi compris
+			lo = minf(lo, x - 60.0)
+			hi = maxf(hi, x + 60.0)
 	_ext_cache[key] = Vector2(lo, hi)
 	return _ext_cache[key]
 
 
-## Milieu (monde, px) des deux judokas tels qu'ils sont dessinés pendant la projection.
-func _throw_center(th: Dictionary) -> float:
+## Milieu (monde, px) des deux judokas tels qu'ils sont dessinés pendant la projection (x),
+## et largeur occupée par le couple, corps compris (y).
+func _throw_center(th: Dictionary) -> Vector2:
 	var fr: Array = _throw_frame(th)
 	var smp: Dictionary = Anims.sample(Anims.keys(th.tech, fr[1]), _throw_progress(th))
 	var a: Vector2 = Anims.actor_xform(fr[0], smp.tori) * Vector2(smp.tori.pose.get("hip", Art.HIP0))
 	var b: Vector2 = Anims.actor_xform(fr[0], smp.uke) * Vector2(smp.uke.pose.get("hip", Art.HIP0))
-	return (a.x + b.x) * 0.5
+	return Vector2((a.x + b.x) * 0.5, absf(a.x - b.x) + 2.0 * 48.0 * K)
 
 
 func _throw_rigs(th: Dictionary) -> Array:
